@@ -1,0 +1,32 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#DCE6F6"/>
+  <rect y="610" width="1200" height="290" fill="#62804A"/>
+  <path d="M0 640C130 590 240 580 360 610C505 646 590 724 732 714C908 701 1028 592 1200 576V900H0V640Z" fill="#73935B"/>
+  <rect x="622" y="340" width="335" height="302" rx="6" fill="#EEE7E1"/>
+  <rect x="668" y="383" width="244" height="224" rx="4" fill="#F7F0EA"/>
+  <path d="M589 378L792 225L1014 378H589Z" fill="#2B3558"/>
+  <path d="M724 244L825 165L935 244H724Z" fill="#3A476E"/>
+  <rect x="805" y="183" width="36" height="75" rx="4" fill="#202944"/>
+  <rect x="700" y="447" width="70" height="84" rx="4" fill="#C7A35F"/>
+  <rect x="811" y="447" width="70" height="84" rx="4" fill="#C7A35F"/>
+  <rect x="761" y="541" width="99" height="101" rx="4" fill="#D7D9E7"/>
+  <rect x="603" y="560" width="24" height="82" rx="8" fill="#F1E9DE"/>
+  <rect x="949" y="560" width="24" height="82" rx="8" fill="#F1E9DE"/>
+  <path d="M1020 400H1112V642H1000C1000 542 1007 465 1020 400Z" fill="#1A2541"/>
+  <path d="M999 385L1070 312L1165 385H999Z" fill="#283458"/>
+  <rect x="1050" y="452" width="42" height="63" rx="4" fill="#C7A35F"/>
+  <rect x="1038" y="554" width="72" height="88" rx="4" fill="#D5D8E8"/>
+  <path d="M714 245L825 165L910 228L792 225L714 245Z" fill="#465683" fill-opacity=".5"/>
+  <rect x="679" y="401" width="30" height="36" rx="4" fill="#E7EDF7"/>
+  <rect x="873" y="401" width="30" height="36" rx="4" fill="#E7EDF7"/>
+  <rect x="783" y="282" width="33" height="42" rx="4" fill="#EBF1FA"/>
+  <path d="M203 704H471V736H203V704Z" fill="#404448" fill-opacity=".18"/>
+  <rect x="289" y="470" width="145" height="222" rx="6" fill="#1A2541"/>
+  <rect x="309" y="490" width="105" height="146" rx="4" fill="#243154"/>
+  <rect x="338" y="633" width="48" height="128" fill="#62666A"/>
+  <rect x="360" y="522" width="4" height="82" fill="#D8A948"/>
+  <path d="M96 706C175 656 222 644 305 650C359 654 417 684 471 704L96 706Z" fill="#4E5F3D"/>
+  <circle cx="735" cy="489" r="37" fill="#FFD889" fill-opacity=".55"/>
+  <circle cx="846" cy="489" r="37" fill="#FFD889" fill-opacity=".55"/>
+  <circle cx="1071" cy="480" r="26" fill="#FFD889" fill-opacity=".55"/>
+</svg>
