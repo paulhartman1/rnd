@@ -4,24 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-
-type IntakeAnswers = {
-  listedWithAgent: string;
-  propertyType: string;
-  ownsLand: string;
-  repairsNeeded: string;
-  closeTimeline: string;
-  sellReason: string;
-  acceptableOffer: string;
-  streetAddress: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  smsConsent: boolean;
-};
+import { type IntakeAnswers } from "@/lib/leads";
 
 type ChoiceStep = {
   type: "choice";
@@ -158,6 +141,8 @@ export default function GetCashOfferPage() {
   const [answers, setAnswers] = useState<IntakeAnswers>(initialAnswers);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentStep = intakeSteps[currentStepIndex];
   const progress = Math.round(((currentStepIndex + 1) / intakeSteps.length) * 100);
@@ -191,15 +176,29 @@ export default function GetCashOfferPage() {
     );
   }, [answers, currentStep]);
 
-  const handleContinue = (event: FormEvent<HTMLFormElement>) => {
+  const handleContinue = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSubmitError(null);
 
     if (!currentStepIsValid) {
       return;
     }
 
     if (currentStepIndex === intakeSteps.length - 1) {
+      setIsSubmitting(true);
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(answers),
+      });
+
+      if (!response.ok) {
+        setSubmitError("We could not submit your request right now. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
       setSubmitted(true);
+      setIsSubmitting(false);
       return;
     }
     if (currentStepIndex === 0 && answers.listedWithAgent === "Yes") {
@@ -485,14 +484,21 @@ export default function GetCashOfferPage() {
             </button>
             <button
               type="submit"
-              disabled={!currentStepIsValid}
+              disabled={!currentStepIsValid || isSubmitting}
               className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {currentStepIndex === intakeSteps.length - 1
-                ? "Submit Offer Request"
+                ? isSubmitting
+                  ? "Submitting..."
+                  : "Submit Offer Request"
                 : "Continue"}
             </button>
           </div>
+          {submitError ? (
+            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </p>
+          ) : null}
         </form>
       </section>
     </main>

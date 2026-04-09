@@ -96,6 +96,12 @@ export default function Home() {
                 {link.label}
               </a>
             ))}
+            <a
+              href="/admin/login"
+              className="underline decoration-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-primary-gold)] hover:decoration-[var(--color-primary-gold)]"
+            >
+              Admin Login
+            </a>
           </nav>
           <NavCtaLink />
         </div>

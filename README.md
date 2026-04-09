@@ -20,6 +20,29 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Supabase setup (database + auth)
+
+1. Create a Supabase project.
+2. In Supabase SQL Editor, run `supabase/schema.sql` from this repository.
+3. Copy `.env.example` to `.env.local` and set:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. In Supabase Authentication, create the owner/admin user (email + password) you will use to sign in.
+5. Start the app with `npm run dev`.
+
+### Production (Vercel)
+
+Add the same environment variables to your Vercel project settings for Preview and Production environments:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## Lead flow
+
+- `/get-cash-offer` submits the intake answers to `POST /api/leads`.
+- Data is persisted to Supabase in the `public.leads` table.
+- Admin signs in at `/admin/login` and manages leads at `/admin/leads`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
