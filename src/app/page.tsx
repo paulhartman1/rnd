@@ -219,7 +219,7 @@ export default function Home() {
         <aside className="rounded-[2rem] bg-[linear-gradient(180deg,#fff_0%,#f8f4ea_100%)] p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Client story</p>
           <blockquote className="mt-5 text-lg leading-8 text-[var(--color-navy)]">
-            “Rush N Dash made a stressful sale feel straightforward. The process was fast, the offer was clear, and communication stayed simple the entire way.”
+            “Rush N Dush made a stressful sale feel straightforward. The process was fast, the offer was clear, and communication stayed simple the entire way.”
           </blockquote>
           <p className="mt-5 text-sm font-bold text-[var(--color-muted)]">— Sarah M., homeowner</p>
           <div className="mt-8 flex items-center gap-2">
@@ -259,7 +259,7 @@ export default function Home() {
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-brand)]">Contact block</p>
             <div className="mt-5 space-y-3 text-sm text-white/78">
               <p>(123) 456-7890</p>
-              <p>offers@rushndash.com</p>
+              <p>offers@rushndush.com</p>
               <p>Serving local homeowners and off-market opportunities</p>
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -270,7 +270,7 @@ export default function Home() {
                 Call Now
               </a>
               <a
-                href="mailto:offers@rushndash.com"
+                href="mailto:offers@rushndush.com"
                 className="inline-flex items-center justify-center rounded-full border border-white/16 px-5 py-3 text-sm font-bold text-white"
               >
                 Email Team
