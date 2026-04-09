@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rush N Dash | Home Buyer CRM",
+  title: "Rush N Dush | Home Buyer CRM",
   description:
     "Mobile-first landing page for a cash home buyer business, designed as the foundation for future CRM and telephony workflows.",
 };
