@@ -1,4 +1,5 @@
 import Image from "next/image";
+import NavCtaLink from "./nav-cta-link";
 
 const primaryLinks = [
   { href: "#how-it-works", label: "How It Works" },
@@ -11,22 +12,22 @@ const benefits = [
   {
     title: "Any Condition",
     description: "Inherited homes, dated interiors, repairs, liens, or vacancy—we buy as-is.",
-    icon: "⌂",
+    iconClass: "fa-solid fa-house-chimney-window",
   },
   {
     title: "Close Fast",
     description: "Move from intake to signed offer quickly with a process built for speed.",
-    icon: "◔",
+    iconClass: "fa-solid fa-business-time",
   },
   {
     title: "No Hidden Fees",
     description: "No commissions, no cleanup crews, and no surprise closing charges.",
-    icon: "$",
+    iconClass: "fa-solid fa-money-bill-1-wave",
   },
   {
     title: "Local & Trusted",
     description: "A straightforward, relationship-first experience for sellers who need clarity.",
-    icon: "◎",
+    iconClass: "fa-solid fa-handshake-angle",
   },
 ];
 
@@ -71,7 +72,7 @@ const faqs = [
 export default function Home() {
   return (
     <main id="top" className="bg-[var(--color-surface)] text-[var(--color-ink)]">
-      <header className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur">
+      <header id="site-nav" className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <a href="#top" className="flex flex-col items-start gap-1">
             <Image
@@ -96,16 +97,13 @@ export default function Home() {
               </a>
             ))}
           </nav>
-          <a
-            href="/get-cash-offer"
-            className="inline-flex items-center justify-center rounded-lg bg-[var(--color-brand)] px-5 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 sm:px-6"
-          >
-            Get Cash Offer
-          </a>
+          <NavCtaLink />
         </div>
       </header>
-
-      <section className="relative overflow-hidden bg-[linear-gradient(135deg,var(--color-navy)_0%,#112547_60%,#0d1c35_100%)]">
+      <section
+        data-nav-section
+        className="relative overflow-hidden bg-[linear-gradient(135deg,var(--color-navy)_0%,#112547_60%,#0d1c35_100%)]"
+      >
         <div className="absolute inset-y-0 right-[-2px] hidden w-[calc(52vw+2px)] md:block">
           <Image
             src="/house.jpg"
@@ -144,7 +142,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="why-us" className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+      <section
+        id="why-us"
+        data-nav-section
+        className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20"
+      >
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Why sellers choose us</p>
           <h2 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
@@ -154,23 +156,20 @@ export default function Home() {
             The visual direction follows your reference image while positioning the product for future CRM workflows, call handling, and fast lead response.
           </p>
         </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-10 grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
           {benefits.map((benefit) => (
-            <article
-              key={benefit.title}
-              className="rounded-[1.75rem] border border-black/6 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-brand-soft)] text-2xl font-bold text-[var(--color-accent)]">
-                {benefit.icon}
-              </div>
-              <h3 className="mt-5 text-xl font-bold text-[var(--color-navy)]">{benefit.title}</h3>
+            <article key={benefit.title} className="p-1 text-center">
+              <i
+                className={`${benefit.iconClass} block text-3xl text-[var(--color-primary-gold)]`}
+                aria-hidden="true"
+              />
+              <h3 className="mt-4 text-xl font-bold text-[var(--color-navy)]">{benefit.title}</h3>
               <p className="mt-3 text-sm leading-6 text-[var(--color-muted)]">{benefit.description}</p>
             </article>
           ))}
         </div>
       </section>
-
-      <section id="how-it-works" className="bg-[var(--color-navy)] py-14 text-white lg:py-20">
+      <section id="how-it-works" data-nav-section className="bg-[var(--color-navy)] py-14 text-white lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-brand)]">How it works</p>
@@ -192,7 +191,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+      <section
+        data-nav-section
+        className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20"
+      >
         <div className="rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">About the platform</p>
           <h2 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
@@ -228,7 +230,7 @@ export default function Home() {
         </aside>
       </section>
 
-      <section id="faqs" className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <section id="faqs" data-nav-section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">FAQs</p>
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -242,7 +244,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="contact" className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+      <section id="contact" data-nav-section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="grid gap-6 rounded-[2.2rem] bg-[linear-gradient(135deg,var(--color-brand)_0%,#d59d32_100%)] p-6 text-[var(--color-navy)] shadow-[0_22px_60px_rgba(208,157,50,0.28)] lg:grid-cols-[1fr_0.9fr] lg:p-8">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-navy)]/70">Ready to launch</p>

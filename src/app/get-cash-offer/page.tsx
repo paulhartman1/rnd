@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 
 type IntakeAnswers = {
@@ -153,6 +154,7 @@ const initialAnswers: IntakeAnswers = {
 };
 
 export default function GetCashOfferPage() {
+  const router = useRouter();
   const [answers, setAnswers] = useState<IntakeAnswers>(initialAnswers);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -198,6 +200,10 @@ export default function GetCashOfferPage() {
 
     if (currentStepIndex === intakeSteps.length - 1) {
       setSubmitted(true);
+      return;
+    }
+    if (currentStepIndex === 0 && answers.listedWithAgent === "Yes") {
+      router.push("/get-cash-offer/bye-felicia");
       return;
     }
 
