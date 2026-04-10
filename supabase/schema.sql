@@ -65,3 +65,10 @@ for update
 to authenticated
 using (true)
 with check (true);
+
+drop policy if exists "Authenticated can delete leads" on public.leads;
+create policy "Authenticated can delete leads"
+on public.leads
+for delete
+to authenticated
+using (true);

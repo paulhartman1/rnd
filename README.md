@@ -26,22 +26,34 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 2. In Supabase SQL Editor, run `supabase/schema.sql` from this repository.
 3. Copy `.env.example` to `.env.local` and set:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+   - Optional but recommended for server API routes: `SUPABASE_SERVICE_ROLE_KEY`
 4. In Supabase Authentication, create the owner/admin user (email + password) you will use to sign in.
-5. Start the app with `npm run dev`.
+5. Set Twilio variables for voice calls from admin:
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_PHONE_NUMBER` (Twilio number used as the outbound caller ID)
+   - `TWILIO_FORWARD_TO_NUMBER` (your phone; lead gets bridged to this when they answer)
+   - Optional: `TWILIO_CALL_URL` (advanced override for custom TwiML URL)
+6. Start the app with `npm run dev`.
 
 ### Production (Vercel)
 
 Add the same environment variables to your Vercel project settings for Preview and Production environments:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+- Optional but recommended: `SUPABASE_SERVICE_ROLE_KEY`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER`
 
 ## Lead flow
 
 - `/get-cash-offer` submits the intake answers to `POST /api/leads`.
 - Data is persisted to Supabase in the `public.leads` table.
 - Admin signs in at `/admin/login` and manages leads at `/admin/leads`.
+- Admin can initiate outbound calls to leads via Twilio Voice from the lead card.
 
 ## Learn More
 

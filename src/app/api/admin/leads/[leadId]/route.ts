@@ -41,3 +41,27 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<Params> },
+) {
+  const { leadId } = await params;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const { error } = await supabase.from("leads").delete().eq("id", leadId);
+
+  if (error) {
+    return NextResponse.json({ error: "Unable to remove lead." }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

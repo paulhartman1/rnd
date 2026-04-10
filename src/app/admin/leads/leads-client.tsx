@@ -8,7 +8,10 @@ type LeadDraftState = {
   status: LeadStatus;
   ownerNotes: string;
   isSaving: boolean;
+  isCalling: boolean;
+  isRemoving: boolean;
   error: string | null;
+  callMessage: string | null;
 };
 
 type Props = {
@@ -20,7 +23,10 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
     status: lead.status,
     ownerNotes: lead.owner_notes ?? "",
     isSaving: false,
+    isCalling: false,
+    isRemoving: false,
     error: null,
+    callMessage: null,
   };
 }
 
@@ -83,6 +89,69 @@ export default function LeadsClient({ initialLeads }: Props) {
       ),
     );
     updateDraft(leadId, { isSaving: false, error: null });
+  };
+
+  const callLead = async (leadId: string) => {
+    const draft = drafts[leadId];
+    if (!draft) return;
+
+    updateDraft(leadId, { isCalling: true, error: null, callMessage: null });
+
+    const response = await fetch(`/api/admin/leads/${leadId}/call`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      updateDraft(leadId, {
+        isCalling: false,
+        error: body?.error ?? "Could not place call. Please try again.",
+      });
+      return;
+    }
+
+    updateDraft(leadId, {
+      isCalling: false,
+      error: null,
+      callMessage: "Call initiated in Twilio.",
+    });
+  };
+
+  const removeLead = async (leadId: string) => {
+    const draft = drafts[leadId];
+    if (!draft) return;
+
+    const confirmed = window.confirm(
+      "Remove this lead? This action cannot be undone.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    updateDraft(leadId, { isRemoving: true, error: null, callMessage: null });
+    const response = await fetch(`/api/admin/leads/${leadId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      updateDraft(leadId, {
+        isRemoving: false,
+        error: body?.error ?? "Could not remove this lead. Please try again.",
+      });
+      return;
+    }
+
+    setLeads((previous) => previous.filter((lead) => lead.id !== leadId));
+    setDrafts((previous) => {
+      const next = { ...previous };
+      delete next[leadId];
+      return next;
+    });
   };
 
   const signOut = async () => {
@@ -199,15 +268,36 @@ export default function LeadsClient({ initialLeads }: Props) {
                 {draft.error ? (
                   <p className="text-sm text-red-700">{draft.error}</p>
                 ) : null}
+                {draft.callMessage ? (
+                  <p className="text-sm text-emerald-700">{draft.callMessage}</p>
+                ) : null}
 
-                <button
-                  type="button"
-                  onClick={() => saveLead(lead.id)}
-                  disabled={draft.isSaving}
-                  className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {draft.isSaving ? "Saving..." : "Save"}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => saveLead(lead.id)}
+                    disabled={draft.isSaving || draft.isCalling || draft.isRemoving}
+                    className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {draft.isSaving ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => callLead(lead.id)}
+                    disabled={draft.isCalling || draft.isSaving || draft.isRemoving}
+                    className="inline-flex items-center justify-center rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {draft.isCalling ? "Calling..." : "Call Client"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeLead(lead.id)}
+                    disabled={draft.isRemoving || draft.isSaving || draft.isCalling}
+                    className="inline-flex items-center justify-center rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {draft.isRemoving ? "Removing..." : "Remove Lead"}
+                  </button>
+                </div>
               </div>
             </div>
           </article>
