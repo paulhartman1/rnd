@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isLeadStatus } from "@/lib/leads";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type Params = {
   leadId: string;
@@ -21,19 +21,20 @@ export async function PATCH(
   const ownerNotes =
     typeof body.ownerNotes === "string" ? body.ownerNotes.trim() : null;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createAdminClient();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Server configuration error" },
+      { status: 500 },
+    );
   }
 
   const { error } = await supabase
     .from("leads")
     .update({ status: nextStatus, owner_notes: ownerNotes })
-    .eq("id", leadId);
+    .eq("id", leadId)
+    .is("deleted_at", null);
 
   if (error) {
     return NextResponse.json({ error: "Unable to update lead." }, { status: 500 });
@@ -48,19 +49,32 @@ export async function DELETE(
 ) {
   const { leadId } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createAdminClient();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Server configuration error" },
+      { status: 500 },
+    );
   }
 
-  const { error } = await supabase.from("leads").delete().eq("id", leadId);
+  const { data, error } = await supabase
+    .from("leads")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", leadId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: "Unable to remove lead." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Unable to mark lead as deleted." },
+      { status: 500 },
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json({ error: "Lead not found." }, { status: 404 });
   }
 
   return NextResponse.json({ success: true });

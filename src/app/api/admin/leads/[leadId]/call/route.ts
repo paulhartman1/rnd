@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type Params = {
   leadId: string;
@@ -33,19 +33,20 @@ export async function POST(
 ) {
   const { leadId } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createAdminClient();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Server configuration error" },
+      { status: 500 },
+    );
   }
 
   const { data: lead, error: leadError } = await supabase
     .from("leads")
     .select("full_name, phone")
     .eq("id", leadId)
+    .is("deleted_at", null)
     .single();
 
   if (leadError || !lead) {

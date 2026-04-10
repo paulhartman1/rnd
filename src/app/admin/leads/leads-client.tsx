@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { leadStatuses, type LeadRow, type LeadStatus } from "@/lib/leads";
+import {
+  appointmentStatuses,
+  type AppointmentStatus,
+} from "@/lib/appointments";
 import { createClient } from "@/lib/supabase/client";
 
 type LeadDraftState = {
@@ -40,8 +44,62 @@ export default function LeadsClient({ initialLeads }: Props) {
     return nextState;
   });
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
+  const [appointmentDraft, setAppointmentDraft] = useState({
+    title: "",
+    description: "",
+    startTime: new Date().toISOString().slice(0, 16),
+    endTime: "",
+    location: "",
+    status: "scheduled" as AppointmentStatus,
+    isSaving: false,
+    error: null as string | null,
+  });
 
-  const hasLeads = useMemo(() => leads.length > 0, [leads.length]);
+  const visibleLeads = useMemo(() => {
+    let filtered = leads.filter((lead) => showDeleted || !lead.deleted_at);
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (lead) =>
+          lead.full_name.toLowerCase().includes(query) ||
+          lead.email.toLowerCase().includes(query) ||
+          lead.phone.toLowerCase().includes(query) ||
+          lead.street_address.toLowerCase().includes(query) ||
+          lead.city.toLowerCase().includes(query) ||
+          lead.state.toLowerCase().includes(query) ||
+          lead.property_type.toLowerCase().includes(query),
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((lead) => lead.status === statusFilter);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (sortBy === "newest") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortBy === "oldest") {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else {
+        // name
+        return a.full_name.localeCompare(b.full_name);
+      }
+    });
+
+    return filtered;
+  }, [leads, showDeleted, searchQuery, statusFilter, sortBy]);
+
+  const hasVisibleLeads = visibleLeads.length > 0;
 
   const updateDraft = (leadId: string, patch: Partial<LeadDraftState>) => {
     setDrafts((previous) => ({
@@ -124,7 +182,7 @@ export default function LeadsClient({ initialLeads }: Props) {
     if (!draft) return;
 
     const confirmed = window.confirm(
-      "Remove this lead? This action cannot be undone.",
+      "Mark this lead as deleted? It will be hidden from the dashboard.",
     );
     if (!confirmed) {
       return;
@@ -141,7 +199,7 @@ export default function LeadsClient({ initialLeads }: Props) {
         | null;
       updateDraft(leadId, {
         isRemoving: false,
-        error: body?.error ?? "Could not remove this lead. Please try again.",
+        error: body?.error ?? "Could not delete this lead. Please try again.",
       });
       return;
     }
@@ -161,17 +219,86 @@ export default function LeadsClient({ initialLeads }: Props) {
     window.location.assign("/admin/login");
   };
 
-  if (!hasLeads) {
-    return (
-      <section className="rounded-[1.4rem] border border-black/6 bg-white px-6 py-5 text-sm text-[var(--color-muted)] shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
-        No leads yet.
-      </section>
-    );
-  }
+  const getDefaultEndTime = (startTime: string) => {
+    const start = new Date(startTime);
+    start.setHours(start.getHours() + 1);
+    return start.toISOString().slice(0, 16);
+  };
+
+  const openAppointmentModal = (leadId: string) => {
+    const now = new Date().toISOString().slice(0, 16);
+    setSchedulingLeadId(leadId);
+    setAppointmentDraft({
+      title: "",
+      description: "",
+      startTime: now,
+      endTime: getDefaultEndTime(now),
+      location: "",
+      status: "scheduled",
+      isSaving: false,
+      error: null,
+    });
+    setShowAppointmentModal(true);
+  };
+
+  const closeAppointmentModal = () => {
+    setShowAppointmentModal(false);
+    setSchedulingLeadId(null);
+  };
+
+  const saveAppointment = async () => {
+    if (!schedulingLeadId || !appointmentDraft.title) return;
+
+    setAppointmentDraft((prev) => ({ ...prev, isSaving: true, error: null }));
+
+    const response = await fetch("/api/admin/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leadId: schedulingLeadId,
+        title: appointmentDraft.title,
+        description: appointmentDraft.description || null,
+        startTime: new Date(appointmentDraft.startTime).toISOString(),
+        endTime: new Date(appointmentDraft.endTime).toISOString(),
+        location: appointmentDraft.location || null,
+        status: appointmentDraft.status,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      setAppointmentDraft((prev) => ({
+        ...prev,
+        isSaving: false,
+        error: body?.error ?? "Could not create appointment. Please try again.",
+      }));
+      return;
+    }
+
+    setAppointmentDraft((prev) => ({ ...prev, isSaving: false, error: null }));
+    closeAppointmentModal();
+  };
+
 
   return (
     <section className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-navy)]">
+            <input
+              type="checkbox"
+              checked={showDeleted}
+              onChange={(event) => setShowDeleted(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20 text-[var(--color-primary-gold)] focus:ring-[var(--color-primary-gold)]"
+            />
+            Show deleted leads
+          </label>
+          <span className="text-sm text-[var(--color-muted)]">
+            {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
+          </span>
+        </div>
         <button
           type="button"
           onClick={signOut}
@@ -182,22 +309,126 @@ export default function LeadsClient({ initialLeads }: Props) {
         </button>
       </div>
 
-      {leads.map((lead) => {
-        const draft = drafts[lead.id];
-        if (!draft) {
-          return null;
-        }
+      <div className="rounded-[1.4rem] border border-black/6 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="sm:col-span-2">
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                Search
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Name, email, phone, address..."
+                className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+              />
+            </label>
+          </div>
 
-        return (
-          <article
-            key={lead.id}
-            className="rounded-[1.4rem] border border-black/6 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]"
-          >
-            <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-2 text-sm text-[var(--color-navy)]">
-                <h2 className="text-xl font-black tracking-tight">
-                  {lead.full_name} — {lead.property_type}
-                </h2>
+          <div>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                Filter by Status
+              </span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as LeadStatus | "all")}
+                className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+              >
+                <option value="all">All statuses</option>
+                {leadStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                Sort by
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "name")}
+                className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="name">Name (A-Z)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {(searchQuery || statusFilter !== "all") && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)]"
+              >
+                Search: {searchQuery}
+                <span className="text-lg leading-none">×</span>
+              </button>
+            )}
+            {statusFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)]"
+              >
+                Status: {statusFilter}
+                <span className="text-lg leading-none">×</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+              }}
+              className="text-xs font-semibold text-[var(--color-muted)] underline underline-offset-2"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+      </div>
+
+      {!hasVisibleLeads ? (
+        <article className="rounded-[1.4rem] border border-black/6 bg-white px-6 py-5 text-sm text-[var(--color-muted)] shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
+          {showDeleted
+            ? "No deleted leads found."
+            : "No active leads found. Enable “Show deleted leads” to view deleted entries."}
+        </article>
+      ) : (
+        visibleLeads.map((lead) => {
+          const draft = drafts[lead.id];
+          if (!draft) {
+            return null;
+          }
+          const isDeleted = Boolean(lead.deleted_at);
+
+          return (
+            <article
+              key={lead.id}
+              className="rounded-[1.4rem] border border-black/6 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]"
+            >
+              <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className="space-y-2 text-sm text-[var(--color-navy)]">
+                  <h2 className="text-xl font-black tracking-tight">
+                    {lead.full_name} — {lead.property_type}
+                  </h2>
+                  {isDeleted ? (
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">
+                      Deleted
+                    </p>
+                  ) : null}
                 <p className="text-[var(--color-muted)]">{lead.street_address}</p>
                 <p className="text-[var(--color-muted)]">
                   {lead.city}, {lead.state} {lead.postal_code}
@@ -232,13 +463,14 @@ export default function LeadsClient({ initialLeads }: Props) {
                 </p>
               </div>
 
-              <div className="space-y-3 rounded-xl border border-black/8 bg-[var(--color-surface-soft)] p-4">
+                <div className="space-y-3 rounded-xl border border-black/8 bg-[var(--color-surface-soft)] p-4">
                 <label className="block">
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
                     Status
                   </span>
                   <select
                     value={draft.status}
+                    disabled={isDeleted}
                     onChange={(event) =>
                       updateDraft(lead.id, { status: event.target.value as LeadStatus })
                     }
@@ -257,6 +489,7 @@ export default function LeadsClient({ initialLeads }: Props) {
                   </span>
                   <textarea
                     value={draft.ownerNotes}
+                    disabled={isDeleted}
                     onChange={(event) =>
                       updateDraft(lead.id, { ownerNotes: event.target.value })
                     }
@@ -276,7 +509,7 @@ export default function LeadsClient({ initialLeads }: Props) {
                   <button
                     type="button"
                     onClick={() => saveLead(lead.id)}
-                    disabled={draft.isSaving || draft.isCalling || draft.isRemoving}
+                    disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
                     className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {draft.isSaving ? "Saving..." : "Save"}
@@ -284,25 +517,183 @@ export default function LeadsClient({ initialLeads }: Props) {
                   <button
                     type="button"
                     onClick={() => callLead(lead.id)}
-                    disabled={draft.isCalling || draft.isSaving || draft.isRemoving}
+                    disabled={isDeleted || draft.isCalling || draft.isSaving || draft.isRemoving}
                     className="inline-flex items-center justify-center rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {draft.isCalling ? "Calling..." : "Call Client"}
                   </button>
                   <button
                     type="button"
+                    onClick={() => openAppointmentModal(lead.id)}
+                    disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
+                    className="inline-flex items-center justify-center rounded-lg border border-emerald-200 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    Schedule Appointment
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => removeLead(lead.id)}
-                    disabled={draft.isRemoving || draft.isSaving || draft.isCalling}
+                    disabled={isDeleted || draft.isRemoving || draft.isSaving || draft.isCalling}
                     className="inline-flex items-center justify-center rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    {draft.isRemoving ? "Removing..." : "Remove Lead"}
+                    {isDeleted ? "Deleted" : draft.isRemoving ? "Deleting..." : "Delete Lead"}
                   </button>
                 </div>
               </div>
             </div>
           </article>
-        );
-      })}
+          );
+        })
+      )}
+
+      {showAppointmentModal && schedulingLeadId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[1.4rem] border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
+            <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
+              Schedule Appointment
+            </h3>
+
+            {(() => {
+              const lead = leads.find((l) => l.id === schedulingLeadId);
+              if (!lead) return null;
+              return (
+                <div className="mb-4 rounded-lg bg-[var(--color-surface-soft)] p-3 text-sm text-[var(--color-navy)]">
+                  <p className="font-bold">{lead.full_name}</p>
+                  <p className="text-[var(--color-muted)]">
+                    {lead.street_address}, {lead.city}, {lead.state}
+                  </p>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Title
+                </span>
+                <input
+                  type="text"
+                  value={appointmentDraft.title}
+                  onChange={(e) =>
+                    setAppointmentDraft({ ...appointmentDraft, title: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="Property visit, Follow-up call, etc."
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Description
+                </span>
+                <textarea
+                  value={appointmentDraft.description}
+                  onChange={(e) =>
+                    setAppointmentDraft({ ...appointmentDraft, description: e.target.value })
+                  }
+                  rows={3}
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="Additional notes..."
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    Start Time
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={appointmentDraft.startTime}
+                    onChange={(e) =>
+                      setAppointmentDraft({
+                        ...appointmentDraft,
+                        startTime: e.target.value,
+                        endTime: getDefaultEndTime(e.target.value),
+                      })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    End Time
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={appointmentDraft.endTime}
+                    onChange={(e) =>
+                      setAppointmentDraft({ ...appointmentDraft, endTime: e.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Location
+                </span>
+                <input
+                  type="text"
+                  value={appointmentDraft.location}
+                  onChange={(e) =>
+                    setAppointmentDraft({ ...appointmentDraft, location: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="Property address, office, phone, etc."
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Status
+                </span>
+                <select
+                  value={appointmentDraft.status}
+                  onChange={(e) =>
+                    setAppointmentDraft({
+                      ...appointmentDraft,
+                      status: e.target.value as AppointmentStatus,
+                    })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                >
+                  {appointmentStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {appointmentDraft.error && (
+                <p className="text-sm text-red-700">{appointmentDraft.error}</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={saveAppointment}
+                  disabled={appointmentDraft.isSaving || !appointmentDraft.title}
+                  className="flex-1 rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {appointmentDraft.isSaving ? "Saving..." : "Create Appointment"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeAppointmentModal}
+                  disabled={appointmentDraft.isSaving}
+                  className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
