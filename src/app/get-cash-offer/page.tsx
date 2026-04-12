@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { type IntakeAnswers } from "@/lib/leads";
+import { isValidEmail, isValidPhone } from "@/lib/validation";
 
 type ChoiceStep = {
   type: "choice";
@@ -71,41 +72,41 @@ const intakeSteps: IntakeStep[] = [
   {
     type: "choice",
     field: "repairsNeeded",
-    question: "How would you describe the repairs needed?",
-    helper: "Pick the option that best applies.",
+    question: "What's the current condition of the property?",
+    helper: "Don't worry—we buy houses in any condition.",
     options: [
-      "Major Renovations $$$ - Full Gut Job",
-      "Minor Renovations $$ - Kitchen, Bathroom, Roof",
-      "Cosmetic Work $ - Flooring, Paint",
-      "Excellent - Fully renovated and updated in past 2 years",
+      "Needs major work (foundation, structural, full renovation)",
+      "Needs some repairs (roof, kitchen, bathroom)",
+      "Needs minor updates (paint, flooring, cosmetic)",
+      "Move-in ready (recently renovated)",
     ],
   },
   {
     type: "choice",
     field: "closeTimeline",
-    question: "How soon are you looking to finalize the sale?",
-    options: ["ASAP", "0-14 Days", "14-30 Days", "30-60 Days", "60-90 Days", "6 Months +"],
+    question: "When do you need to close?",
+    options: ["As soon as possible", "Within 2 weeks", "Within 1 month", "1-2 months", "2-3 months", "I'm flexible"],
   },
   {
     type: "choice",
     field: "sellReason",
-    question: "Reason for wanting to sell?",
+    question: "What's prompting you to sell?",
     options: [
-      "Inherited",
-      "Divorce",
-      "Too Many Repairs",
-      "Tired Landlord",
-      "Pre-foreclosure / Foreclosure",
-      "Emergency Reasons",
-      "Just Curious",
+      "Inherited property",
+      "Divorce or separation",
+      "Can't afford repairs",
+      "Done being a landlord",
+      "Facing foreclosure",
+      "Job relocation",
+      "Just exploring my options",
     ],
   },
   {
     type: "text",
     field: "acceptableOffer",
     question:
-      "If we offered you cash, paid all closing costs, and closed on your timeline, what is the lowest acceptable offer you would take?",
-    placeholder: "$250,000",
+      "What's the lowest cash offer you'd accept?",
+    placeholder: "e.g., $250,000",
   },
   {
     type: "address",
@@ -113,8 +114,8 @@ const intakeSteps: IntakeStep[] = [
   },
   {
     type: "contact",
-    question: "Finally, who should we send the offer to?",
-    helper: "We will follow up with your no-obligation cash offer details.",
+    question: "Where should we send your cash offer?",
+    helper: "We'll send you a no-obligation offer within 24 hours.",
   },
 ];
 
@@ -143,6 +144,7 @@ export default function GetCashOfferPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ email?: string; phone?: string }>({});
 
   const currentStep = intakeSteps[currentStepIndex];
   const progress = Math.round(((currentStepIndex + 1) / intakeSteps.length) * 100);
@@ -168,10 +170,12 @@ export default function GetCashOfferPage() {
       );
     }
 
+    const emailValid = isValidEmail(answers.email);
+    const phoneValid = isValidPhone(answers.phone);
     return (
       answers.fullName.trim().length > 0 &&
-      /\S+@\S+\.\S+/.test(answers.email) &&
-      answers.phone.trim().length > 0 &&
+      emailValid &&
+      phoneValid &&
       answers.smsConsent
     );
   }, [answers, currentStep]);
@@ -179,6 +183,7 @@ export default function GetCashOfferPage() {
   const handleContinue = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
+    setValidationErrors({});
 
     if (!currentStepIsValid) {
       return;
@@ -186,20 +191,28 @@ export default function GetCashOfferPage() {
 
     if (currentStepIndex === intakeSteps.length - 1) {
       setIsSubmitting(true);
-      const response = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(answers),
-      });
+      try {
+        const response = await fetch("/api/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(answers),
+        });
 
-      if (!response.ok) {
-        setSubmitError("We could not submit your request right now. Please try again.");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || errorData.message || "We could not submit your request right now. Please try again.";
+          setSubmitError(errorMessage);
+          setIsSubmitting(false);
+          return;
+        }
+        setSubmitted(true);
+        setIsSubmitting(false);
+        return;
+      } catch (error) {
+        setSubmitError("Network error. Please check your connection and try again.");
         setIsSubmitting(false);
         return;
       }
-      setSubmitted(true);
-      setIsSubmitting(false);
-      return;
     }
     if (currentStepIndex === 0 && answers.listedWithAgent === "Yes") {
       router.push("/get-cash-offer/bye-felicia");
@@ -244,32 +257,31 @@ export default function GetCashOfferPage() {
         <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="rounded-[1.8rem] border border-black/6 bg-white p-7 shadow-[0_16px_45px_rgba(15,23,42,0.08)] sm:p-9">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
-              Intake received
+              Request received
             </p>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
-              Thanks, {answers.fullName.split(" ")[0] || "there"} — your request is in.
+              Thanks, {answers.fullName.split(" ")[0] || "there"}! We've got your information.
             </h1>
             <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
-              We’ll review the property details and reach out using the contact info you provided.
-              You can expect the next update from our team shortly.
+              We're reviewing your property details right now. Expect to hear from us within 24 hours with your cash offer.
             </p>
             <div className="mt-8 rounded-2xl bg-[var(--color-surface-soft)] p-5">
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
-                Next
+                What happens next
               </p>
               <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--color-navy)]">
-                <li>• Property details are reviewed against your timeline and condition notes.</li>
-                <li>• Our team follows up by phone/email to confirm any missing info.</li>
-                <li>• You receive your no-obligation cash offer details.</li>
+                <li>• We'll review your property and prepare a fair cash offer</li>
+                <li>• We'll call or email you within 24 hours with your offer</li>
+                <li>• If you accept, we'll schedule a closing date that works for you</li>
               </ul>
             </div>
             <div className="mt-8">
               <Link
                 href="/"
-                className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)]"
-              >
-                Return to Landing Page
-              </Link>
+              className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)]"
+            >
+              Return to Home
+            </Link>
             </div>
           </div>
         </section>
@@ -294,7 +306,7 @@ export default function GetCashOfferPage() {
                 Rush N Dush Logistics
               </p>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
-                Cash Offer Intake
+                Get Your Cash Offer
               </p>
             </div>
           </Link>
@@ -310,14 +322,13 @@ export default function GetCashOfferPage() {
       <section className="bg-[linear-gradient(135deg,var(--color-navy)_0%,#112547_60%,#0d1c35_100%)] text-white">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-primary-gold)]">
-            New part of the process
+            Get your cash offer
           </p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-            Let’s build your cash-offer request
+            Tell us about your property
           </h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-white/80">
-            This short intake mirrors the key qualification questions and helps us return a
-            no-obligation offer quickly.
+            Answer a few quick questions so we can prepare your no-obligation cash offer. This takes about 3 minutes.
           </p>
         </div>
       </section>
@@ -375,7 +386,7 @@ export default function GetCashOfferPage() {
             <div className="mt-7">
               <label className="block">
                 <span className="text-sm font-semibold text-[var(--color-muted)]">
-                  Lowest acceptable offer
+                  Your asking price
                 </span>
                 <input
                   type="text"
@@ -445,18 +456,57 @@ export default function GetCashOfferPage() {
                 <input
                   type="email"
                   value={answers.email}
-                  onChange={(event) => updateAnswer("email", event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)]"
+                  onChange={(event) => {
+                    updateAnswer("email", event.target.value);
+                    if (validationErrors.email) {
+                      setValidationErrors({ ...validationErrors, email: undefined });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (answers.email && !isValidEmail(answers.email)) {
+                      setValidationErrors({ ...validationErrors, email: "Please enter a valid email address" });
+                    }
+                  }}
+                  className={`mt-2 w-full rounded-xl border px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)] ${
+                    validationErrors.email ? "border-red-400" : "border-black/10"
+                  }`}
+                  aria-invalid={!!validationErrors.email}
+                  aria-describedby={validationErrors.email ? "email-error" : undefined}
                 />
+                {validationErrors.email && (
+                  <p id="email-error" className="mt-1 text-sm text-red-600">
+                    {validationErrors.email}
+                  </p>
+                )}
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-[var(--color-muted)]">Phone</span>
                 <input
                   type="tel"
                   value={answers.phone}
-                  onChange={(event) => updateAnswer("phone", event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)]"
+                  onChange={(event) => {
+                    updateAnswer("phone", event.target.value);
+                    if (validationErrors.phone) {
+                      setValidationErrors({ ...validationErrors, phone: undefined });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (answers.phone && !isValidPhone(answers.phone)) {
+                      setValidationErrors({ ...validationErrors, phone: "Please enter a valid 10-digit phone number" });
+                    }
+                  }}
+                  placeholder="(123) 456-7890"
+                  className={`mt-2 w-full rounded-xl border px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)] ${
+                    validationErrors.phone ? "border-red-400" : "border-black/10"
+                  }`}
+                  aria-invalid={!!validationErrors.phone}
+                  aria-describedby={validationErrors.phone ? "phone-error" : undefined}
                 />
+                {validationErrors.phone && (
+                  <p id="phone-error" className="mt-1 text-sm text-red-600">
+                    {validationErrors.phone}
+                  </p>
+                )}
               </label>
               <label className="mt-1 flex items-start gap-3 rounded-xl border border-black/8 bg-[var(--color-surface-soft)] px-4 py-3">
                 <input
@@ -466,8 +516,7 @@ export default function GetCashOfferPage() {
                   className="mt-1 h-4 w-4 accent-[var(--color-primary-gold)]"
                 />
                 <span className="text-sm leading-6 text-[var(--color-muted)]">
-                  I consent to receive SMS notifications, alerts, and occasional marketing
-                  communication from Rush N Dush Logistics LLC. Message/data rates may apply.
+                  I agree to receive text messages and calls from Rush N Dush Logistics about my cash offer. Message and data rates may apply. I can opt out anytime.
                 </span>
               </label>
             </div>

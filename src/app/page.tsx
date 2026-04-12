@@ -1,5 +1,7 @@
 import Image from "next/image";
+import { FaHouseChimneyWindow, FaBusinessTime, FaMoneyBillWave, FaHandshakeAngle } from "react-icons/fa6";
 import NavCtaLink from "./nav-cta-link";
+import TestimonialCarousel from "./testimonial-carousel";
 
 const primaryLinks = [
   { href: "#how-it-works", label: "How It Works" },
@@ -12,66 +14,72 @@ const benefits = [
   {
     title: "Any Condition",
     description: "Inherited homes, dated interiors, repairs, liens, or vacancy—we buy as-is.",
-    iconClass: "fa-solid fa-house-chimney-window",
+    Icon: FaHouseChimneyWindow,
   },
   {
     title: "Close Fast",
-    description: "Move from intake to signed offer quickly with a process built for speed.",
-    iconClass: "fa-solid fa-business-time",
+    description: "We can close in as little as 7 days, or on your schedule—whatever works best for you.",
+    Icon: FaBusinessTime,
   },
   {
     title: "No Hidden Fees",
     description: "No commissions, no cleanup crews, and no surprise closing charges.",
-    iconClass: "fa-solid fa-money-bill-1-wave",
+    Icon: FaMoneyBillWave,
   },
   {
     title: "Local & Trusted",
     description: "A straightforward, relationship-first experience for sellers who need clarity.",
-    iconClass: "fa-solid fa-handshake-angle",
+    Icon: FaHandshakeAngle,
   },
 ];
 
 const steps = [
   {
     number: "1",
-    title: "Tell Us About the Property",
-    description: "Submit a quick lead form from your phone and share the basics.",
+    title: "Tell Us About Your Property",
+    description: "Fill out a quick form with basic details about your house. Takes less than 3 minutes.",
   },
   {
     number: "2",
-    title: "Get a Cash Offer",
-    description: "We review the deal and follow up fast with a no-obligation offer.",
+    title: "Get a Fair Cash Offer",
+    description: "We'll review your property and send you a no-obligation cash offer within 24 hours.",
   },
   {
     number: "3",
-    title: "Pick a Closing Date",
-    description: "Choose a timeline that works for the seller, agent, or probate situation.",
+    title: "Choose Your Closing Date",
+    description: "Pick a timeline that works for you—whether that's 7 days or 3 months from now.",
   },
   {
     number: "4",
-    title: "Close & Move Forward",
-    description: "Get paid without repairs, open houses, or extended back-and-forth.",
+    title: "Close & Get Paid",
+    description: "Walk away with cash in hand. No repairs, no showings, no waiting.",
   },
 ];
 
 const faqs = [
   {
     question: "Do you buy houses that need repairs?",
-    answer: "Yes. We are set up for as-is purchases, including deferred maintenance and cleanup issues.",
+    answer: "Absolutely. We buy houses in any condition—whether it needs a new roof, major renovations, or is move-in ready. You don't have to fix a thing.",
   },
   {
     question: "How quickly can we close?",
-    answer: "Many deals can move quickly, but the seller controls the final closing timeline.",
+    answer: "We can close in as little as 7 days if you need to move fast. We can also work with your timeline if you need more time—you're in control.",
   },
   {
-    question: "Will this connect to a CRM later?",
-    answer: "Yes. This landing page is structured as a strong front-end foundation for a future CRM and telephony workflow.",
+    question: "Are there any fees or commissions?",
+    answer: "No. We pay all closing costs, and there are no agent commissions or hidden fees. The offer we make is what you walk away with.",
   },
 ];
 
 export default function Home() {
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE || "(123) 456-7890";
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "offers@rushndush.com";
+
   return (
     <main id="top" className="bg-[var(--color-surface)] text-[var(--color-ink)]">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-[var(--color-primary-gold)] focus:px-4 focus:py-2 focus:text-[var(--color-navy)] focus:font-bold">
+        Skip to main content
+      </a>
       <header id="site-nav" className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <a href="#top" className="flex flex-col items-start gap-1">
@@ -107,10 +115,11 @@ export default function Home() {
         </div>
       </header>
       <section
+        id="main-content"
         data-nav-section
         className="relative overflow-hidden bg-[linear-gradient(135deg,var(--color-navy)_0%,#112547_60%,#0d1c35_100%)]"
       >
-        <div className="absolute inset-y-0 right-[-2px] hidden w-[calc(52vw+2px)] md:block">
+        <div className="absolute inset-0 md:inset-y-0 md:right-[-2px] md:left-auto w-full md:w-[calc(52vw+2px)] opacity-30 md:opacity-100">
           <Image
             src="/house.jpg"
             alt="House exterior for the hero section"
@@ -119,7 +128,7 @@ export default function Home() {
             sizes="(min-width: 1024px) 52vw, 100vw"
             className="object-cover object-center scale-[1.03]"
           />
-          <div className="pointer-events-none absolute inset-y-0 -left-[50px] w-[226px] bg-gradient-to-r from-[#112547] via-[#112547]/70 to-transparent lg:w-[274px]" />
+          <div className="pointer-events-none absolute inset-0 md:inset-y-0 md:-left-[50px] w-full md:w-[226px] lg:w-[274px] bg-gradient-to-b md:bg-gradient-to-r from-[#112547] via-[#112547]/70 to-transparent" />
         </div>
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="py-14 md:max-w-[44%] lg:py-20">
@@ -154,19 +163,19 @@ export default function Home() {
         className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20"
       >
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Why sellers choose us</p>
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Why homeowners trust us</p>
           <h2 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
-            We make selling your house easier on mobile and faster behind the scenes
+            Sell your house the easy way—no repairs, no fees, no stress
           </h2>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
-            The visual direction follows your reference image while positioning the product for future CRM workflows, call handling, and fast lead response.
+            We handle everything from initial contact to closing, with a streamlined process designed to get you a fair cash offer quickly—no hassles, no surprises.
           </p>
         </div>
         <div className="mt-10 grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
           {benefits.map((benefit) => (
             <article key={benefit.title} className="p-1 text-center">
-              <i
-                className={`${benefit.iconClass} block text-3xl text-[var(--color-primary-gold)]`}
+              <benefit.Icon
+                className="mx-auto text-3xl text-[var(--color-primary-gold)]"
                 aria-hidden="true"
               />
               <h3 className="mt-4 text-xl font-bold text-[var(--color-navy)]">{benefit.title}</h3>
@@ -180,7 +189,7 @@ export default function Home() {
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-brand)]">How it works</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-              A clean path from lead capture to close
+              Four simple steps to sell your house fast
             </h2>
           </div>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -202,38 +211,26 @@ export default function Home() {
         className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20"
       >
         <div className="rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">About the platform</p>
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Why choose us</p>
           <h2 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
-            Designed like a landing page now, structured like a CRM later
+            A simple, transparent way to sell your home
           </h2>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
-            This direction supports a public-facing acquisition site while anticipating the next phase:
-            mobile-first admin tools, seller pipelines, and telephony integrations through Twilio or a similar provider.
+            From your first inquiry to the final closing, we keep you informed every step of the way. Our process is transparent, efficient, and built around your needs.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <div className="rounded-[1.4rem] bg-[var(--color-surface-soft)] p-4">
-              <p className="text-sm font-bold text-[var(--color-navy)]">Future admin views</p>
-              <p className="mt-2 text-sm text-[var(--color-muted)]">Lead status, callbacks, offer tracking, and seller notes on mobile.</p>
+              <p className="text-sm font-bold text-[var(--color-navy)]">Transparent Process</p>
+              <p className="mt-2 text-sm text-[var(--color-muted)]">Track your offer status and get real-time updates throughout the entire process.</p>
             </div>
             <div className="rounded-[1.4rem] bg-[var(--color-surface-soft)] p-4">
-              <p className="text-sm font-bold text-[var(--color-navy)]">Future telephony</p>
-              <p className="mt-2 text-sm text-[var(--color-muted)]">Click-to-call, SMS follow-up, call logging, and routing-ready UX.</p>
+              <p className="text-sm font-bold text-[var(--color-navy)]">Always Available</p>
+              <p className="mt-2 text-sm text-[var(--color-muted)]">Reach us anytime by phone, email, or text message for immediate assistance.</p>
             </div>
           </div>
         </div>
 
-        <aside className="rounded-[2rem] bg-[linear-gradient(180deg,#fff_0%,#f8f4ea_100%)] p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Client story</p>
-          <blockquote className="mt-5 text-lg leading-8 text-[var(--color-navy)]">
-            “Rush N Dush made a stressful sale feel straightforward. The process was fast, the offer was clear, and communication stayed simple the entire way.”
-          </blockquote>
-          <p className="mt-5 text-sm font-bold text-[var(--color-muted)]">— Sarah M., homeowner</p>
-          <div className="mt-8 flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-accent)]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-black/10" />
-            <span className="h-2.5 w-2.5 rounded-full bg-black/10" />
-          </div>
-        </aside>
+        <TestimonialCarousel />
       </section>
 
       <section id="faqs" data-nav-section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
@@ -253,31 +250,33 @@ export default function Home() {
       <section id="contact" data-nav-section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="grid gap-6 rounded-[2.2rem] bg-[linear-gradient(135deg,var(--color-brand)_0%,#d59d32_100%)] p-6 text-[var(--color-navy)] shadow-[0_22px_60px_rgba(208,157,50,0.28)] lg:grid-cols-[1fr_0.9fr] lg:p-8">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-navy)]/70">Ready to launch</p>
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-navy)]/70">Ready to get started</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-              Ready to turn this into a full home-buyer CRM?
+              Get your no-obligation cash offer today
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-navy)]/80">
-              This landing page now supports the visual tone, mobile hierarchy, and conversion flow needed for the next step: intake forms, admin actions, and call/text follow-up.
+              Submit your property details and receive a fair cash offer within 24 hours. No pressure, no obligations—just a straightforward path to selling your house on your terms.
             </p>
           </div>
           <div className="rounded-[1.8rem] bg-[var(--color-navy)] p-6 text-white">
-            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-brand)]">Contact block</p>
+            <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-brand)]">Contact us</p>
             <div className="mt-5 space-y-3 text-sm text-white/78">
-              <p>(123) 456-7890</p>
-              <p>offers@rushndush.com</p>
+              <p>{contactPhone}</p>
+              <p>{contactEmail}</p>
               <p>Serving local homeowners and off-market opportunities</p>
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <a
-                href="tel:1234567890"
+                href={`tel:${contactPhone.replace(/\D/g, '')}`}
                 className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-[var(--color-navy)]"
+                aria-label={`Call us at ${contactPhone}`}
               >
                 Call Now
               </a>
               <a
-                href="mailto:offers@rushndush.com"
+                href={`mailto:${contactEmail}`}
                 className="inline-flex items-center justify-center rounded-full border border-white/16 px-5 py-3 text-sm font-bold text-white"
+                aria-label={`Email us at ${contactEmail}`}
               >
                 Email Team
               </a>

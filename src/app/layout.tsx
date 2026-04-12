@@ -13,11 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rush N Dush | Logistics, LLC",
+  title: "Rush N Dush | Sell Your House Fast for Cash",
   description:
-    "Mobile-first landing page for a cash home buyer business, designed as the foundation for future CRM and telephony workflows.",
+    "Need to sell your house fast? Get a no-obligation cash offer from Rush N Dush Logistics. We buy houses in any condition. No repairs, no fees, close on your timeline.",
   icons: {
     icon: "/favicon.PNG",
+  },
+  openGraph: {
+    title: "Rush N Dush | Sell Your House Fast for Cash",
+    description:
+      "Need to sell your house fast? Get a no-obligation cash offer from Rush N Dush Logistics. We buy houses in any condition. No repairs, no fees, close on your timeline.",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rush N Dush | Sell Your House Fast for Cash",
+    description:
+      "Need to sell your house fast? Get a no-obligation cash offer from Rush N Dush Logistics. We buy houses in any condition.",
   },
 };
 
@@ -32,10 +45,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
-        />
         {children}
       </body>
     </html>
