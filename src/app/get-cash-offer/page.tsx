@@ -172,10 +172,16 @@ export default function GetCashOfferPage() {
     // No next question - submit the form
     setIsSubmitting(true);
     try {
+      // Filter out empty ownsLand field if not provided
+      const submissionData = { ...answers };
+      if (!submissionData.ownsLand || submissionData.ownsLand.trim() === "") {
+        delete submissionData.ownsLand;
+      }
+      
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(answers),
+        body: JSON.stringify(submissionData),
       });
 
       if (!response.ok) {
@@ -378,18 +384,13 @@ export default function GetCashOfferPage() {
 
           {currentQuestion.question_type === "text" ? (
             <div className="mt-7">
-              <label className="block">
-                <span className="text-sm font-semibold text-[var(--color-muted)]">
-                  {currentQuestion.question_text}
-                </span>
-                <input
-                  type="text"
-                  value={currentQuestion.field_name ? answers[currentQuestion.field_name as keyof IntakeAnswers] as string : ""}
-                  onChange={(event) => currentQuestion.field_name && updateAnswer(currentQuestion.field_name as keyof IntakeAnswers, event.target.value)}
-                  placeholder={currentQuestion.placeholder || ""}
-                  className="mt-2 w-full rounded-xl border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)]"
-                />
-              </label>
+              <input
+                type="text"
+                value={currentQuestion.field_name ? answers[currentQuestion.field_name as keyof IntakeAnswers] as string : ""}
+                onChange={(event) => currentQuestion.field_name && updateAnswer(currentQuestion.field_name as keyof IntakeAnswers, event.target.value)}
+                placeholder={currentQuestion.placeholder || ""}
+                className="w-full rounded-xl border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)]"
+              />
             </div>
           ) : null}
 

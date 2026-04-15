@@ -190,6 +190,17 @@ describe("parseLeadPayload", () => {
         expect(result.error).toBe("ownsLand must be Yes or No.");
       }
     });
+
+    it("should allow missing ownsLand field", () => {
+      const payload = { ...validIntakeAnswers };
+      delete (payload as any).ownsLand;
+      const result = parseLeadPayload(payload);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.owns_land).toBe(null);
+      }
+    });
   });
 });
 
