@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseLeadPayload } from "@/lib/leads";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { sendNewLeadNotifications } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -51,6 +52,22 @@ export async function POST(request: Request) {
 
       return NextResponse.json(responsePayload, { status: 500 });
     }
+
+    // Send notifications (SMS + Email) - don't wait for them to complete
+    sendNewLeadNotifications({
+      leadId: data.id,
+      fullName: parsedLead.data.full_name,
+      city: parsedLead.data.city,
+      state: parsedLead.data.state,
+      phone: parsedLead.data.phone,
+      propertyType: parsedLead.data.property_type,
+      streetAddress: parsedLead.data.street_address,
+      repairsNeeded: parsedLead.data.repairs_needed,
+      closeTimeline: parsedLead.data.close_timeline,
+    }).catch((err) => {
+      // Log error but don't fail the request
+      console.error("Notification error:", err);
+    });
 
     return NextResponse.json({ id: data.id }, { status: 201 });
   } catch (error) {
