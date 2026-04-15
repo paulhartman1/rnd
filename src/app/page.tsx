@@ -6,29 +6,24 @@ import TestimonialCarousel from "./testimonial-carousel";
 const primaryLinks = [
   { href: "#how-it-works", label: "How It Works" },
   { href: "#why-us", label: "Why Us" },
-  { href: "#faqs", label: "FAQs" },
+  { href: "#about", label: "About" },
   { href: "#contact", label: "Contact" },
 ];
 
 const benefits = [
   {
-    title: "Any Condition",
-    description: "Inherited homes, dated interiors, repairs, liens, or vacancy—we buy as-is.",
+    title: "Easy To Start",
+    description: "To get started, we invite you to answer a few brief questions on our website.",
     Icon: FaHouseChimneyWindow,
   },
   {
-    title: "Close Fast",
-    description: "We can close in as little as 7 days, or on your schedule—whatever works best for you.",
+    title: "Timely Response",
+    description: "A member of our team will contact you within 24 hours of your inquiry to discuss your situation and explore the best options available to you.",
     Icon: FaBusinessTime,
   },
   {
-    title: "No Hidden Fees",
-    description: "No commissions, no cleanup crews, and no surprise closing charges.",
-    Icon: FaMoneyBillWave,
-  },
-  {
     title: "Local & Trusted",
-    description: "A straightforward, relationship-first experience for sellers who need clarity.",
+    description: "We look forward to helping you achieve a timely sale and a fair solution tailored to your needs.",
     Icon: FaHandshakeAngle,
   },
 ];
@@ -72,8 +67,8 @@ const faqs = [
 ];
 
 export default function Home() {
-  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE || "(123) 456-7890";
-  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "offers@rushndush.com";
+  const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE || "(720) 897-5219";
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "rushndushlogistics@gmail.com";
 
   return (
     <main id="top" className="bg-[var(--color-surface)] text-[var(--color-ink)]">
@@ -172,12 +167,17 @@ export default function Home() {
             Thank you for visiting our website.
           </h2>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
-          Thank you for visiting our website. We understand that when you need to sell 
+          We understand that when you need to sell 
           your home quickly, choosing the right company matters. With so many options 
           available today, it’s important to work with a team that truly puts customers first.
           </p>
+          <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
+          At Rush N Dush Logistics, our mission is simple: prioritize your needs, provide transparent communication, and deliver 
+          dependable solutions. We believe our success is built on the trust and satisfaction of the homeowners 
+          we serve.
+          </p>          
         </div>
-        <div className="mt-10 grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-10 grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
           {benefits.map((benefit) => (
             <article key={benefit.title} className="p-1 text-center">
               <benefit.Icon
@@ -212,34 +212,29 @@ export default function Home() {
         </div>
       </section>
 
-      <section
+      <section id="about"
         data-nav-section
         className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20"
       >
         <div className="rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
-          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Why choose us</p>
-          <h2 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
-            A simple, transparent way to sell your home
-          </h2>
+          <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">About us</p>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
-            From your first inquiry to the final closing, we keep you informed every step of the way. Our process is transparent, efficient, and built around your needs.
+          We started this business in 2025 with one simple goal — to help people who need a real solution when it comes to 
+          selling their home. Over the past year, we’ve truly enjoyed working with homeowners and being part of their journey.
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[1.4rem] bg-[var(--color-surface-soft)] p-4">
-              <p className="text-sm font-bold text-[var(--color-navy)]">Transparent Process</p>
-              <p className="mt-2 text-sm text-[var(--color-muted)]">Track your offer status and get real-time updates throughout the entire process.</p>
-            </div>
-            <div className="rounded-[1.4rem] bg-[var(--color-surface-soft)] p-4">
-              <p className="text-sm font-bold text-[var(--color-navy)]">Always Available</p>
-              <p className="mt-2 text-sm text-[var(--color-muted)]">Reach us anytime by phone, email, or text message for immediate assistance.</p>
-            </div>
-          </div>
+          <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
+          We’ve seen firsthand that selling a house isn’t always just about the house. Sometimes it’s about going through a divorce, 
+          facing foreclosure, inheriting a parent’s property, relocating for a new job, or trying to avoid bankruptcy. Those situations 
+          can feel overwhelming, and having someone guide you through the process makes a big difference.  
+          </p>
+          <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
+          That’s why we’re here — to listen, to help, and to make things a little easier during a stressful time.  
+          </p>                    
         </div>
 
         <TestimonialCarousel />
       </section>
-
-      <section id="faqs" data-nav-section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+{/*       <section id="faqs" data-nav-section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">FAQs</p>
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -251,8 +246,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
-
+      </section> */}
       <section id="contact" data-nav-section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="grid gap-6 rounded-[2.2rem] bg-[linear-gradient(135deg,var(--color-brand)_0%,#d59d32_100%)] p-6 text-[var(--color-navy)] shadow-[0_22px_60px_rgba(208,157,50,0.28)] lg:grid-cols-[1fr_0.9fr] lg:p-8">
           <div>
