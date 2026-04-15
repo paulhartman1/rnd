@@ -4,7 +4,7 @@ create table if not exists public.leads (
   id uuid primary key default gen_random_uuid(),
   listed_with_agent boolean not null,
   property_type text not null,
-  owns_land boolean not null,
+  owns_land boolean default null,
   repairs_needed text not null,
   close_timeline text not null,
   sell_reason text not null,

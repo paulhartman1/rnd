@@ -12,7 +12,7 @@ export type LeadStatus = (typeof leadStatuses)[number];
 export type IntakeAnswers = {
   listedWithAgent: string;
   propertyType: string;
-  ownsLand: string;
+  ownsLand?: string;
   repairsNeeded: string;
   closeTimeline: string;
   sellReason: string;
@@ -30,7 +30,7 @@ export type IntakeAnswers = {
 export type LeadInsert = {
   listed_with_agent: boolean;
   property_type: string;
-  owns_land: boolean;
+  owns_land: boolean | null;
   repairs_needed: string;
   close_timeline: string;
   sell_reason: string;
@@ -89,8 +89,13 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
   const propertyType = requiredTrimmedString(body.propertyType, "propertyType");
   if (!propertyType.ok) return propertyType;
 
-  const ownsLand = yesNoToBoolean(body.ownsLand, "ownsLand");
-  if (!ownsLand.ok) return ownsLand;
+  // ownsLand is optional - only validate if provided
+  let ownsLandValue: boolean | null = null;
+  if (body.ownsLand !== undefined && body.ownsLand !== null) {
+    const ownsLand = yesNoToBoolean(body.ownsLand, "ownsLand");
+    if (!ownsLand.ok) return ownsLand;
+    ownsLandValue = ownsLand.data;
+  }
 
   const repairsNeeded = requiredTrimmedString(body.repairsNeeded, "repairsNeeded");
   if (!repairsNeeded.ok) return repairsNeeded;
@@ -136,7 +141,7 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
     data: {
       listed_with_agent: listedWithAgent.data,
       property_type: propertyType.data,
-      owns_land: ownsLand.data,
+      owns_land: ownsLandValue,
       repairs_needed: repairsNeeded.data,
       close_timeline: closeTimeline.data,
       sell_reason: sellReason.data,

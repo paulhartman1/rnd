@@ -551,14 +551,46 @@ export default function QuestionsClient({
                   <label className="block text-sm font-semibold text-[var(--color-muted)]">
                     Answer Value (leave empty for default/"any answer")
                   </label>
-                  <input
-                    type="text"
-                    value={mappingForm.answer_value}
-                    onChange={(e) =>
-                      setMappingForm({ ...mappingForm, answer_value: e.target.value })
+                  {(() => {
+                    const fromQuestion = questions.find(
+                      (q) => q.id === mappingForm.from_question_id
+                    );
+                    const isChoiceQuestion =
+                      fromQuestion?.question_type === "choice" &&
+                      fromQuestion?.options &&
+                      fromQuestion.options.length > 0;
+
+                    if (isChoiceQuestion && fromQuestion.options) {
+                      return (
+                        <select
+                          value={mappingForm.answer_value}
+                          onChange={(e) =>
+                            setMappingForm({ ...mappingForm, answer_value: e.target.value })
+                          }
+                          className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                        >
+                          <option value="">Default (any answer)</option>
+                          {fromQuestion.options.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      );
                     }
-                    className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                  />
+
+                    return (
+                      <input
+                        type="text"
+                        value={mappingForm.answer_value}
+                        onChange={(e) =>
+                          setMappingForm({ ...mappingForm, answer_value: e.target.value })
+                        }
+                        placeholder="Leave empty for default"
+                        className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                      />
+                    );
+                  })()}
                 </div>
 
                 <div>
