@@ -52,14 +52,22 @@ export default function GetCashOfferPage() {
         const response = await fetch("/api/questions");
         if (!response.ok) throw new Error("Failed to load questions");
         const data = await response.json();
+        console.log("API Response:", data);
+        console.log("Questions:", data.questions);
+        console.log("Mappings:", data.mappings);
+        
         setQuestions(data.questions || []);
         setMappings(data.mappings || []);
         
         // Set first question
         const firstQuestion = getFirstQuestion(data.questions || []);
+        console.log("First question:", firstQuestion);
+        
         if (firstQuestion) {
           setCurrentQuestion(firstQuestion);
           setQuestionPath([firstQuestion]);
+        } else {
+          console.error("No first question found. Questions array:", data.questions);
         }
       } catch (error) {
         console.error("Error loading questions:", error);
