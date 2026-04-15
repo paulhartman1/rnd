@@ -3,121 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { type IntakeAnswers } from "@/lib/leads";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
+import {
+  type IntakeQuestion,
+  type QuestionMapping,
+  findNextStep,
+  getFirstQuestion,
+} from "@/lib/questions";
 
-type ChoiceStep = {
-  type: "choice";
-  field:
-    | "listedWithAgent"
-    | "propertyType"
-    | "ownsLand"
-    | "repairsNeeded"
-    | "closeTimeline"
-    | "sellReason";
-  question: string;
-  helper?: string;
-  options: string[];
-};
-
-type TextStep = {
-  type: "text";
-  field: "acceptableOffer";
-  question: string;
-  helper?: string;
-  placeholder: string;
-};
-
-type AddressStep = {
-  type: "address";
-  question: string;
-  helper?: string;
-};
-
-type ContactStep = {
-  type: "contact";
-  question: string;
-  helper?: string;
-};
-
-type IntakeStep = ChoiceStep | TextStep | AddressStep | ContactStep;
-
-const intakeSteps: IntakeStep[] = [
-  {
-    type: "choice",
-    field: "listedWithAgent",
-    question: "Is your property listed with an agent?",
-    options: ["Yes", "No"],
-  },
-  {
-    type: "choice",
-    field: "propertyType",
-    question: "What type of property is it?",
-    options: [
-      "Single Family",
-      "Multi Family",
-      "Townhouse / Row House",
-      "Vacant Land",
-      "Mobile / Manufactured Home",
-      "Apartment / Condo",
-    ],
-  },
-  {
-    type: "choice",
-    field: "ownsLand",
-    question: "Do you also own the land?",
-    options: ["Yes", "No"],
-  },
-  {
-    type: "choice",
-    field: "repairsNeeded",
-    question: "What's the current condition of the property?",
-    helper: "Don't worry—we buy houses in any condition.",
-    options: [
-      "Needs major work (foundation, structural, full renovation)",
-      "Needs some repairs (roof, kitchen, bathroom)",
-      "Needs minor updates (paint, flooring, cosmetic)",
-      "Move-in ready (recently renovated)",
-    ],
-  },
-  {
-    type: "choice",
-    field: "closeTimeline",
-    question: "When do you need to close?",
-    options: ["As soon as possible", "Within 2 weeks", "Within 1 month", "1-2 months", "2-3 months", "I'm flexible"],
-  },
-  {
-    type: "choice",
-    field: "sellReason",
-    question: "What's prompting you to sell?",
-    options: [
-      "Inherited property",
-      "Divorce or separation",
-      "Can't afford repairs",
-      "Done being a landlord",
-      "Facing foreclosure",
-      "Job relocation",
-      "Just exploring my options",
-    ],
-  },
-  {
-    type: "text",
-    field: "acceptableOffer",
-    question:
-      "What's the lowest cash offer you'd accept?",
-    placeholder: "e.g., $250,000",
-  },
-  {
-    type: "address",
-    question: "What is the address of the property?",
-  },
-  {
-    type: "contact",
-    question: "Where should we send your cash offer?",
-    helper: "We'll send you a no-obligation offer within 24 hours.",
-  },
-];
 
 const initialAnswers: IntakeAnswers = {
   listedWithAgent: "",
@@ -140,14 +35,44 @@ const initialAnswers: IntakeAnswers = {
 export default function GetCashOfferPage() {
   const router = useRouter();
   const [answers, setAnswers] = useState<IntakeAnswers>(initialAnswers);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [questions, setQuestions] = useState<IntakeQuestion[]>([]);
+  const [mappings, setMappings] = useState<QuestionMapping[]>([]);
+  const [questionPath, setQuestionPath] = useState<IntakeQuestion[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState<IntakeQuestion | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; phone?: string }>({});
 
-  const currentStep = intakeSteps[currentStepIndex];
-  const progress = Math.round(((currentStepIndex + 1) / intakeSteps.length) * 100);
+  // Fetch questions and mappings on mount
+  useEffect(() => {
+    async function loadQuestions() {
+      try {
+        const response = await fetch("/api/questions");
+        if (!response.ok) throw new Error("Failed to load questions");
+        const data = await response.json();
+        setQuestions(data.questions || []);
+        setMappings(data.mappings || []);
+        
+        // Set first question
+        const firstQuestion = getFirstQuestion(data.questions || []);
+        if (firstQuestion) {
+          setCurrentQuestion(firstQuestion);
+          setQuestionPath([firstQuestion]);
+        }
+      } catch (error) {
+        console.error("Error loading questions:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadQuestions();
+  }, []);
+
+  const progress = currentQuestion && questionPath.length > 0
+    ? Math.round((questionPath.length / Math.max(questions.length, questionPath.length)) * 100)
+    : 0;
 
   const updateAnswer = <K extends keyof IntakeAnswers>(
     field: K,
@@ -156,12 +81,28 @@ export default function GetCashOfferPage() {
     setAnswers((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Get current answer for validation
+  const getCurrentAnswer = (): string => {
+    if (!currentQuestion) return "";
+    if (currentQuestion.field_name && currentQuestion.field_name in answers) {
+      const value = answers[currentQuestion.field_name as keyof IntakeAnswers];
+      return typeof value === "string" ? value : "";
+    }
+    return "";
+  };
+
   const currentStepIsValid = useMemo(() => {
-    if (currentStep.type === "choice" || currentStep.type === "text") {
-      return answers[currentStep.field].trim().length > 0;
+    if (!currentQuestion) return false;
+
+    if (currentQuestion.question_type === "choice") {
+      return getCurrentAnswer().trim().length > 0;
     }
 
-    if (currentStep.type === "address") {
+    if (currentQuestion.question_type === "text") {
+      return getCurrentAnswer().trim().length > 0;
+    }
+
+    if (currentQuestion.question_type === "address") {
       return (
         answers.streetAddress.trim().length > 0 &&
         answers.city.trim().length > 0 &&
@@ -170,64 +111,88 @@ export default function GetCashOfferPage() {
       );
     }
 
-    const emailValid = isValidEmail(answers.email);
-    const phoneValid = isValidPhone(answers.phone);
-    return (
-      answers.fullName.trim().length > 0 &&
-      emailValid &&
-      phoneValid &&
-      answers.smsConsent
-    );
-  }, [answers, currentStep]);
+    if (currentQuestion.question_type === "contact") {
+      const emailValid = isValidEmail(answers.email);
+      const phoneValid = isValidPhone(answers.phone);
+      return (
+        answers.fullName.trim().length > 0 &&
+        emailValid &&
+        phoneValid &&
+        answers.smsConsent
+      );
+    }
+
+    return false;
+  }, [answers, currentQuestion]);
 
   const handleContinue = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
     setValidationErrors({});
 
-    if (!currentStepIsValid) {
+    if (!currentStepIsValid || !currentQuestion) {
       return;
     }
 
-    if (currentStepIndex === intakeSteps.length - 1) {
-      setIsSubmitting(true);
-      try {
-        const response = await fetch("/api/leads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(answers),
-        });
+    // Get the answer for the current question
+    const currentAnswer = getCurrentAnswer();
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMessage = errorData.error || errorData.message || "We could not submit your request right now. Please try again.";
-          setSubmitError(errorMessage);
-          setIsSubmitting(false);
-          return;
-        }
-        setSubmitted(true);
-        setIsSubmitting(false);
-        return;
-      } catch (error) {
-        setSubmitError("Network error. Please check your connection and try again.");
-        setIsSubmitting(false);
+    // Find the next step based on the answer and mappings
+    const { nextQuestionId, redirectUrl } = findNextStep(
+      currentQuestion.id,
+      currentAnswer,
+      mappings,
+    );
+
+    // Handle redirect
+    if (redirectUrl) {
+      router.push(redirectUrl);
+      return;
+    }
+
+    // Handle next question
+    if (nextQuestionId) {
+      const nextQuestion = questions.find((q) => q.id === nextQuestionId);
+      if (nextQuestion) {
+        setCurrentQuestion(nextQuestion);
+        setQuestionPath((prev) => [...prev, nextQuestion]);
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
     }
-    if (currentStepIndex === 0 && answers.listedWithAgent === "Yes") {
-      router.push("/get-cash-offer/bye-felicia");
-      return;
-    }
 
-    setCurrentStepIndex((prev) => prev + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // No next question - submit the form
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(answers),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || "We could not submit your request right now. Please try again.";
+        setSubmitError(errorMessage);
+        setIsSubmitting(false);
+        return;
+      }
+      setSubmitted(true);
+      setIsSubmitting(false);
+    } catch (error) {
+      setSubmitError("Network error. Please check your connection and try again.");
+      setIsSubmitting(false);
+    }
   };
 
   const handleBack = () => {
-    if (currentStepIndex === 0) {
+    if (questionPath.length <= 1) {
       return;
     }
-    setCurrentStepIndex((prev) => prev - 1);
+    // Remove current question and go back to previous
+    const newPath = questionPath.slice(0, -1);
+    setQuestionPath(newPath);
+    setCurrentQuestion(newPath[newPath.length - 1]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -289,6 +254,26 @@ export default function GetCashOfferPage() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-[var(--color-surface)] text-[var(--color-ink)]">
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-lg text-[var(--color-muted)]">Loading questions...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <main className="min-h-screen bg-[var(--color-surface)] text-[var(--color-ink)]">
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-lg text-red-600">No questions available. Please contact support.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[var(--color-surface)] text-[var(--color-ink)]">
       <header className="border-b border-black/5 bg-white">
@@ -341,13 +326,13 @@ export default function GetCashOfferPage() {
           <div className="flex flex-col gap-4 border-b border-black/8 pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
-                Step {currentStepIndex + 1} of {intakeSteps.length}
+                Step {questionPath.length}
               </p>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-[var(--color-navy)] sm:text-3xl">
-                {currentStep.question}
+                {currentQuestion.question_text}
               </h2>
-              {currentStep.helper ? (
-                <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">{currentStep.helper}</p>
+              {currentQuestion.helper_text ? (
+                <p className="mt-2 text-sm leading-6 text-[var(--color-muted)]">{currentQuestion.helper_text}</p>
               ) : null}
             </div>
             <p className="text-sm font-semibold text-[var(--color-muted)]">{progress}% complete</p>
@@ -360,15 +345,16 @@ export default function GetCashOfferPage() {
             />
           </div>
 
-          {currentStep.type === "choice" ? (
+          {currentQuestion.question_type === "choice" && currentQuestion.options ? (
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              {currentStep.options.map((option) => {
-                const selected = answers[currentStep.field] === option;
+              {currentQuestion.options.map((option) => {
+                const fieldName = currentQuestion.field_name as keyof IntakeAnswers;
+                const selected = fieldName && answers[fieldName] === option;
                 return (
                   <button
                     key={option}
                     type="button"
-                    onClick={() => updateAnswer(currentStep.field, option)}
+                    onClick={() => fieldName && updateAnswer(fieldName, option)}
                     className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
                       selected
                         ? "border-[var(--color-primary-gold)] bg-[var(--color-brand-soft)] text-[var(--color-navy)]"
@@ -382,24 +368,24 @@ export default function GetCashOfferPage() {
             </div>
           ) : null}
 
-          {currentStep.type === "text" ? (
+          {currentQuestion.question_type === "text" ? (
             <div className="mt-7">
               <label className="block">
                 <span className="text-sm font-semibold text-[var(--color-muted)]">
-                  Your asking price
+                  {currentQuestion.question_text}
                 </span>
                 <input
                   type="text"
-                  value={answers.acceptableOffer}
-                  onChange={(event) => updateAnswer("acceptableOffer", event.target.value)}
-                  placeholder={currentStep.placeholder}
+                  value={currentQuestion.field_name ? answers[currentQuestion.field_name as keyof IntakeAnswers] as string : ""}
+                  onChange={(event) => currentQuestion.field_name && updateAnswer(currentQuestion.field_name as keyof IntakeAnswers, event.target.value)}
+                  placeholder={currentQuestion.placeholder || ""}
                   className="mt-2 w-full rounded-xl border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)]"
                 />
               </label>
             </div>
           ) : null}
 
-          {currentStep.type === "address" ? (
+          {currentQuestion.question_type === "address" ? (
             <div className="mt-7 grid gap-4 sm:grid-cols-2">
               <label className="block sm:col-span-2">
                 <span className="text-sm font-semibold text-[var(--color-muted)]">Street address</span>
@@ -440,7 +426,7 @@ export default function GetCashOfferPage() {
             </div>
           ) : null}
 
-          {currentStep.type === "contact" ? (
+          {currentQuestion.question_type === "contact" ? (
             <div className="mt-7 grid gap-4">
               <label className="block">
                 <span className="text-sm font-semibold text-[var(--color-muted)]">Full name</span>
@@ -526,7 +512,7 @@ export default function GetCashOfferPage() {
             <button
               type="button"
               onClick={handleBack}
-              disabled={currentStepIndex === 0}
+              disabled={questionPath.length <= 1}
               className="inline-flex items-center justify-center rounded-lg border border-black/12 px-5 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Back
@@ -536,11 +522,7 @@ export default function GetCashOfferPage() {
               disabled={!currentStepIsValid || isSubmitting}
               className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {currentStepIndex === intakeSteps.length - 1
-                ? isSubmitting
-                  ? "Submitting..."
-                  : "Submit Offer Request"
-                : "Continue"}
+              {isSubmitting ? "Submitting..." : "Continue"}
             </button>
           </div>
           {submitError ? (

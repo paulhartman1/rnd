@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { type AppointmentWithLead } from "@/lib/appointments";
 import { type LeadRow } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import AdminNav from "../admin-nav";
 import CalendarClient from "./calendar-client";
 
 export default async function AdminCalendarPage() {
@@ -85,6 +85,8 @@ export default async function AdminCalendarPage() {
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        <AdminNav />
+        
         <header className="mb-6 rounded-[1.4rem] border border-black/6 bg-white px-6 py-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
             Calendar
@@ -95,20 +97,6 @@ export default async function AdminCalendarPage() {
           <p className="mt-3 text-sm leading-6 text-[var(--color-muted)]">
             Manage your appointments, property visits, and follow-ups with leads.
           </p>
-          <div className="mt-4 flex gap-4">
-            <Link
-              href="/admin/leads"
-              className="text-sm font-semibold text-[var(--color-muted)] underline decoration-[var(--color-muted)] underline-offset-4"
-            >
-              Go to Leads
-            </Link>
-            <Link
-              href="/"
-              className="text-sm font-semibold text-[var(--color-muted)] underline decoration-[var(--color-muted)] underline-offset-4"
-            >
-              Back to landing page
-            </Link>
-          </div>
         </header>
 
         {appointmentsError ? (
