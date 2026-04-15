@@ -133,11 +133,15 @@ export default function Home() {
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="py-14 md:max-w-[44%] lg:py-20">
             <h1 className="max-w-xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Need to sell your house <span className="text-[var(--color-primary-gold)]">fast</span>?
+              A Simple, <span className="text-[var(--color-primary-gold)]">Fair</span> Way to Sell Your Home?
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">
-              No repairs, no hidden fees, and no waiting game. Get a clear cash offer and
-              choose a closing date that works for you.
+              At Rush N Dush Logistics, we put homeowners first.  If you need to sell quickly or want a 
+              stress-free option, we're here to provide a clear, honest solution - with no repairs, 
+              no hidden fees, and no pressure.
+            </p>
+            <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">
+              Answer a few quick questions to get started.  We'll reach out within 24 hours.
             </p>
             <div className="mt-9 hidden flex-wrap gap-3 md:flex">
               <a
@@ -165,10 +169,12 @@ export default function Home() {
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">Why homeowners trust us</p>
           <h2 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
-            Sell your house the easy way—no repairs, no fees, no stress
+            Thank you for visiting our website.
           </h2>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
-            We handle everything from initial contact to closing, with a streamlined process designed to get you a fair cash offer quickly—no hassles, no surprises.
+          Thank you for visiting our website. We understand that when you need to sell 
+          your home quickly, choosing the right company matters. With so many options 
+          available today, it’s important to work with a team that truly puts customers first.
           </p>
         </div>
         <div className="mt-10 grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
