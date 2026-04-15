@@ -8,66 +8,50 @@ export default function AdminNav() {
 
   const isActive = (path: string) => pathname === path;
 
+  const navItems = [
+    { path: "/admin/leads", label: "Leads", group: "ops" },
+    { path: "/admin/calendar", label: "Calendar", group: "ops" },
+    { path: "/admin/questions", label: "Questions", group: "config" },
+    { path: "/admin/reviews", label: "Reviews", group: "config" },
+  ];
+
   return (
-    <nav className="mb-6 rounded-[1.4rem] border border-black/6 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
-      <div className="flex flex-col gap-1 p-2 sm:flex-row sm:items-center">
-        {/* Operations Section */}
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-          <span className="px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-muted)] sm:py-0">
-            Operations
-          </span>
-          <Link
-            href="/admin/leads"
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              isActive("/admin/leads")
-                ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)]"
-                : "text-[var(--color-navy)] hover:bg-black/5"
-            }`}
-          >
-            Leads
-          </Link>
-          <Link
-            href="/admin/calendar"
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              isActive("/admin/calendar")
-                ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)]"
-                : "text-[var(--color-navy)] hover:bg-black/5"
-            }`}
-          >
-            Calendar
-          </Link>
-        </div>
+    <nav className="sticky top-4 z-10 mb-6">
+      <div className="rounded-xl border border-black/[0.08] bg-white/95 shadow-sm backdrop-blur-sm">
+        <div className="flex items-center justify-between px-3 py-2.5">
+          {/* Main Navigation */}
+          <div className="flex items-center gap-1">
+            {navItems.map((item, idx) => {
+              const showDivider = idx > 0 && navItems[idx - 1].group !== item.group;
+              return (
+                <div key={item.path} className="flex items-center gap-1">
+                  {showDivider && (
+                    <div className="mx-1 h-5 w-px bg-black/10" />
+                  )}
+                  <Link
+                    href={item.path}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
+                      isActive(item.path)
+                        ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
+                        : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
 
-        {/* Divider */}
-        <div className="mx-2 hidden h-6 w-px bg-black/10 sm:block" />
-
-        {/* Settings Section */}
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-          <span className="px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-muted)] sm:py-0">
-            Settings
-          </span>
+          {/* Home Link */}
           <Link
-            href="/admin/questions"
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              isActive("/admin/questions")
-                ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)]"
-                : "text-[var(--color-navy)] hover:bg-black/5"
-            }`}
+            href="/"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
+            title="Back to home"
           >
-            Questions
+            ← Home
           </Link>
         </div>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Home Link */}
-        <Link
-          href="/"
-          className="rounded-lg px-4 py-2 text-sm font-semibold text-[var(--color-muted)] transition hover:bg-black/5"
-        >
-          ← Home
-        </Link>
       </div>
     </nav>
   );

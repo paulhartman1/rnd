@@ -326,3 +326,75 @@ on public.appointments
 for delete
 to service_role
 using (true);
+
+create table if not exists public.reviews (
+  id uuid primary key default gen_random_uuid(),
+  quote text not null,
+  author text not null,
+  role text not null,
+  is_active boolean not null default true,
+  display_order integer not null,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists reviews_set_updated_at on public.reviews;
+create trigger reviews_set_updated_at
+before update on public.reviews
+for each row
+execute function public.set_updated_at();
+
+create index if not exists reviews_display_order_idx on public.reviews (display_order);
+create index if not exists reviews_active_idx on public.reviews (is_active) where deleted_at is null;
+
+alter table public.reviews enable row level security;
+
+drop policy if exists "Public can read active reviews" on public.reviews;
+create policy "Public can read active reviews"
+on public.reviews
+for select
+to anon
+using (is_active = true and deleted_at is null);
+
+drop policy if exists "Service role can read reviews" on public.reviews;
+create policy "Service role can read reviews"
+on public.reviews
+for select
+to service_role
+using (true);
+
+drop policy if exists "Service role can insert reviews" on public.reviews;
+create policy "Service role can insert reviews"
+on public.reviews
+for insert
+to service_role
+with check (true);
+
+drop policy if exists "Service role can update reviews" on public.reviews;
+create policy "Service role can update reviews"
+on public.reviews
+for update
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists "Service role can delete reviews" on public.reviews;
+create policy "Service role can delete reviews"
+on public.reviews
+for delete
+to service_role
+using (true);
+
+-- Seed reviews data
+do $$
+begin
+  if not exists (select 1 from public.reviews limit 1) then
+    insert into public.reviews (quote, author, role, is_active, display_order)
+    values
+      ('Rush N Dush made a stressful sale feel straightforward. The process was fast, the offer was clear, and communication stayed simple the entire way.', 'Sarah M.', 'Inherited Property', true, 1),
+      ('After dealing with multiple agents and countless showings, Rush N Dush gave us an offer in 24 hours and closed in two weeks. Exactly what we needed during a difficult time.', 'James & Patricia R.', 'Downsizing Homeowners', true, 2),
+      ('I was worried about selling my house with all the repairs it needed. They took it as-is, no questions asked. The whole process was incredibly simple.', 'Michael T.', 'As-Is Sale', true, 3),
+      ('We were facing foreclosure and didn''t know what to do. Rush N Dush helped us close quickly and move on with our lives. Forever grateful for their professionalism.', 'Linda K.', 'Time-Sensitive Sale', true, 4);
+  end if;
+end $$;
