@@ -7,24 +7,38 @@ import { createClient } from "@/lib/supabase/client";
 
 function CreatePasswordForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isValidToken, setIsValidToken] = useState(true);
+  const [isValidToken, setIsValidToken] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if we have the required token parameters
-    const token = searchParams.get("token");
-    const type = searchParams.get("type");
+    // Supabase sends invite links with hash fragments, not query params
+    // The Supabase client will automatically exchange the token
+    const supabase = createClient();
     
-    if (!token || type !== "invite") {
-      setIsValidToken(false);
+    // Get hash params from URL
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get("type");
+    
+    console.log("Hash Params:", {
+      type,
+      allParams: Object.fromEntries(hashParams.entries()),
+      fullHash: window.location.hash
+    });
+    
+    // Check if this is an invite link
+    if (type === "invite") {
+      setIsValidToken(true);
+    } else {
       setErrorMessage("Invalid or missing invite link. Please check your email and try again.");
     }
-  }, [searchParams]);
+    
+    setIsLoading(false);
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -76,6 +90,16 @@ function CreatePasswordForm() {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-[var(--color-surface)] px-4 py-14 text-[var(--color-ink)] sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-md rounded-[1.8rem] border border-black/6 bg-white p-7 shadow-[0_16px_45px_rgba(15,23,42,0.08)] sm:p-9">
+          <p className="text-center text-[var(--color-muted)]">Loading...</p>
+        </div>
+      </main>
+    );
+  }
 
   if (!isValidToken) {
     return (
