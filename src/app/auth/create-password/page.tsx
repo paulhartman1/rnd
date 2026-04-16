@@ -16,28 +16,43 @@ function CreatePasswordForm() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Supabase sends invite links with hash fragments, not query params
-    // The Supabase client will automatically exchange the token
-    const supabase = createClient();
-    
-    // Get hash params from URL
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get("type");
-    
-    console.log("Hash Params:", {
-      type,
-      allParams: Object.fromEntries(hashParams.entries()),
-      fullHash: window.location.hash
-    });
-    
-    // Check if this is an invite link
-    if (type === "invite") {
-      setIsValidToken(true);
-    } else {
-      setErrorMessage("Invalid or missing invite link. Please check your email and try again.");
+    async function checkSession() {
+      const supabase = createClient();
+      
+      // Get hash params from URL
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get("type");
+      
+      console.log("Hash Params:", {
+        type,
+        allParams: Object.fromEntries(hashParams.entries()),
+        fullHash: window.location.hash
+      });
+      
+      // Check if this is an invite link
+      if (type === "invite") {
+        // Wait for Supabase to exchange the token for a session
+        // This happens automatically via the hash fragment
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log("Session check:", {
+          hasSession: !!session,
+          error: error?.message
+        });
+        
+        if (session) {
+          setIsValidToken(true);
+        } else {
+          setErrorMessage("Failed to establish session. The invite link may have expired.");
+        }
+      } else {
+        setErrorMessage("Invalid or missing invite link. Please check your email and try again.");
+      }
+      
+      setIsLoading(false);
     }
     
-    setIsLoading(false);
+    checkSession();
   }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
