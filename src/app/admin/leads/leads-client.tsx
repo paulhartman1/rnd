@@ -16,6 +16,7 @@ type LeadDraftState = {
   isRemoving: boolean;
   error: string | null;
   callMessage: string | null;
+  showContactMenu: boolean;
 };
 
 type Props = {
@@ -31,6 +32,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
     isRemoving: false,
     error: null,
     callMessage: null,
+    showContactMenu: false,
   };
 }
 
@@ -59,6 +61,15 @@ export default function LeadsClient({ initialLeads }: Props) {
     status: "scheduled" as AppointmentStatus,
     isSaving: false,
     error: null as string | null,
+  });
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailingLeadId, setEmailingLeadId] = useState<string | null>(null);
+  const [emailDraft, setEmailDraft] = useState({
+    subject: "",
+    message: "",
+    isSending: false,
+    error: null as string | null,
+    success: false,
   });
 
   const visibleLeads = useMemo(() => {
@@ -149,11 +160,17 @@ export default function LeadsClient({ initialLeads }: Props) {
     updateDraft(leadId, { isSaving: false, error: null });
   };
 
+  const toggleContactMenu = (leadId: string) => {
+    const draft = drafts[leadId];
+    if (!draft) return;
+    updateDraft(leadId, { showContactMenu: !draft.showContactMenu });
+  };
+
   const callLead = async (leadId: string) => {
     const draft = drafts[leadId];
     if (!draft) return;
 
-    updateDraft(leadId, { isCalling: true, error: null, callMessage: null });
+    updateDraft(leadId, { isCalling: true, error: null, callMessage: null, showContactMenu: false });
 
     const response = await fetch(`/api/admin/leads/${leadId}/call`, {
       method: "POST",
@@ -175,6 +192,61 @@ export default function LeadsClient({ initialLeads }: Props) {
       error: null,
       callMessage: "Call initiated in Twilio.",
     });
+  };
+
+  const openEmailModal = (leadId: string) => {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+
+    setEmailingLeadId(leadId);
+    setEmailDraft({
+      subject: `Re: ${lead.street_address}`,
+      message: `Hi ${lead.full_name.split(' ')[0]},\n\n`,
+      isSending: false,
+      error: null,
+      success: false,
+    });
+    setShowEmailModal(true);
+    updateDraft(leadId, { showContactMenu: false });
+  };
+
+  const closeEmailModal = () => {
+    setShowEmailModal(false);
+    setEmailingLeadId(null);
+  };
+
+  const sendEmail = async () => {
+    if (!emailingLeadId || !emailDraft.message.trim()) return;
+
+    setEmailDraft((prev) => ({ ...prev, isSending: true, error: null, success: false }));
+
+    const response = await fetch(`/api/admin/leads/${emailingLeadId}/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: emailDraft.subject,
+        message: emailDraft.message,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      setEmailDraft((prev) => ({
+        ...prev,
+        isSending: false,
+        error: body?.error ?? "Could not send email. Please try again.",
+      }));
+      return;
+    }
+
+    setEmailDraft((prev) => ({ ...prev, isSending: false, error: null, success: true }));
+    
+    // Auto-close after 2 seconds on success
+    setTimeout(() => {
+      closeEmailModal();
+    }, 2000);
   };
 
   const removeLead = async (leadId: string) => {
@@ -239,6 +311,7 @@ export default function LeadsClient({ initialLeads }: Props) {
       error: null,
     });
     setShowAppointmentModal(true);
+    updateDraft(leadId, { showContactMenu: false });
   };
 
   const closeAppointmentModal = () => {
@@ -510,31 +583,69 @@ export default function LeadsClient({ initialLeads }: Props) {
                     type="button"
                     onClick={() => saveLead(lead.id)}
                     disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
-                    className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-4 py-2.5 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 min-h-[44px]"
                   >
                     {draft.isSaving ? "Saving..." : "Save"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => callLead(lead.id)}
-                    disabled={isDeleted || draft.isCalling || draft.isSaving || draft.isRemoving}
-                    className="inline-flex items-center justify-center rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    {draft.isCalling ? "Calling..." : "Call Client"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openAppointmentModal(lead.id)}
-                    disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
-                    className="inline-flex items-center justify-center rounded-lg border border-emerald-200 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    Schedule Appointment
-                  </button>
+                  <div className="relative flex-1 sm:flex-initial">
+                    <button
+                      type="button"
+                      onClick={() => toggleContactMenu(lead.id)}
+                      disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-black/12 px-4 py-2.5 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45 min-h-[44px]"
+                    >
+                      {draft.isCalling ? "Calling..." : "Contact"}
+                      <span className="text-xs">{draft.showContactMenu ? "▲" : "▼"}</span>
+                    </button>
+                    {draft.showContactMenu && !isDeleted && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-20" 
+                          onClick={() => updateDraft(lead.id, { showContactMenu: false })}
+                        />
+                        <div className="absolute left-0 right-0 sm:left-0 sm:right-auto top-full z-30 mt-1 sm:min-w-[240px] overflow-hidden rounded-lg border border-black/12 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
+                          <button
+                            type="button"
+                            onClick={() => callLead(lead.id)}
+                            className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-navy)] transition hover:bg-black/5 active:bg-black/10 flex items-center gap-3 min-h-[52px]"
+                          >
+                            <span className="text-xl sm:text-base">📞</span>
+                            <span>Call</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-muted)] cursor-not-allowed opacity-50 flex items-center gap-3 min-h-[52px]"
+                            title="SMS unavailable until A2P registration complete"
+                          >
+                            <span className="text-xl sm:text-base">💬</span>
+                            <span>SMS <span className="text-xs">(Coming Soon)</span></span>
+                          </button>
+                        <button
+                          type="button"
+                          onClick={() => openEmailModal(lead.id)}
+                          className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-navy)] transition hover:bg-black/5 active:bg-black/10 flex items-center gap-3 min-h-[52px]"
+                        >
+                          <span className="text-xl sm:text-base">✉️</span>
+                          <span>Email</span>
+                        </button>
+                          <button
+                            type="button"
+                            onClick={() => openAppointmentModal(lead.id)}
+                            className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-navy)] transition hover:bg-black/5 active:bg-black/10 flex items-center gap-3 min-h-[52px] border-t border-black/6"
+                          >
+                            <span className="text-xl sm:text-base">📅</span>
+                            <span>Schedule Appointment</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeLead(lead.id)}
                     disabled={isDeleted || draft.isRemoving || draft.isSaving || draft.isCalling}
-                    className="inline-flex items-center justify-center rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="inline-flex items-center justify-center rounded-lg border border-red-200 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45 min-h-[44px]"
                   >
                     {isDeleted ? "Deleted" : draft.isRemoving ? "Deleting..." : "Delete Lead"}
                   </button>
@@ -544,6 +655,85 @@ export default function LeadsClient({ initialLeads }: Props) {
           </article>
           );
         })
+      )}
+
+      {showEmailModal && emailingLeadId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[1.4rem] border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
+            <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
+              Compose Email
+            </h3>
+
+            {(() => {
+              const lead = leads.find((l) => l.id === emailingLeadId);
+              if (!lead) return null;
+              return (
+                <div className="mb-4 rounded-lg bg-[var(--color-surface-soft)] p-3 text-sm text-[var(--color-navy)]">
+                  <p className="font-bold">{lead.full_name}</p>
+                  <p className="text-[var(--color-muted)]">{lead.email}</p>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Subject
+                </span>
+                <input
+                  type="text"
+                  value={emailDraft.subject}
+                  onChange={(e) =>
+                    setEmailDraft({ ...emailDraft, subject: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="Email subject"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Message
+                </span>
+                <textarea
+                  value={emailDraft.message}
+                  onChange={(e) =>
+                    setEmailDraft({ ...emailDraft, message: e.target.value })
+                  }
+                  rows={12}
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="Type your message here..."
+                />
+              </label>
+
+              {emailDraft.error && (
+                <p className="text-sm text-red-700">{emailDraft.error}</p>
+              )}
+              {emailDraft.success && (
+                <p className="text-sm text-emerald-700">✓ Email sent successfully!</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={sendEmail}
+                  disabled={emailDraft.isSending || !emailDraft.message.trim() || emailDraft.success}
+                  className="flex-1 rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {emailDraft.isSending ? "Sending..." : emailDraft.success ? "Sent!" : "Send Email"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEmailModal}
+                  disabled={emailDraft.isSending}
+                  className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {emailDraft.success ? "Close" : "Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {showAppointmentModal && schedulingLeadId && (

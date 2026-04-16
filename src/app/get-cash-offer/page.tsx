@@ -3,8 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import ReCAPTCHA from "react-google-recaptcha";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { type IntakeAnswers } from "@/lib/leads";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import {
@@ -45,8 +44,6 @@ export default function GetCashOfferPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ email?: string; phone?: string }>({});
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   // Fetch questions and mappings on mount
   useEffect(() => {
@@ -129,8 +126,7 @@ export default function GetCashOfferPage() {
         answers.fullName.trim().length > 0 &&
         emailValid &&
         phoneValid &&
-        answers.smsConsent &&
-        recaptchaToken !== null
+        answers.smsConsent
       );
     }
 
@@ -185,7 +181,7 @@ export default function GetCashOfferPage() {
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...submissionData, recaptchaToken }),
+        body: JSON.stringify(submissionData),
       });
 
       if (!response.ok) {
@@ -518,14 +514,6 @@ export default function GetCashOfferPage() {
                   I agree to receive text messages and calls from Rush N Dush Logistics about my cash offer. Message and data rates may apply. I can opt out anytime.
                 </span>
               </label>
-              <div className="mt-4 flex justify-center">
-                <ReCAPTCHA
-                  ref={recaptchaRef}
-                  sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || ""}
-                  onChange={(token) => setRecaptchaToken(token)}
-                  onExpired={() => setRecaptchaToken(null)}
-                />
-              </div>
             </div>
           ) : null}
 
