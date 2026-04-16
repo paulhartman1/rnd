@@ -17,8 +17,20 @@ export const metadata: Metadata = {
   description:
     "Need to sell your house fast? Get a no-obligation cash offer from Rush N Dush Logistics. We buy houses in any condition. No repairs, no fees, close on your timeline.",
   icons: {
-    icon: "/favicon.PNG",
+    icon: [
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/favicon-16x16.png?v=2", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png?v=2", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      { url: "/android-chrome-192x192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/android-chrome-512x512.png?v=2", sizes: "512x512", type: "image/png" },
+    ],
   },
+  manifest: "/site.webmanifest",
   openGraph: {
     title: "Rush N Dush | Sell Your House Fast for Cash",
     description:

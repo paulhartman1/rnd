@@ -121,13 +121,13 @@ export default function Home() {
             fill
             priority
             sizes="(min-width: 1024px) 52vw, 100vw"
-            className="object-cover object-center scale-[1.03]"
+            className="object-contain object-center"
           />
           <div className="pointer-events-none absolute inset-0 md:inset-y-0 md:-left-[50px] w-full md:w-[226px] lg:w-[274px] bg-gradient-to-b md:bg-gradient-to-r from-[#112547] via-[#112547]/70 to-transparent" />
         </div>
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="py-14 md:max-w-[44%] lg:py-20">
-            <h1 className="max-w-xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
               A Simple, <span className="text-[var(--color-primary-gold)]">Fair</span> Way to Sell Your Home?
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">
@@ -310,6 +310,12 @@ export default function Home() {
                   {link.label}
                 </a>
               ))}
+              <a
+                href="/privacy"
+                className="underline decoration-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-primary-gold)] hover:decoration-[var(--color-primary-gold)]"
+              >
+                Privacy
+              </a>
               <a
                 href="/admin/login"
                 className="underline decoration-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-primary-gold)] hover:decoration-[var(--color-primary-gold)]"
