@@ -124,15 +124,26 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
     });
   };
 
-  const getMinDate = () => {
+  // Generate available dates for the next 30 days
+  const getAvailableDates = () => {
+    const dates = [];
     const today = new Date();
-    return today.toISOString().split("T")[0];
-  };
-
-  const getMaxDate = () => {
-    const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 90);
-    return maxDate.toISOString().split("T")[0];
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push({
+        value: date.toISOString().split("T")[0],
+        label: date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          timeZone: "America/Denver",
+        }),
+      });
+    }
+    return dates;
   };
 
   if (success) {
@@ -223,30 +234,18 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
               Choose a date
             </h2>
             <p className="mb-3 text-sm text-[var(--color-muted)]">
-              Tap the calendar icon to select your preferred date
+              Select when you'd like to meet
             </p>
-            <div className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
-              <input
-                type="date"
-                value={selectedDate}
-                min={getMinDate()}
-                max={getMaxDate()}
-                onChange={(e) => {
-                  // Only set if user actually selected a date
-                  if (e.target.value) {
-                    setSelectedDate(e.target.value);
-                  }
-                }}
-                onBlur={(e) => {
-                  // Prevent accidental progression on mobile when picker closes without selection
-                  if (!e.target.value) {
-                    setSelectedDate("");
-                  }
-                }}
-                placeholder="Select a date"
-                required
-                className="w-full rounded-lg border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
-              />
+            <div className="space-y-3">
+              {getAvailableDates().map((date) => (
+                <button
+                  key={date.value}
+                  onClick={() => setSelectedDate(date.value)}
+                  className="w-full rounded-xl border border-black/10 bg-white p-4 text-left transition hover:border-[var(--color-primary-gold)] hover:shadow-md"
+                >
+                  <p className="font-bold text-[var(--color-navy)]">{date.label}</p>
+                </button>
+              ))}
             </div>
           </div>
         )}
