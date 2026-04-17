@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -46,6 +47,17 @@ export default function AdminNav() {
       <div className="rounded-xl border border-black/[0.08] bg-white/95 shadow-sm backdrop-blur-sm">
         {/* Desktop Navigation */}
         <div className="hidden items-center justify-between px-3 py-2.5 md:flex">
+          {/* Logo */}
+          <Link href="/" className="mr-4 flex-shrink-0" title="Go to home">
+            <Image
+              src="/logo.png"
+              alt="Rush N Dush Logistics"
+              width={80}
+              height={33}
+              className="h-8 w-auto rounded object-contain"
+            />
+          </Link>
+          
           {/* Main Navigation */}
           <div className="flex items-center gap-1">
             {navItems.map((item, idx) => {
@@ -77,50 +89,15 @@ export default function AdminNav() {
             })}
           </div>
 
-          {/* Home Link */}
-          <Link
-            href="/admin/leads"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-            title="Back to leads"
-          >
-            ← Admin Home
-          </Link>
-        </div>
-
-        {/* Mobile Navigation */}
-        <div className="md:hidden">
-          {/* Mobile Header */}
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--color-navy)] transition-all hover:bg-black/[0.04]"
-              aria-label="Toggle menu"
+          {/* Exit & Home Link */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
+              title="Exit to homepage"
             >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                {isMenuOpen ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                )}
-              </svg>
-              Menu
-            </button>
-
+              Exit →
+            </Link>
             <Link
               href="/admin/leads"
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
@@ -129,11 +106,75 @@ export default function AdminNav() {
               ← Admin Home
             </Link>
           </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden">
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between px-3 py-2.5">
+            {/* Logo */}
+            <Link href="/" className="flex-shrink-0" title="Go to home">
+              <Image
+                src="/logo.png"
+                alt="Rush N Dush Logistics"
+                width={68}
+                height={28}
+                className="h-7 w-auto rounded object-contain"
+              />
+            </Link>
+            
+            <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
+                title="Exit to homepage"
+              >
+                Exit →
+              </Link>
+              
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[var(--color-navy)] transition-all hover:bg-black/[0.04]"
+                aria-label="Toggle menu"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {isMenuOpen ? (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  ) : (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  )}
+                </svg>
+                Menu
+              </button>
+            </div>
+          </div>
 
           {/* Mobile Menu */}
           {isMenuOpen && (
             <div className="border-t border-black/[0.08] px-3 py-2">
               <div className="flex flex-col gap-1">
+                <Link
+                  href="/admin/leads"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
+                >
+                  ← Admin Home
+                </Link>
                 {navItems.map((item) => (
                   <Link
                     key={item.path}
