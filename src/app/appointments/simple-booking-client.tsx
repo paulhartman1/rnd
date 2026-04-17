@@ -68,8 +68,8 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
       ]).then(([availData, blackoutData]) => {
         // Get unique days of week that have availability
         const daysWithAvail = [...new Set(
-          availData.availabilityWindows?.map((w: any) => w.day_of_week) || []
-        )];
+          availData.availabilityWindows?.map((w: any) => w.day_of_week as number) || []
+        )] as number[];
         setAvailableDaysOfWeek(daysWithAvail);
 
         // Get blackout dates
