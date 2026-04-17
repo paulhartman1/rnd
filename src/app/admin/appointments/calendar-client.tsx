@@ -7,10 +7,12 @@ import {
   type AppointmentStatus,
 } from "@/lib/appointments";
 import type { LeadRow } from "@/lib/leads";
+import type { AppointmentRequestWithType } from "@/lib/appointment-types";
 
 type Props = {
   initialAppointments: AppointmentWithLead[];
   allLeads: LeadRow[];
+  initialRequests: AppointmentRequestWithType[];
 };
 type AppointmentStatusFilter = AppointmentStatus | "all";
 type AppointmentTimeFilter = "all" | "upcoming" | "past";
@@ -57,8 +59,9 @@ function getDefaultEndTime(startTime: string) {
   return start.toISOString().slice(0, 16);
 }
 
-export default function CalendarClient({ initialAppointments, allLeads }: Props) {
+export default function CalendarClient({ initialAppointments, allLeads, initialRequests }: Props) {
   const [appointments, setAppointments] = useState<AppointmentWithLead[]>(initialAppointments);
+  const [requests, setRequests] = useState<AppointmentRequestWithType[]>(initialRequests);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentTimeMs, setCurrentTimeMs] = useState(() => new Date().getTime());
@@ -249,11 +252,99 @@ export default function CalendarClient({ initialAppointments, allLeads }: Props)
     }
   };
 
+  const handleRequestAction = async (requestId: string, action: "approve" | "reject") => {
+    const response = await fetch(`/api/admin/appointment-requests/${requestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+
+    if (response.ok) {
+      // Refresh both requests and appointments
+      const [requestsRes, appointmentsRes] = await Promise.all([
+        fetch("/api/admin/appointment-requests"),
+        fetch("/api/admin/appointments"),
+      ]);
+
+      if (requestsRes.ok) {
+        const { appointmentRequests } = await requestsRes.json();
+        setRequests(appointmentRequests);
+      }
+
+      if (appointmentsRes.ok) {
+        const { appointments: refreshedAppointments } = await appointmentsRes.json();
+        setAppointments(refreshedAppointments);
+      }
+    } else {
+      alert("Failed to " + action + " request");
+    }
+  };
+
+  const pendingRequests = requests.filter((req) => req.status === "pending");
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Pending Requests */}
+      {pendingRequests.length > 0 && (
+        <section>
+          <h2 className="mb-4 text-xl font-black text-[var(--color-navy)]">
+            Pending Requests ({pendingRequests.length})
+          </h2>
+          <div className="space-y-3">
+            {pendingRequests.map((request) => (
+              <article
+                key={request.id}
+                className="rounded-xl border border-orange-200 bg-orange-50 p-4 sm:p-6"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-[var(--color-navy)]">
+                        {request.appointment_type?.name || "Appointment"}
+                      </h3>
+                      <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
+                        PENDING
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-[var(--color-navy)]">
+                      <strong>Contact:</strong> {request.full_name} • {request.phone} • {request.email}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--color-navy)]">
+                      <strong>Property:</strong> {request.street_address}, {request.city}, {request.state}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--color-navy)]">
+                      <strong>Requested:</strong> {formatDateTime(request.requested_start_time)}
+                    </p>
+                    {request.notes && (
+                      <p className="mt-2 text-sm text-[var(--color-muted)]">
+                        <strong>Notes:</strong> {request.notes}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRequestAction(request.id, "approve")}
+                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-green-700"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleRequestAction(request.id, "reject")}
+                      className="rounded-lg border border-red-600 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-black text-[var(--color-navy)]">
-          Appointments & Schedule
+          Scheduled Appointments
         </h2>
         <button
           type="button"

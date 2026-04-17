@@ -2,19 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AdminNav() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const isActive = (path: string) => pathname === path;
 
+  // Fetch pending appointments count
+  useEffect(() => {
+    async function fetchPendingCount() {
+      try {
+        const response = await fetch("/api/admin/appointment-requests");
+        if (response.ok) {
+          const data = await response.json();
+          const pending = data.appointmentRequests.filter(
+            (req: { status: string }) => req.status === "pending"
+          ).length;
+          setPendingCount(pending);
+        }
+      } catch (error) {
+        console.error("Failed to fetch pending count:", error);
+      }
+    }
+    fetchPendingCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const navItems = [
-    { path: "/admin/leads", label: "Leads", group: "ops" },
-    { path: "/admin/calendar", label: "Calendar", group: "ops" },
-    { path: "/admin/questions", label: "Questions", group: "config" },
-    { path: "/admin/reviews", label: "Reviews", group: "config" },
+    { path: "/admin/leads", label: "Leads", group: "ops", badge: null },
+    { path: "/admin/appointments", label: "Appointments", group: "ops", badge: pendingCount > 0 ? pendingCount : null },
+    { path: "/admin/questions", label: "Questions", group: "config", badge: null },
+    { path: "/admin/reviews", label: "Reviews", group: "config", badge: null },
   ];
 
   return (
@@ -33,13 +56,18 @@ export default function AdminNav() {
                   )}
                   <Link
                     href={item.path}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
+                    className={`relative rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
                       isActive(item.path)
                         ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
                         : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
                     }`}
                   >
                     {item.label}
+                    {item.badge && (
+                      <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 </div>
               );
@@ -108,13 +136,18 @@ export default function AdminNav() {
                     key={item.path}
                     href={item.path}
                     onClick={() => setIsMenuOpen(false)}
-                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
                       isActive(item.path)
                         ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
                         : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
                     }`}
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>

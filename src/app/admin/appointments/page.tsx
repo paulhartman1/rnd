@@ -82,6 +82,27 @@ export default async function AdminCalendarPage() {
 
   const leads = (leadsData ?? []) as LeadRow[];
 
+  // Fetch appointment requests
+  const { data: requestsData } = await adminSupabase
+    .from("appointment_requests")
+    .select(`
+      *,
+      appointment_type:appointment_types!appointment_type_id (
+        id,
+        name,
+        default_duration_minutes
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  const requests = (requestsData ?? []).map((req) => ({
+    ...req,
+    appointment_type:
+      Array.isArray(req.appointment_type) && req.appointment_type.length > 0
+        ? req.appointment_type[0]
+        : req.appointment_type || null,
+  }));
+
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -89,13 +110,13 @@ export default async function AdminCalendarPage() {
         
         <header className="mb-6 rounded-[1.4rem] border border-black/6 bg-white px-6 py-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
-            Calendar
+            Appointments
           </p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--color-navy)]">
-            Appointments & Schedule
+            Appointments & Requests
           </h1>
           <p className="mt-3 text-sm leading-6 text-[var(--color-muted)]">
-            Manage your appointments, property visits, and follow-ups with leads.
+            Manage appointment requests, scheduled appointments, and follow-ups.
           </p>
         </header>
 
@@ -105,7 +126,11 @@ export default async function AdminCalendarPage() {
             RLS policies are applied.
           </div>
         ) : (
-          <CalendarClient initialAppointments={appointments} allLeads={leads} />
+          <CalendarClient 
+            initialAppointments={appointments} 
+            allLeads={leads}
+            initialRequests={requests}
+          />
         )}
       </div>
     </main>

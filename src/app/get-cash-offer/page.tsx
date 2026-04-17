@@ -273,12 +273,23 @@ export default function GetCashOfferPage() {
               </ul>
             </div>
             <div className="mt-8">
-              <Link
-                href="/"
-              className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)]"
-            >
-              Return to Home
-            </Link>
+              <p className="mb-4 text-sm font-semibold text-[var(--color-navy)]">
+                Want to speed things up? Schedule a time to meet and discuss your property.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href={`/appointments?name=${encodeURIComponent(answers.fullName)}&email=${encodeURIComponent(answers.email)}&phone=${encodeURIComponent(answers.phone)}&address=${encodeURIComponent(answers.streetAddress)}&city=${encodeURIComponent(answers.city)}&state=${encodeURIComponent(answers.state)}&zip=${encodeURIComponent(answers.postalCode)}`}
+                  className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
+                >
+                  Schedule Appointment
+                </Link>
+                <Link
+                  href="/"
+                  className="inline-flex items-center justify-center rounded-lg border border-black/10 px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5"
+                >
+                  Return to Home
+                </Link>
+              </div>
             </div>
           </div>
         </section>

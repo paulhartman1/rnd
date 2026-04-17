@@ -138,18 +138,12 @@ export default function Home() {
             <p className="mt-5 max-w-xl text-base leading-7 text-white/80 sm:text-lg">
               Answer a few quick questions to get started.  We'll reach out within 24 hours.
             </p>
-            <div className="mt-9 hidden flex-wrap gap-3 md:flex">
+            <div className="mt-9 hidden md:block">
               <a
                 href="/get-cash-offer"
                 className="inline-flex items-center justify-center rounded-full bg-[var(--color-primary-gold)] px-6 py-3.5 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
               >
                 Get Your Cash Offer
-              </a>
-              <a
-                href="#how-it-works"
-                className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-3.5 text-sm font-bold text-white transition hover:bg-white/10"
-              >
-                Learn More
               </a>
             </div>
           </div>
