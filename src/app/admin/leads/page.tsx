@@ -42,7 +42,7 @@ export default async function AdminLeadsPage() {
   const { data, error } = await queryClient
     .from("leads")
     .select(
-      "id, status, owner_notes, listed_with_agent, property_type, owns_land, repairs_needed, close_timeline, sell_reason, acceptable_offer, street_address, city, state, postal_code, full_name, email, phone, sms_consent, created_at, updated_at, deleted_at",
+      "id, status, owner_notes, listed_with_agent, property_type, owns_land, repairs_needed, close_timeline, sell_reason, acceptable_offer, street_address, city, state, postal_code, full_name, email, phone, sms_consent, isHotLead, created_at, updated_at, deleted_at",
     )
     .order("created_at", { ascending: false });
 

@@ -53,7 +53,8 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
+  const [hotLeadsOnly, setHotLeadsOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name" | "hot">("hot");
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
   const [appointmentDraft, setAppointmentDraft] = useState({
@@ -99,9 +100,20 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
       filtered = filtered.filter((lead) => lead.status === statusFilter);
     }
 
+    // Apply hot leads filter
+    if (hotLeadsOnly) {
+      filtered = filtered.filter((lead) => lead.isHotLead === true);
+    }
+
     // Apply sorting
     filtered.sort((a, b) => {
-      if (sortBy === "newest") {
+      if (sortBy === "hot") {
+        // Sort by hot leads first, then by newest
+        if (a.isHotLead !== b.isHotLead) {
+          return (b.isHotLead ? 1 : 0) - (a.isHotLead ? 1 : 0);
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortBy === "newest") {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       } else if (sortBy === "oldest") {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -112,7 +124,7 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
     });
 
     return filtered;
-  }, [leads, showDeleted, searchQuery, statusFilter, sortBy]);
+  }, [leads, showDeleted, searchQuery, statusFilter, hotLeadsOnly, sortBy]);
 
   const hasVisibleLeads = visibleLeads.length > 0;
 
@@ -430,9 +442,10 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
               </span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "name")}
+                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "name" | "hot")}
                 className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
               >
+                <option value="hot">🔥 Hot Leads First</option>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
                 <option value="name">Name (A-Z)</option>
@@ -441,7 +454,24 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
           </div>
         </div>
 
-        {(searchQuery || statusFilter !== "all") && (
+        <div className="mt-4 flex items-center gap-2">
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hotLeadsOnly}
+              onChange={(e) => setHotLeadsOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-black/20 text-red-600 focus:ring-red-500"
+            />
+            <span className="text-sm font-semibold text-[var(--color-navy)]">
+              🔥 Show Hot Leads Only
+            </span>
+          </label>
+          <span className="text-xs text-[var(--color-muted)]">
+            (Close in ≤30 days + Inherited/Foreclosure)
+          </span>
+        </div>
+
+        {(searchQuery || statusFilter !== "all" || hotLeadsOnly) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {searchQuery && (
               <button
@@ -463,11 +493,22 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                 <span className="text-lg leading-none">×</span>
               </button>
             )}
+            {hotLeadsOnly && (
+              <button
+                type="button"
+                onClick={() => setHotLeadsOnly(false)}
+                className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700"
+              >
+                🔥 Hot Leads Only
+                <span className="text-lg leading-none">×</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
                 setSearchQuery("");
                 setStatusFilter("all");
+                setHotLeadsOnly(false);
               }}
               className="text-xs font-semibold text-[var(--color-muted)] underline underline-offset-2"
             >
@@ -499,10 +540,17 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
               <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-3 text-sm text-[var(--color-navy)]">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <h2 className="text-xl font-black tracking-tight">
-                        {lead.full_name}
-                      </h2>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-black tracking-tight">
+                          {lead.full_name}
+                        </h2>
+                        {lead.isHotLead && (
+                          <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold text-white" title="Hot Lead: Close in ≤30 days + Inherited/Foreclosure">
+                            🔥 HOT
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1 text-sm text-[var(--color-muted)]">
                         {lead.street_address}, {lead.city}, {lead.state} {lead.postal_code}
                       </p>
