@@ -36,6 +36,7 @@ export default function AdminNav() {
   const navItems = [
     { path: "/admin/leads", label: "Leads", group: "ops", badge: null },
     { path: "/admin/appointments", label: "Appointments", group: "ops", badge: pendingCount > 0 ? pendingCount : null },
+    { path: "/admin/appointments/settings", label: "Settings", group: "ops", badge: null, isSubItem: true },
     { path: "/admin/questions", label: "Questions", group: "config", badge: null },
     { path: "/admin/reviews", label: "Reviews", group: "config", badge: null },
   ];
@@ -56,13 +57,15 @@ export default function AdminNav() {
                   )}
                   <Link
                     href={item.path}
-                    className={`relative rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
+                    className={`relative rounded-lg px-3 py-1.5 text-sm transition-all ${
+                      (item as any).isSubItem ? "font-normal" : "font-semibold"
+                    } ${
                       isActive(item.path)
                         ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
                         : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
                     }`}
                   >
-                    {item.label}
+                    {(item as any).isSubItem && "↳ "}{item.label}
                     {item.badge && (
                       <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                         {item.badge}
@@ -136,13 +139,15 @@ export default function AdminNav() {
                     key={item.path}
                     href={item.path}
                     onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+                    className={`flex items-center justify-between rounded-lg py-2 text-sm transition-all ${
+                      (item as any).isSubItem ? "pl-6 pr-3 font-normal" : "px-3 font-semibold"
+                    } ${
                       isActive(item.path)
                         ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
                         : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
                     }`}
                   >
-                    <span>{item.label}</span>
+                    <span>{(item as any).isSubItem && "↳ "}{item.label}</span>
                     {item.badge && (
                       <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                         {item.badge}
