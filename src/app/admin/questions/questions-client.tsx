@@ -392,7 +392,7 @@ export default function QuestionsClient({
                       onChange={(e) =>
                         setQuestionForm({
                           ...questionForm,
-                          options: e.target.value.split("\n").filter((o) => o.trim()),
+                          options: e.target.value.split("\n"),
                         })
                       }
                       rows={4}

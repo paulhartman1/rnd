@@ -7,6 +7,7 @@ import {
   type AppointmentStatus,
 } from "@/lib/appointments";
 import { createClient } from "@/lib/supabase/client";
+import type { LeadAnswer } from "./page";
 
 type LeadDraftState = {
   status: LeadStatus;
@@ -21,6 +22,7 @@ type LeadDraftState = {
 
 type Props = {
   initialLeads: LeadRow[];
+  leadAnswers: Record<string, LeadAnswer[]>;
 };
 
 function toLeadDraft(lead: LeadRow): LeadDraftState {
@@ -36,7 +38,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
   };
 }
 
-export default function LeadsClient({ initialLeads }: Props) {
+export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
@@ -493,47 +495,64 @@ export default function LeadsClient({ initialLeads }: Props) {
               className="rounded-[1.4rem] border border-black/6 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]"
             >
               <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="space-y-2 text-sm text-[var(--color-navy)]">
-                  <h2 className="text-xl font-black tracking-tight">
-                    {lead.full_name} — {lead.property_type}
-                  </h2>
-                  {isDeleted ? (
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">
-                      Deleted
-                    </p>
-                  ) : null}
-                <p className="text-[var(--color-muted)]">{lead.street_address}</p>
-                <p className="text-[var(--color-muted)]">
-                  {lead.city}, {lead.state} {lead.postal_code}
-                </p>
-                <p>
-                  <strong>Email:</strong> {lead.email}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {lead.phone}
-                </p>
-                <p>
-                  <strong>Repairs:</strong> {lead.repairs_needed}
-                </p>
-                <p>
-                  <strong>Timeline:</strong> {lead.close_timeline}
-                </p>
-                <p>
-                  <strong>Reason:</strong> {lead.sell_reason}
-                </p>
-                <p>
-                  <strong>Acceptable offer:</strong> {lead.acceptable_offer}
-                </p>
-                <p>
-                  <strong>Listed with agent:</strong>{" "}
-                  {lead.listed_with_agent ? "Yes" : "No"}
-                </p>
-                <p>
-                  <strong>Owns land:</strong> {lead.owns_land ? "Yes" : "No"}
-                </p>
-                <p>
-                  <strong>SMS consent:</strong> {lead.sms_consent ? "Yes" : "No"}
-                </p>
+                <div className="space-y-3 text-sm text-[var(--color-navy)]">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h2 className="text-xl font-black tracking-tight">
+                        {lead.full_name}
+                      </h2>
+                      <p className="mt-1 text-sm text-[var(--color-muted)]">
+                        {lead.street_address}, {lead.city}, {lead.state} {lead.postal_code}
+                      </p>
+                    </div>
+                    {isDeleted && (
+                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-700">
+                        Deleted
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <a 
+                      href={`mailto:${lead.email}`}
+                      className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
+                    >
+                      <span>✉️</span>
+                      {lead.email}
+                    </a>
+                    <a 
+                      href={`tel:${lead.phone.replace(/\D/g, '')}`}
+                      className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
+                    >
+                      <span>📞</span>
+                      {lead.phone}
+                    </a>
+                  </div>
+
+                  {/* Display all answered questions */}
+                  {leadAnswers[lead.id] && leadAnswers[lead.id].length > 0 ? (
+                    <div className="space-y-2.5 rounded-xl border border-black/10 bg-[var(--color-surface-soft)] p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                        Answered Questions
+                      </p>
+                      {leadAnswers[lead.id].map((answer) => (
+                        <div key={answer.id} className="border-l-2 border-[var(--color-primary-gold)] pl-3 py-1">
+                          <p className="text-xs font-semibold text-[var(--color-muted)]">
+                            {answer.question_text}
+                          </p>
+                          <p className="mt-0.5 text-sm font-medium text-[var(--color-navy)]">
+                            {answer.answer_value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-black/10 bg-[var(--color-surface-soft)] p-4">
+                      <p className="text-xs text-[var(--color-muted)]">
+                        No answered questions available for this lead.
+                      </p>
+                    </div>
+                  )}
               </div>
 
                 <div className="space-y-3 rounded-xl border border-black/8 bg-[var(--color-surface-soft)] p-4">
@@ -566,6 +585,11 @@ export default function LeadsClient({ initialLeads }: Props) {
                     onChange={(event) =>
                       updateDraft(lead.id, { ownerNotes: event.target.value })
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                      }
+                    }}
                     rows={5}
                     className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
                   />
@@ -700,6 +724,11 @@ export default function LeadsClient({ initialLeads }: Props) {
                   onChange={(e) =>
                     setEmailDraft({ ...emailDraft, message: e.target.value })
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                    }
+                  }}
                   rows={12}
                   className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
                   placeholder="Type your message here..."
@@ -781,6 +810,11 @@ export default function LeadsClient({ initialLeads }: Props) {
                   onChange={(e) =>
                     setAppointmentDraft({ ...appointmentDraft, description: e.target.value })
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                    }
+                  }}
                   rows={3}
                   className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
                   placeholder="Additional notes..."

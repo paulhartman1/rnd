@@ -398,3 +398,31 @@ begin
       ('We were facing foreclosure and didn''t know what to do. Rush N Dush helped us close quickly and move on with our lives. Forever grateful for their professionalism.', 'Linda K.', 'Time-Sensitive Sale', true, 4);
   end if;
 end $$;
+
+-- Lead answers table to store question/answer pairs for each lead
+create table if not exists public.lead_answers (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  question_id uuid not null references public.intake_questions(id) on delete cascade,
+  question_text text not null,
+  answer_value text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists lead_answers_lead_id_idx on public.lead_answers (lead_id);
+
+alter table public.lead_answers enable row level security;
+
+drop policy if exists "Public can insert lead answers" on public.lead_answers;
+create policy "Public can insert lead answers"
+on public.lead_answers
+for insert
+to anon
+with check (true);
+
+drop policy if exists "Service role can read lead answers" on public.lead_answers;
+create policy "Service role can read lead answers"
+on public.lead_answers
+for select
+to service_role
+using (true);

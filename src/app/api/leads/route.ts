@@ -21,6 +21,9 @@ export async function POST(request: Request) {
       .select("id")
       .single();
 
+    // Extract questionHistory from payload if provided
+    const questionHistory = (payload as { questionHistory?: Array<{ questionId: string; questionText: string; answer: string }> }).questionHistory;
+
     if (error) {
       console.error("Lead insert failed", {
         code: error.code,
@@ -51,6 +54,25 @@ export async function POST(request: Request) {
             };
 
       return NextResponse.json(responsePayload, { status: 500 });
+    }
+
+    // Store question answers if provided
+    if (questionHistory && Array.isArray(questionHistory) && questionHistory.length > 0) {
+      const leadAnswers = questionHistory.map((item) => ({
+        lead_id: data.id,
+        question_id: item.questionId,
+        question_text: item.questionText,
+        answer_value: item.answer,
+      }));
+
+      const { error: answersError } = await supabase
+        .from("lead_answers")
+        .insert(leadAnswers);
+
+      if (answersError) {
+        console.error("Failed to insert lead answers:", answersError);
+        // Don't fail the request if answers fail to insert
+      }
     }
 
     // Send notifications (SMS + Email) - don't wait for them to complete

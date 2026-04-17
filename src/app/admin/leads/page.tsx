@@ -5,6 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import AdminNav from "../admin-nav";
 import LeadsClient from "./leads-client";
 
+export type LeadAnswer = {
+  id: string;
+  lead_id: string;
+  question_id: string;
+  question_text: string;
+  answer_value: string;
+  created_at: string;
+};
+
 export default async function AdminLeadsPage() {
   let supabase;
 
@@ -39,6 +48,23 @@ export default async function AdminLeadsPage() {
 
   const leads = (data ?? []) as LeadRow[];
 
+  // Fetch all lead answers for all leads
+  const { data: answersData } = await queryClient
+    .from("lead_answers")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  const leadAnswers = (answersData ?? []) as LeadAnswer[];
+
+  // Group answers by lead_id
+  const answersByLeadId = leadAnswers.reduce((acc, answer) => {
+    if (!acc[answer.lead_id]) {
+      acc[answer.lead_id] = [];
+    }
+    acc[answer.lead_id].push(answer);
+    return acc;
+  }, {} as Record<string, LeadAnswer[]>);
+
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -61,7 +87,7 @@ export default async function AdminLeadsPage() {
             Failed to load leads. Confirm the `leads` table and RLS policies are applied.
           </div>
         ) : (
-          <LeadsClient initialLeads={leads} />
+          <LeadsClient initialLeads={leads} leadAnswers={answersByLeadId} />
         )}
       </div>
     </main>

@@ -177,11 +177,29 @@ export default function GetCashOfferPage() {
       if (!submissionData.ownsLand || submissionData.ownsLand.trim() === "") {
         delete submissionData.ownsLand;
       }
+
+      // Build question history from questionPath
+      const questionHistory = questionPath.map((q) => {
+        let answer = "";
+        if (q.field_name && q.field_name in answers) {
+          const value = answers[q.field_name as keyof IntakeAnswers];
+          if (typeof value === "string") {
+            answer = value;
+          } else if (typeof value === "boolean") {
+            answer = value ? "Yes" : "No";
+          }
+        }
+        return {
+          questionId: q.id,
+          questionText: q.question_text,
+          answer,
+        };
+      }).filter((item) => item.answer); // Only include questions with answers
       
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(submissionData),
+        body: JSON.stringify({ ...submissionData, questionHistory }),
       });
 
       if (!response.ok) {
