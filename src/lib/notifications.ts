@@ -7,7 +7,7 @@ type LeadNotificationData = {
   phone: string;
   propertyType: string;
   streetAddress: string;
-  repairsNeeded: string;
+  repairsNeeded: string | null;
   closeTimeline: string;
   leadId: string;
 };
@@ -39,7 +39,7 @@ export async function sendLeadSmsNotification(
 Name: ${leadData.fullName}
 Location: ${leadData.city}, ${leadData.state}
 Property: ${leadData.propertyType}
-Repairs: ${leadData.repairsNeeded}
+Repairs: ${leadData.repairsNeeded || "Not specified"}
 Timeline: ${leadData.closeTimeline}
 
 Contact: ${leadData.phone}
@@ -139,7 +139,7 @@ export async function sendLeadEmailNotification(
                   </div>
                   <div class="field">
                     <span class="label">Repairs Needed:</span>
-                    <span class="value">${leadData.repairsNeeded}</span>
+                    <span class="value">${leadData.repairsNeeded || "Not specified"}</span>
                   </div>
                   <div class="field">
                     <span class="label">Close Timeline:</span>
