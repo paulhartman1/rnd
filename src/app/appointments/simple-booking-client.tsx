@@ -222,14 +222,29 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
             <h2 className="mb-4 text-lg font-bold text-[var(--color-navy)] sm:text-xl">
               Choose a date
             </h2>
+            <p className="mb-3 text-sm text-[var(--color-muted)]">
+              Tap the calendar icon to select your preferred date
+            </p>
             <div className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
               <input
                 type="date"
                 value={selectedDate}
                 min={getMinDate()}
                 max={getMaxDate()}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => {
+                  // Only set if user actually selected a date
+                  if (e.target.value) {
+                    setSelectedDate(e.target.value);
+                  }
+                }}
+                onBlur={(e) => {
+                  // Prevent accidental progression on mobile when picker closes without selection
+                  if (!e.target.value) {
+                    setSelectedDate("");
+                  }
+                }}
                 placeholder="Select a date"
+                required
                 className="w-full rounded-lg border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
               />
             </div>
