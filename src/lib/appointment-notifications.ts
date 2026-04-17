@@ -94,7 +94,7 @@ export async function sendAppointmentRequestNotification(
                   </div>
                   <div class="field">
                     <span class="label">Requested Time:</span>
-                    <span class="value">${new Date(data.requestedTime).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })}</span>
+                    <span class="value">${new Date(data.requestedTime).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short", timeZone: "America/Denver" })}</span>
                   </div>
                   <div class="field">
                     <span class="label">Property Address:</span>
@@ -188,8 +188,8 @@ export async function sendAppointmentApprovalNotification(
                   
                   <div class="field">
                     <span class="label">📅 Date & Time:</span><br>
-                    <span class="value">${startDate.toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span><br>
-                    <span class="value">${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                    <span class="value">${startDate.toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "America/Denver" })}</span><br>
+                    <span class="value">${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" })} - ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" })}</span>
                   </div>
                   
                   <div class="field">

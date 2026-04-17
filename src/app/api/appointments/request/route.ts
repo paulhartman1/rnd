@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         acceptable_offer: "To be discussed",
         sms_consent: false,
         status: "new",
-        owner_notes: `Appointment request: ${appointmentType?.name || ""} on ${new Date(requestedStartTime).toLocaleString()}. Notes: ${notes || "None"}`,
+        owner_notes: `Appointment request: ${appointmentType?.name || ""} on ${new Date(requestedStartTime).toLocaleString("en-US", { timeZone: "America/Denver" })}. Notes: ${notes || "None"}`,
       });
 
     if (leadError) {
