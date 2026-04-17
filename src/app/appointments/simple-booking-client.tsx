@@ -225,6 +225,7 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
             <div className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
               <input
                 type="date"
+                value={selectedDate}
                 min={getMinDate()}
                 max={getMaxDate()}
                 onChange={(e) => setSelectedDate(e.target.value)}
