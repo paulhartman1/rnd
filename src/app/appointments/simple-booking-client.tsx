@@ -229,6 +229,7 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
                 min={getMinDate()}
                 max={getMaxDate()}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                placeholder="Select a date"
                 className="w-full rounded-lg border border-black/10 px-4 py-3 text-base text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
               />
             </div>
