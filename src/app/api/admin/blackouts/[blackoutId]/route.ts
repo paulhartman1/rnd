@@ -19,27 +19,30 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   const { blackoutId } = await params;
   const body = await request.json();
-  const { title, startTime, endTime } = body;
+  const { reason, start_time, end_time } = body;
 
-  const updateData: Record<string, string> = {};
+  const updateData: Record<string, string | null> = {};
 
-  if (title !== undefined) updateData.title = title;
-  if (startTime !== undefined) updateData.start_time = startTime;
-  if (endTime !== undefined) updateData.end_time = endTime;
+  if (reason !== undefined) updateData.reason = reason;
+  if (start_time !== undefined) updateData.start_time = start_time;
+  if (end_time !== undefined) updateData.end_time = end_time;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("blackout_periods")
     .update(updateData)
-    .eq("id", blackoutId);
+    .eq("id", blackoutId)
+    .select()
+    .single();
 
   if (error) {
+    console.error("Supabase error updating blackout:", error);
     return NextResponse.json(
-      { error: "Failed to update blackout period" },
+      { error: "Failed to update blackout period", details: error.message },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json(data);
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {

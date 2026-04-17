@@ -38,9 +38,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { title, startTime, endTime } = body;
+  const { reason, start_time, end_time } = body;
 
-  if (!title || !startTime || !endTime) {
+  if (!start_time || !end_time) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 },
@@ -50,19 +50,20 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("blackout_periods")
     .insert({
-      title,
-      start_time: startTime,
-      end_time: endTime,
+      reason: reason || null,
+      start_time,
+      end_time,
     })
     .select()
     .single();
 
   if (error) {
+    console.error("Supabase error creating blackout:", error);
     return NextResponse.json(
-      { error: "Failed to create blackout period" },
+      { error: "Failed to create blackout period", details: error.message },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ blackoutPeriod: data });
+  return NextResponse.json(data);
 }

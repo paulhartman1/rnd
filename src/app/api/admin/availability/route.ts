@@ -40,14 +40,14 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { dayOfWeek, startTime, endTime, isActive } = body;
+  const { day_of_week, start_time, end_time, is_active } = body;
 
   if (
-    dayOfWeek === undefined ||
-    !startTime ||
-    !endTime ||
-    dayOfWeek < 0 ||
-    dayOfWeek > 6
+    day_of_week === undefined ||
+    !start_time ||
+    !end_time ||
+    day_of_week < 0 ||
+    day_of_week > 6
   ) {
     return NextResponse.json(
       { error: "Missing or invalid required fields" },
@@ -58,20 +58,21 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("availability_windows")
     .insert({
-      day_of_week: dayOfWeek,
-      start_time: startTime,
-      end_time: endTime,
-      is_active: isActive ?? true,
+      day_of_week,
+      start_time,
+      end_time,
+      is_active: is_active ?? true,
     })
     .select()
     .single();
 
   if (error) {
+    console.error("Supabase error creating availability:", error);
     return NextResponse.json(
-      { error: "Failed to create availability window" },
+      { error: "Failed to create availability window", details: error.message },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ availabilityWindow: data });
+  return NextResponse.json(data);
 }

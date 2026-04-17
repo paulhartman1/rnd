@@ -53,6 +53,10 @@ export default function AppointmentSettingsClient({
         const updated = await response.json();
         setAvailability(availability.map(a => a.id === window.id ? updated : a));
         setEditingAvailability(null);
+      } else {
+        const error = await response.json();
+        console.error("Failed to update availability:", error);
+        alert(`Failed to update: ${error.error || "Unknown error"}`);
       }
     } else {
       // Create new
@@ -65,6 +69,10 @@ export default function AppointmentSettingsClient({
         const created = await response.json();
         setAvailability([...availability, created]);
         setIsAddingAvailability(false);
+      } else {
+        const error = await response.json();
+        console.error("Failed to create availability:", error);
+        alert(`Failed to save: ${error.error || "Unknown error"}`);
       }
     }
   };
