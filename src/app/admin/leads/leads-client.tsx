@@ -18,6 +18,7 @@ type LeadDraftState = {
   error: string | null;
   callMessage: string | null;
   showContactMenu: boolean;
+  showQuestions: boolean;
 };
 
 type Props = {
@@ -35,6 +36,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
     error: null,
     callMessage: null,
     showContactMenu: false,
+    showQuestions: false,
   };
 }
 
@@ -530,27 +532,34 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                   </div>
 
                   {/* Display all answered questions */}
-                  {leadAnswers[lead.id] && leadAnswers[lead.id].length > 0 ? (
-                    <div className="space-y-2.5 rounded-xl border border-black/10 bg-[var(--color-surface-soft)] p-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
-                        Answered Questions
-                      </p>
-                      {leadAnswers[lead.id].map((answer) => (
-                        <div key={answer.id} className="border-l-2 border-[var(--color-primary-gold)] pl-3 py-1">
-                          <p className="text-xs font-semibold text-[var(--color-muted)]">
-                            {answer.question_text}
-                          </p>
-                          <p className="mt-0.5 text-sm font-medium text-[var(--color-navy)]">
-                            {answer.answer_value}
-                          </p>
+                  {leadAnswers[lead.id] && leadAnswers[lead.id].length > 0 && (
+                    <div className="rounded-xl border border-black/10 bg-[var(--color-surface-soft)]">
+                      <button
+                        type="button"
+                        onClick={() => updateDraft(lead.id, { showQuestions: !draft.showQuestions })}
+                        className="w-full flex items-center justify-between p-4 text-left transition hover:bg-black/5"
+                      >
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                          Answered Questions ({leadAnswers[lead.id].length})
+                        </p>
+                        <span className="text-xs text-[var(--color-accent)]">
+                          {draft.showQuestions ? "▲" : "▼"}
+                        </span>
+                      </button>
+                      {draft.showQuestions && (
+                        <div className="space-y-2.5 border-t border-black/10 p-4">
+                          {leadAnswers[lead.id].map((answer) => (
+                            <div key={answer.id} className="border-l-2 border-[var(--color-primary-gold)] pl-3 py-1">
+                              <p className="text-xs font-semibold text-[var(--color-muted)]">
+                                {answer.question_text}
+                              </p>
+                              <p className="mt-0.5 text-sm font-medium text-[var(--color-navy)]">
+                                {answer.answer_value}
+                              </p>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-black/10 bg-[var(--color-surface-soft)] p-4">
-                      <p className="text-xs text-[var(--color-muted)]">
-                        No answered questions available for this lead.
-                      </p>
+                      )}
                     </div>
                   )}
               </div>
