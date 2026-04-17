@@ -28,7 +28,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid date format. Use YYYY-MM-DD" }, { status: 400 });
   }
 
-  const requestedDate = new Date(date);
+  // Parse date as local date (Mountain Time in production)
+  const requestedDate = new Date(date + "T12:00:00"); // Add time to avoid timezone issues
   const dayOfWeek = requestedDate.getDay(); // 0 = Sunday, 6 = Saturday
 
   // Fetch appointment type to get duration
@@ -60,8 +61,8 @@ export async function GET(request: Request) {
   }
 
   // Get existing appointments for this date
-  const startOfDay = `${date}T00:00:00Z`;
-  const endOfDay = `${date}T23:59:59Z`;
+  const startOfDay = `${date}T00:00:00`;
+  const endOfDay = `${date}T23:59:59`;
 
   const { data: existingAppointments } = await supabase
     .from("appointments")
@@ -82,15 +83,16 @@ export async function GET(request: Request) {
   const slotIncrementMinutes = 30; // Generate slots every 30 minutes
 
   for (const window of availabilityWindows) {
-    // Convert time strings to today's date
+    // Convert time strings (HH:MM:SS) to Date objects for the requested date
     const [startHour, startMin] = window.start_time.split(":").map(Number);
     const [endHour, endMin] = window.end_time.split(":").map(Number);
 
-    let currentTime = new Date(requestedDate);
-    currentTime.setHours(startHour, startMin, 0, 0);
-
-    const windowEnd = new Date(requestedDate);
-    windowEnd.setHours(endHour, endMin, 0, 0);
+    // Create datetime strings for this date at the window times
+    const currentTimeStr = `${date}T${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`;
+    const windowEndStr = `${date}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
+    
+    let currentTime = new Date(currentTimeStr);
+    const windowEnd = new Date(windowEndStr);
 
     while (currentTime < windowEnd) {
       const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60000);

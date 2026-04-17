@@ -124,13 +124,13 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
     });
   };
 
-  // Generate available dates for the next 30 days
+  // Generate available dates for the next 14 days
   const getAvailableDates = () => {
     const dates = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push({
