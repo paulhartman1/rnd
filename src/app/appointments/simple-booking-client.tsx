@@ -165,27 +165,6 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
     });
   };
 
-  // Generate available dates for the next 14 days
-  const getAvailableDates = () => {
-    const dates = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    for (let i = 0; i < 14; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push({
-        value: date.toISOString().split("T")[0],
-        label: date.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          timeZone: "America/Denver",
-        }),
-      });
-    }
-    return dates;
-  };
 
   // Show loading while redirecting if no lead data
   if (!hasRequiredLeadData && !passedLeadData) {
@@ -290,16 +269,94 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
             <p className="mb-3 text-sm text-[var(--color-muted)]">
               Select when you'd like to meet
             </p>
+            
+            {/* Week navigation */}
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
+                disabled={weekOffset === 0}
+                className="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[var(--color-navy)] transition hover:border-[var(--color-primary-gold)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← Previous Week
+              </button>
+              <span className="text-sm text-[var(--color-muted)]">
+                Week {weekOffset + 1}
+              </span>
+              <button
+                onClick={() => setWeekOffset(weekOffset + 1)}
+                disabled={weekOffset >= 3}
+                className="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[var(--color-navy)] transition hover:border-[var(--color-primary-gold)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next Week →
+              </button>
+            </div>
+            
             <div className="space-y-3">
-              {getAvailableDates().map((date) => (
-                <button
-                  key={date.value}
-                  onClick={() => setSelectedDate(date.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white p-4 text-left transition hover:border-[var(--color-primary-gold)] hover:shadow-md"
-                >
-                  <p className="font-bold text-[var(--color-navy)]">{date.label}</p>
-                </button>
-              ))}
+              {(() => {
+                const dates = [];
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Calculate max date (30 days from today)
+                const maxDate = new Date(today);
+                maxDate.setDate(today.getDate() + 30);
+                
+                // Start from current week offset (7 days per week)
+                const startOffset = weekOffset * 7;
+                
+                for (let i = 0; i < 7; i++) {
+                  const date = new Date(today);
+                  date.setDate(today.getDate() + startOffset + i);
+                  
+                  // Skip if date is beyond max date
+                  if (date > maxDate) continue;
+                  
+                  const dateString = date.toISOString().split("T")[0];
+                  const dayOfWeek = date.getDay();
+                  
+                  // Check if this day of week has availability
+                  const isDayAvailable = availableDaysOfWeek.length === 0 || availableDaysOfWeek.includes(dayOfWeek);
+                  
+                  // Check if this date is blacked out
+                  const isBlackedOut = blackoutDates.includes(dateString);
+                  
+                  // Date is disabled if no availability or blacked out
+                  const isDisabled = !isDayAvailable || isBlackedOut;
+                  
+                  dates.push({
+                    value: dateString,
+                    label: date.toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      timeZone: "America/Denver",
+                    }),
+                    disabled: isDisabled,
+                  });
+                }
+                
+                return dates.map((date) => (
+                  <button
+                    key={date.value}
+                    onClick={() => !date.disabled && setSelectedDate(date.value)}
+                    disabled={date.disabled}
+                    className={`w-full rounded-xl border p-4 text-left transition ${
+                      date.disabled
+                        ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                        : "border-black/10 bg-white hover:border-[var(--color-primary-gold)] hover:shadow-md"
+                    }`}
+                  >
+                    <p className={`font-bold ${
+                      date.disabled ? "text-gray-400" : "text-[var(--color-navy)]"
+                    }`}>
+                      {date.label}
+                      {date.disabled && (
+                        <span className="ml-2 text-xs font-normal">(Unavailable)</span>
+                      )}
+                    </p>
+                  </button>
+                ));
+              })()}
             </div>
           </div>
         )}
