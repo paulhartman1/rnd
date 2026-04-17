@@ -100,6 +100,13 @@ export default async function AdminDashboardPage() {
       icon: "⭐",
       stats: `${unapprovedReviews.length} awaiting approval`,
     },
+    {
+      title: "Phone Settings",
+      description: "Configure call forwarding and voicemail",
+      href: "/admin/phone-settings",
+      icon: "📞",
+      stats: "Call availability & voicemail",
+    },
   ];
 
   return (

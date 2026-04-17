@@ -9,38 +9,52 @@ export default function AdminNav() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [upcomingAppointments, setUpcomingAppointments] = useState(0);
+  const [hotLeads, setHotLeads] = useState(0);
 
-  const isActive = (path: string) => pathname === path;
-
-  // Fetch pending appointments count
+  // Fetch key metrics
   useEffect(() => {
-    async function fetchPendingCount() {
+    async function fetchMetrics() {
       try {
-        const response = await fetch("/api/admin/appointment-requests");
-        if (response.ok) {
-          const data = await response.json();
-          const pending = data.appointmentRequests.filter(
+        // Fetch pending appointment requests
+        const requestsResponse = await fetch("/api/admin/appointment-requests");
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json();
+          const pending = requestsData.appointmentRequests.filter(
             (req: { status: string }) => req.status === "pending"
           ).length;
           setPendingCount(pending);
         }
+
+        // Fetch upcoming appointments
+        const appointmentsResponse = await fetch("/api/admin/appointments");
+        if (appointmentsResponse.ok) {
+          const appointmentsData = await appointmentsResponse.json();
+          const upcoming = appointmentsData.appointments.filter(
+            (apt: { start_time: string; status: string }) =>
+              new Date(apt.start_time) > new Date() && apt.status === "scheduled"
+          ).length;
+          setUpcomingAppointments(upcoming);
+        }
+
+        // Fetch hot leads
+        const leadsResponse = await fetch("/api/admin/leads");
+        if (leadsResponse.ok) {
+          const leadsData = await leadsResponse.json();
+          const hot = leadsData.leads.filter(
+            (lead: { isHotLead: boolean }) => lead.isHotLead
+          ).length;
+          setHotLeads(hot);
+        }
       } catch (error) {
-        console.error("Failed to fetch pending count:", error);
+        console.error("Failed to fetch metrics:", error);
       }
     }
-    fetchPendingCount();
+    fetchMetrics();
     // Refresh every 30 seconds
-    const interval = setInterval(fetchPendingCount, 30000);
+    const interval = setInterval(fetchMetrics, 30000);
     return () => clearInterval(interval);
   }, []);
-
-  const navItems = [
-    { path: "/admin/leads", label: "Leads", group: "ops", badge: null },
-    { path: "/admin/appointments", label: "Appointments", group: "ops", badge: pendingCount > 0 ? pendingCount : null },
-    { path: "/admin/appointments/settings", label: "Settings", group: "ops", badge: null, isSubItem: true },
-    { path: "/admin/questions", label: "Questions", group: "config", badge: null },
-    { path: "/admin/reviews", label: "Reviews", group: "config", badge: null },
-  ];
 
   return (
     <nav className="sticky top-4 z-10 mb-6">
@@ -58,35 +72,56 @@ export default function AdminNav() {
             />
           </Link>
           
-          {/* Main Navigation */}
-          <div className="flex items-center gap-1">
-            {navItems.map((item, idx) => {
-              const showDivider = idx > 0 && navItems[idx - 1].group !== item.group;
-              return (
-                <div key={item.path} className="flex items-center gap-1">
-                  {showDivider && (
-                    <div className="mx-1 h-5 w-px bg-black/10" />
-                  )}
-                  <Link
-                    href={item.path}
-                    className={`relative rounded-lg px-3 py-1.5 text-sm transition-all ${
-                      (item as any).isSubItem ? "font-normal" : "font-semibold"
-                    } ${
-                      isActive(item.path)
-                        ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
-                        : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-                    }`}
-                  >
-                    {(item as any).isSubItem && "↳ "}{item.label}
-                    {item.badge && (
-                      <span className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                </div>
-              );
-            })}
+          {/* Quick Metrics */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/appointments"
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                pendingCount > 0
+                  ? "bg-red-50 hover:bg-red-100"
+                  : "bg-green-50 hover:bg-green-100"
+              }`}
+              title="View pending appointment requests"
+            >
+              <span className={`text-sm font-semibold ${
+                pendingCount > 0 ? "text-red-700" : "text-green-700"
+              }`}>⚡ {pendingCount}</span>
+              <span className={`hidden text-xs lg:inline ${
+                pendingCount > 0 ? "text-red-600" : "text-green-600"
+              }`}>pending</span>
+            </Link>
+            <Link
+              href="/admin/appointments"
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                upcomingAppointments > 0
+                  ? "bg-blue-50 hover:bg-blue-100"
+                  : "bg-green-50 hover:bg-green-100"
+              }`}
+              title="View upcoming appointments"
+            >
+              <span className={`text-sm font-semibold ${
+                upcomingAppointments > 0 ? "text-blue-700" : "text-green-700"
+              }`}>📅 {upcomingAppointments}</span>
+              <span className={`hidden text-xs lg:inline ${
+                upcomingAppointments > 0 ? "text-blue-600" : "text-green-600"
+              }`}>upcoming</span>
+            </Link>
+            <Link
+              href="/admin/leads"
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                hotLeads > 0
+                  ? "bg-orange-50 hover:bg-orange-100"
+                  : "bg-green-50 hover:bg-green-100"
+              }`}
+              title="View hot leads"
+            >
+              <span className={`text-sm font-semibold ${
+                hotLeads > 0 ? "text-orange-700" : "text-green-700"
+              }`}>🔥 {hotLeads}</span>
+              <span className={`hidden text-xs lg:inline ${
+                hotLeads > 0 ? "text-orange-600" : "text-green-600"
+              }`}>hot leads</span>
+            </Link>
           </div>
 
           {/* Exit & Home Link */}
@@ -168,34 +203,55 @@ export default function AdminNav() {
           {isMenuOpen && (
             <div className="border-t border-black/[0.08] px-3 py-2">
               <div className="flex flex-col gap-1">
-                <Link
-                  href="/admin"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-                >
-                  ← Dashboard
-                </Link>
-                {navItems.map((item) => (
+                {pathname !== "/admin" && (
                   <Link
-                    key={item.path}
-                    href={item.path}
+                    href="/admin"
                     onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center justify-between rounded-lg py-2 text-sm transition-all ${
-                      (item as any).isSubItem ? "pl-6 pr-3 font-normal" : "px-3 font-semibold"
-                    } ${
-                      isActive(item.path)
-                        ? "bg-[var(--color-primary-gold)] text-[var(--color-navy)] shadow-sm"
-                        : "text-[var(--color-navy)]/70 hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-                    }`}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
                   >
-                    <span>{(item as any).isSubItem && "↳ "}{item.label}</span>
-                    {item.badge && (
-                      <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
-                        {item.badge}
-                      </span>
-                    )}
+                    ← Dashboard
                   </Link>
-                ))}
+                )}
+                {/* Quick Metrics in mobile menu */}
+                <Link
+                  href="/admin/appointments"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`rounded-lg px-3 py-2 transition-all ${
+                    pendingCount > 0
+                      ? "bg-red-50 hover:bg-red-100"
+                      : "bg-green-50 hover:bg-green-100"
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${
+                    pendingCount > 0 ? "text-red-700" : "text-green-700"
+                  }`}>⚡ {pendingCount} pending request{pendingCount !== 1 ? 's' : ''}</span>
+                </Link>
+                <Link
+                  href="/admin/appointments"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`rounded-lg px-3 py-2 transition-all ${
+                    upcomingAppointments > 0
+                      ? "bg-blue-50 hover:bg-blue-100"
+                      : "bg-green-50 hover:bg-green-100"
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${
+                    upcomingAppointments > 0 ? "text-blue-700" : "text-green-700"
+                  }`}>📅 {upcomingAppointments} upcoming appointment{upcomingAppointments !== 1 ? 's' : ''}</span>
+                </Link>
+                <Link
+                  href="/admin/leads"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`rounded-lg px-3 py-2 transition-all ${
+                    hotLeads > 0
+                      ? "bg-orange-50 hover:bg-orange-100"
+                      : "bg-green-50 hover:bg-green-100"
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${
+                    hotLeads > 0 ? "text-orange-700" : "text-green-700"
+                  }`}>🔥 {hotLeads} hot lead{hotLeads !== 1 ? 's' : ''}</span>
+                </Link>
               </div>
             </div>
           )}
