@@ -79,11 +79,11 @@ export default function AdminNav() {
 
           {/* Home Link */}
           <Link
-            href="/"
+            href="/admin/leads"
             className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-            title="Back to home"
+            title="Back to leads"
           >
-            ← Home
+            ← Admin Home
           </Link>
         </div>
 
@@ -122,11 +122,11 @@ export default function AdminNav() {
             </button>
 
             <Link
-              href="/"
+              href="/admin/leads"
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-              title="Back to home"
+              title="Back to leads"
             >
-              ← Home
+              ← Admin Home
             </Link>
           </div>
 
