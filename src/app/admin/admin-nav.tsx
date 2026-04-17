@@ -99,11 +99,11 @@ export default function AdminNav() {
               Exit →
             </Link>
             <Link
-              href="/admin/leads"
+              href="/admin"
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-              title="Back to leads"
+              title="Back to dashboard"
             >
-              ← Admin Home
+              ← Dashboard
             </Link>
           </div>
         </div>
@@ -169,11 +169,11 @@ export default function AdminNav() {
             <div className="border-t border-black/[0.08] px-3 py-2">
               <div className="flex flex-col gap-1">
                 <Link
-                  href="/admin/leads"
+                  href="/admin"
                   onClick={() => setIsMenuOpen(false)}
                   className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
                 >
-                  ← Admin Home
+                  ← Dashboard
                 </Link>
                 {navItems.map((item) => (
                   <Link
