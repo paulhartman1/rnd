@@ -47,6 +47,16 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
     postalCode: searchParams.get("zip") || "",
   };
 
+  // Check if user has completed lead form (has required lead data)
+  const hasRequiredLeadData = leadData.fullName && leadData.email && leadData.phone && leadData.streetAddress;
+
+  // Redirect to lead form if no lead data
+  useEffect(() => {
+    if (!hasRequiredLeadData && !passedLeadData) {
+      window.location.href = "/get-cash-offer";
+    }
+  }, [hasRequiredLeadData, passedLeadData]);
+
   // Load appointment types
   useEffect(() => {
     async function loadTypes() {
@@ -176,6 +186,19 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
     }
     return dates;
   };
+
+  // Show loading while redirecting if no lead data
+  if (!hasRequiredLeadData && !passedLeadData) {
+    return (
+      <main className="min-h-screen bg-[var(--color-surface)] px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-xl border border-black/10 bg-white p-8 text-center">
+            <p className="text-[var(--color-muted)]">Redirecting to lead form...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   if (success) {
     return (

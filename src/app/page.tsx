@@ -126,7 +126,7 @@ export default function Home() {
           <div className="pointer-events-none absolute inset-0 md:inset-y-0 md:-left-[50px] w-full md:w-[226px] lg:w-[274px] bg-gradient-to-b md:bg-gradient-to-r from-[#112547] via-[#112547]/70 to-transparent" />
         </div>
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="py-14 md:max-w-[44%] lg:py-20">
+          <div className="py-2 md:max-w-[44%]">
             <h1 className="max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
               A Simple, <span className="text-[var(--color-primary-gold)]">Fair</span> Way to Sell Your Home?
             </h1>
