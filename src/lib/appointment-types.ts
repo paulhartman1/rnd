@@ -21,7 +21,7 @@ export type AvailabilityWindowRow = {
 
 export type BlackoutPeriodRow = {
   id: string;
-  title: string;
+  reason: string | null;
   start_time: string;
   end_time: string;
   created_at: string;
