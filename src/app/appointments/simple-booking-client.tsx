@@ -32,6 +32,9 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [availableDaysOfWeek, setAvailableDaysOfWeek] = useState<number[]>([]);
+  const [blackoutDates, setBlackoutDates] = useState<string[]>([]);
 
   // Get lead data from URL params or props
   const leadData = passedLeadData || {
@@ -55,6 +58,34 @@ export default function SimpleBookingClient({ leadData: passedLeadData }: Props)
     }
     loadTypes();
   }, []);
+
+  // Load availability windows and blackouts when type is selected
+  useEffect(() => {
+    if (selectedType) {
+      Promise.all([
+        fetch("/api/admin/availability").then(r => r.json()),
+        fetch("/api/admin/blackouts").then(r => r.json()),
+      ]).then(([availData, blackoutData]) => {
+        // Get unique days of week that have availability
+        const daysWithAvail = [...new Set(
+          availData.availabilityWindows?.map((w: any) => w.day_of_week) || []
+        )];
+        setAvailableDaysOfWeek(daysWithAvail);
+
+        // Get blackout dates
+        const blackouts = blackoutData.blackoutPeriods?.map((b: any) => {
+          const start = new Date(b.start_time);
+          const end = new Date(b.end_time);
+          const dates = [];
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            dates.push(d.toISOString().split("T")[0]);
+          }
+          return dates;
+        }).flat() || [];
+        setBlackoutDates(blackouts);
+      });
+    }
+  }, [selectedType]);
 
   // Load time slots when date is selected
   useEffect(() => {

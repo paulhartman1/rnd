@@ -87,9 +87,13 @@ export async function GET(request: Request) {
     const [startHour, startMin] = window.start_time.split(":").map(Number);
     const [endHour, endMin] = window.end_time.split(":").map(Number);
 
-    // Create datetime strings for this date at the window times
-    const currentTimeStr = `${date}T${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`;
-    const windowEndStr = `${date}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
+    // Add 6 hours to convert from server time to Mountain Time
+    const mtStartHour = startHour + 6;
+    const mtEndHour = endHour + 6;
+
+    // Create datetime strings for this date at the window times (Mountain Time)
+    const currentTimeStr = `${date}T${String(mtStartHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`;
+    const windowEndStr = `${date}T${String(mtEndHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00`;
     
     let currentTime = new Date(currentTimeStr);
     const windowEnd = new Date(windowEndStr);
