@@ -39,6 +39,8 @@ export type QuestionMapping = {
   priority: number;
   is_active: boolean;
   conditional_logic: ConditionalLogic | null;
+  conditional_to_question_id: string | null;
+  conditional_redirect_url: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -68,6 +70,8 @@ export type MappingInsert = {
   priority?: number;
   is_active?: boolean;
   conditional_logic?: ConditionalLogic;
+  conditional_to_question_id?: string;
+  conditional_redirect_url?: string;
 };
 
 /**
@@ -137,11 +141,26 @@ export function findNextStep(
     )
     .sort((a, b) => b.priority - a.priority);
 
-  // First, look for exact answer match with conditional logic satisfied
+  // First, look for exact answer match
   for (const mapping of relevantMappings) {
     if (mapping.answer_value === answer) {
-      // Check conditional logic if present
-      if (evaluateConditionalLogic(mapping.conditional_logic, previousAnswers)) {
+      // If conditional logic exists, check it
+      if (mapping.conditional_logic && mapping.conditional_logic.conditions.length > 0) {
+        if (evaluateConditionalLogic(mapping.conditional_logic, previousAnswers)) {
+          // Conditions met - use conditional destination
+          return {
+            nextQuestionId: mapping.conditional_to_question_id,
+            redirectUrl: mapping.conditional_redirect_url,
+          };
+        } else {
+          // Conditions not met - use default destination
+          return {
+            nextQuestionId: mapping.to_question_id,
+            redirectUrl: mapping.redirect_url,
+          };
+        }
+      } else {
+        // No conditional logic - use default destination
         return {
           nextQuestionId: mapping.to_question_id,
           redirectUrl: mapping.redirect_url,
@@ -150,10 +169,26 @@ export function findNextStep(
     }
   }
 
-  // Then, look for default mapping (null answer_value) with conditional logic satisfied
+  // Then, look for default mapping (null answer_value)
   for (const mapping of relevantMappings) {
     if (mapping.answer_value === null) {
-      if (evaluateConditionalLogic(mapping.conditional_logic, previousAnswers)) {
+      // If conditional logic exists, check it
+      if (mapping.conditional_logic && mapping.conditional_logic.conditions.length > 0) {
+        if (evaluateConditionalLogic(mapping.conditional_logic, previousAnswers)) {
+          // Conditions met - use conditional destination
+          return {
+            nextQuestionId: mapping.conditional_to_question_id,
+            redirectUrl: mapping.conditional_redirect_url,
+          };
+        } else {
+          // Conditions not met - use default destination
+          return {
+            nextQuestionId: mapping.to_question_id,
+            redirectUrl: mapping.redirect_url,
+          };
+        }
+      } else {
+        // No conditional logic - use default destination
         return {
           nextQuestionId: mapping.to_question_id,
           redirectUrl: mapping.redirect_url,

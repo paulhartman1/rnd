@@ -75,6 +75,10 @@ export async function POST(request: Request) {
       insertData.is_active = payload.is_active;
     if (payload.conditional_logic !== undefined)
       insertData.conditional_logic = payload.conditional_logic;
+    if (payload.conditional_to_question_id !== undefined)
+      insertData.conditional_to_question_id = payload.conditional_to_question_id;
+    if (payload.conditional_redirect_url !== undefined)
+      insertData.conditional_redirect_url = payload.conditional_redirect_url;
 
     const adminClient = createAdminClient();
     const supabase = adminClient ?? (await createClient());

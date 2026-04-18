@@ -28,6 +28,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       updateData.is_active = payload.is_active;
     if (payload.conditional_logic !== undefined)
       updateData.conditional_logic = payload.conditional_logic;
+    if (payload.conditional_to_question_id !== undefined)
+      updateData.conditional_to_question_id = payload.conditional_to_question_id;
+    if (payload.conditional_redirect_url !== undefined)
+      updateData.conditional_redirect_url = payload.conditional_redirect_url;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

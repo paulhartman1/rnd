@@ -48,6 +48,8 @@ export default function QuestionsClient({
     redirect_url: "",
     priority: 0,
     conditional_logic: null as ConditionalLogic | null,
+    conditional_to_question_id: "",
+    conditional_redirect_url: "",
     isSaving: false,
     error: null as string | null,
   });
@@ -79,6 +81,8 @@ export default function QuestionsClient({
       redirect_url: "",
       priority: 0,
       conditional_logic: null,
+      conditional_to_question_id: "",
+      conditional_redirect_url: "",
       isSaving: false,
       error: null,
     });
@@ -183,6 +187,8 @@ export default function QuestionsClient({
       redirect_url: mapping.redirect_url || "",
       priority: mapping.priority,
       conditional_logic: mapping.conditional_logic || null,
+      conditional_to_question_id: mapping.conditional_to_question_id || "",
+      conditional_redirect_url: mapping.conditional_redirect_url || "",
       isSaving: false,
       error: null,
     });
@@ -200,6 +206,8 @@ export default function QuestionsClient({
         redirect_url: mappingForm.redirect_url || null,
         priority: mappingForm.priority,
         conditional_logic: mappingForm.conditional_logic || null,
+        conditional_to_question_id: mappingForm.conditional_to_question_id || null,
+        conditional_redirect_url: mappingForm.conditional_redirect_url || null,
       };
 
       if (editingMapping) {
@@ -599,41 +607,48 @@ export default function QuestionsClient({
                   })()}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-[var(--color-muted)]">
-                    To Question (leave empty to end flow)
-                  </label>
-                  <select
-                    value={mappingForm.to_question_id}
-                    onChange={(e) =>
-                      setMappingForm({ ...mappingForm, to_question_id: e.target.value })
-                    }
-                    className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                  >
-                    <option value="">End of flow / Submit</option>
-                    {questions
-                      .filter((q) => !q.deleted_at)
-                      .map((q) => (
-                        <option key={q.id} value={q.id}>
-                          {q.question_text}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wider text-blue-900">
+                    Default Behavior
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-[var(--color-muted)]">
+                        To Question (leave empty to end flow)
+                      </label>
+                      <select
+                        value={mappingForm.to_question_id}
+                        onChange={(e) =>
+                          setMappingForm({ ...mappingForm, to_question_id: e.target.value })
+                        }
+                        className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                      >
+                        <option value="">End of flow / Submit</option>
+                        {questions
+                          .filter((q) => !q.deleted_at)
+                          .map((q) => (
+                            <option key={q.id} value={q.id}>
+                              {q.question_text}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-[var(--color-muted)]">
-                    Redirect URL (optional, instead of next question)
-                  </label>
-                  <input
-                    type="text"
-                    value={mappingForm.redirect_url}
-                    onChange={(e) =>
-                      setMappingForm({ ...mappingForm, redirect_url: e.target.value })
-                    }
-                    placeholder="/get-cash-offer/bye-felicia"
-                    className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                  />
+                    <div>
+                      <label className="block text-sm font-semibold text-[var(--color-muted)]">
+                        Redirect URL (optional, instead of next question)
+                      </label>
+                      <input
+                        type="text"
+                        value={mappingForm.redirect_url}
+                        onChange={(e) =>
+                          setMappingForm({ ...mappingForm, redirect_url: e.target.value })
+                        }
+                        placeholder="/get-cash-offer/bye-felicia"
+                        className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -657,13 +672,18 @@ export default function QuestionsClient({
                 <div className="space-y-3 rounded-lg border border-purple-200 bg-purple-50 p-4">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-bold text-purple-900">
-                      Conditional Logic (Advanced)
+                      Exception (Conditional Logic)
                     </label>
                     <button
                       type="button"
                       onClick={() => {
                         if (mappingForm.conditional_logic) {
-                          setMappingForm({ ...mappingForm, conditional_logic: null });
+                          setMappingForm({
+                            ...mappingForm,
+                            conditional_logic: null,
+                            conditional_to_question_id: "",
+                            conditional_redirect_url: "",
+                          });
                         } else {
                           setMappingForm({
                             ...mappingForm,
@@ -676,11 +696,11 @@ export default function QuestionsClient({
                       }}
                       className="rounded bg-purple-700 px-3 py-1 text-xs font-bold text-white transition hover:bg-purple-800"
                     >
-                      {mappingForm.conditional_logic ? "Remove" : "Add Conditions"}
+                      {mappingForm.conditional_logic ? "Remove" : "Add Exception"}
                     </button>
                   </div>
                   <p className="text-xs text-purple-700">
-                    Check answers from ANY previous question to control flow
+                    Override default behavior when specific conditions are met
                   </p>
 
                   {mappingForm.conditional_logic && (
@@ -839,6 +859,48 @@ export default function QuestionsClient({
                         >
                           + Add Another Condition
                         </button>
+                      </div>
+
+                      {/* Conditional Destinations */}
+                      <div className="space-y-3 rounded border border-purple-300 bg-white p-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-purple-900">
+                          When Conditions Are Met
+                        </p>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700">
+                            Go To Question
+                          </label>
+                          <select
+                            value={mappingForm.conditional_to_question_id}
+                            onChange={(e) =>
+                              setMappingForm({ ...mappingForm, conditional_to_question_id: e.target.value })
+                            }
+                            className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                          >
+                            <option value="">End of flow / Submit</option>
+                            {questions
+                              .filter((q) => !q.deleted_at)
+                              .map((q) => (
+                                <option key={q.id} value={q.id}>
+                                  {q.question_text}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700">
+                            Or Redirect URL
+                          </label>
+                          <input
+                            type="text"
+                            value={mappingForm.conditional_redirect_url}
+                            onChange={(e) =>
+                              setMappingForm({ ...mappingForm, conditional_redirect_url: e.target.value })
+                            }
+                            placeholder="/special-page"
+                            className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
