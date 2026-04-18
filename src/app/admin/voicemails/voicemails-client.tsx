@@ -162,7 +162,7 @@ export default function VoicemailsClient({ initialVoicemails }: Props) {
                         className="w-full max-w-md"
                         onPlay={() => !voicemail.is_read && markAsRead(voicemail.id)}
                       >
-                        <source src={voicemail.recording_url} type="audio/mpeg" />
+                        <source src={`/api/admin/voicemails/${voicemail.id}/audio`} type="audio/mpeg" />
                         Your browser does not support the audio element.
                       </audio>
                     </div>
