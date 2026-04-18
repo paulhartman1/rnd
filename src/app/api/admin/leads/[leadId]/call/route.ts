@@ -62,16 +62,18 @@ export async function POST(
   }
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID ?? "";
+  const apiKeySid = process.env.TWILIO_API_KEY_SID ?? "";
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET ?? "";
   const authToken = process.env.TWILIO_AUTH_TOKEN ?? "";
   const fromPhone = process.env.TWILIO_PHONE_NUMBER ?? "";
   const forwardToPhone = process.env.TWILIO_FORWARD_TO_NUMBER ?? "";
   const twilioCallUrl = process.env.TWILIO_CALL_URL ?? "";
 
-  if (!accountSid || !authToken || !fromPhone) {
+  if (!accountSid || (!apiKeySid && !authToken) || !fromPhone) {
     return NextResponse.json(
       {
         error:
-          "Twilio is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.",
+          "Twilio is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID/TWILIO_API_KEY_SECRET (or TWILIO_AUTH_TOKEN), and TWILIO_PHONE_NUMBER.",
       },
       { status: 500 },
     );
@@ -88,7 +90,10 @@ export async function POST(
   }
 
   try {
-    const client = twilio(accountSid, authToken);
+    // Use API key if available, otherwise fall back to auth token
+    const client = apiKeySid && apiKeySecret
+      ? twilio(apiKeySid, apiKeySecret, { accountSid })
+      : twilio(accountSid, authToken);
     const callConfig: {
       to: string;
       from: string;

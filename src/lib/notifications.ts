@@ -19,12 +19,14 @@ export async function sendLeadSmsNotification(
   leadData: LeadNotificationData,
 ): Promise<boolean> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const apiKeySid = process.env.TWILIO_API_KEY_SID;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromPhone = process.env.TWILIO_PHONE_NUMBER;
   const adminPhone = process.env.ADMIN_NOTIFICATION_PHONE;
 
   // Skip if Twilio not configured or admin phone not set
-  if (!accountSid || !authToken || !fromPhone || !adminPhone) {
+  if (!accountSid || (!apiKeySid && !authToken) || !fromPhone || !adminPhone) {
     console.log(
       "SMS notification skipped: Twilio or admin phone not configured",
     );
@@ -32,7 +34,10 @@ export async function sendLeadSmsNotification(
   }
 
   try {
-    const client = twilio(accountSid, authToken);
+    // Use API key if available, otherwise fall back to auth token
+    const client = apiKeySid && apiKeySecret
+      ? twilio(apiKeySid, apiKeySecret, { accountSid })
+      : twilio(accountSid, authToken);
 
     const message = `🏠 NEW LEAD ALERT
 
