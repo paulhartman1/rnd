@@ -73,6 +73,8 @@ export async function POST(request: Request) {
       insertData.priority = payload.priority;
     if (typeof payload.is_active === "boolean")
       insertData.is_active = payload.is_active;
+    if (payload.conditional_logic !== undefined)
+      insertData.conditional_logic = payload.conditional_logic;
 
     const adminClient = createAdminClient();
     const supabase = adminClient ?? (await createClient());

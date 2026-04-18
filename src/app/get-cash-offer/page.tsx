@@ -145,11 +145,25 @@ export default function GetCashOfferPage() {
     // Get the answer for the current question
     const currentAnswer = getCurrentAnswer();
 
-    // Find the next step based on the answer and mappings
+    // Build a map of previous answers for conditional logic evaluation
+    const previousAnswers: Record<string, string> = {};
+    for (const q of questionPath) {
+      if (q.field_name && q.field_name in answers) {
+        const value = answers[q.field_name as keyof IntakeAnswers];
+        if (typeof value === "string") {
+          previousAnswers[q.id] = value;
+        } else if (typeof value === "boolean") {
+          previousAnswers[q.id] = value ? "Yes" : "No";
+        }
+      }
+    }
+
+    // Find the next step based on the answer, mappings, and previous answers
     const { nextQuestionId, redirectUrl } = findNextStep(
       currentQuestion.id,
       currentAnswer,
       mappings,
+      previousAnswers,
     );
 
     // Handle redirect

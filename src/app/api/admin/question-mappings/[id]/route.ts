@@ -26,6 +26,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       updateData.priority = payload.priority;
     if (typeof payload.is_active === "boolean")
       updateData.is_active = payload.is_active;
+    if (payload.conditional_logic !== undefined)
+      updateData.conditional_logic = payload.conditional_logic;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

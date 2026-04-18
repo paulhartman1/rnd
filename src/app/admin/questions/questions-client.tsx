@@ -5,6 +5,8 @@ import type {
   IntakeQuestion,
   QuestionMappingWithDetails,
   QuestionType,
+  ConditionalLogic,
+  Condition,
 } from "@/lib/questions";
 
 type Props = {
@@ -45,6 +47,7 @@ export default function QuestionsClient({
     to_question_id: "",
     redirect_url: "",
     priority: 0,
+    conditional_logic: null as ConditionalLogic | null,
     isSaving: false,
     error: null as string | null,
   });
@@ -75,6 +78,7 @@ export default function QuestionsClient({
       to_question_id: "",
       redirect_url: "",
       priority: 0,
+      conditional_logic: null,
       isSaving: false,
       error: null,
     });
@@ -178,6 +182,7 @@ export default function QuestionsClient({
       to_question_id: mapping.to_question_id || "",
       redirect_url: mapping.redirect_url || "",
       priority: mapping.priority,
+      conditional_logic: mapping.conditional_logic || null,
       isSaving: false,
       error: null,
     });
@@ -194,6 +199,7 @@ export default function QuestionsClient({
         to_question_id: mappingForm.to_question_id || null,
         redirect_url: mappingForm.redirect_url || null,
         priority: mappingForm.priority,
+        conditional_logic: mappingForm.conditional_logic || null,
       };
 
       if (editingMapping) {
@@ -647,6 +653,197 @@ export default function QuestionsClient({
                   />
                 </div>
 
+                {/* Conditional Logic Section */}
+                <div className="space-y-3 rounded-lg border border-purple-200 bg-purple-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-purple-900">
+                      Conditional Logic (Advanced)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mappingForm.conditional_logic) {
+                          setMappingForm({ ...mappingForm, conditional_logic: null });
+                        } else {
+                          setMappingForm({
+                            ...mappingForm,
+                            conditional_logic: {
+                              operator: "AND",
+                              conditions: [{ question_id: "", answer_value: "", operator: "equals" }],
+                            },
+                          });
+                        }
+                      }}
+                      className="rounded bg-purple-700 px-3 py-1 text-xs font-bold text-white transition hover:bg-purple-800"
+                    >
+                      {mappingForm.conditional_logic ? "Remove" : "Add Conditions"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-purple-700">
+                    Check answers from ANY previous question to control flow
+                  </p>
+
+                  {mappingForm.conditional_logic && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-purple-900">
+                          Logic Operator
+                        </label>
+                        <select
+                          value={mappingForm.conditional_logic.operator}
+                          onChange={(e) =>
+                            setMappingForm({
+                              ...mappingForm,
+                              conditional_logic: {
+                                ...mappingForm.conditional_logic!,
+                                operator: e.target.value as "AND" | "OR",
+                              },
+                            })
+                          }
+                          className="mt-1 w-full rounded border border-purple-300 px-2 py-1 text-sm"
+                        >
+                          <option value="AND">AND (all conditions must match)</option>
+                          <option value="OR">OR (any condition can match)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        {mappingForm.conditional_logic.conditions.map((condition, idx) => (
+                          <div key={idx} className="rounded border border-purple-300 bg-white p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-purple-900">
+                                Condition {idx + 1}
+                              </span>
+                              {mappingForm.conditional_logic!.conditions.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newConditions = mappingForm.conditional_logic!.conditions.filter(
+                                      (_, i) => i !== idx
+                                    );
+                                    setMappingForm({
+                                      ...mappingForm,
+                                      conditional_logic: {
+                                        ...mappingForm.conditional_logic!,
+                                        conditions: newConditions,
+                                      },
+                                    });
+                                  }}
+                                  className="text-xs text-red-600 hover:text-red-800"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700">
+                                Previous Question
+                              </label>
+                              <select
+                                value={condition.question_id}
+                                onChange={(e) => {
+                                  const newConditions = [...mappingForm.conditional_logic!.conditions];
+                                  newConditions[idx] = { ...condition, question_id: e.target.value };
+                                  setMappingForm({
+                                    ...mappingForm,
+                                    conditional_logic: {
+                                      ...mappingForm.conditional_logic!,
+                                      conditions: newConditions,
+                                    },
+                                  });
+                                }}
+                                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                              >
+                                <option value="">Select question...</option>
+                                {questions
+                                  .filter((q) => !q.deleted_at)
+                                  .map((q) => (
+                                    <option key={q.id} value={q.id}>
+                                      {q.question_text}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700">
+                                Operator
+                              </label>
+                              <select
+                                value={condition.operator}
+                                onChange={(e) => {
+                                  const newConditions = [...mappingForm.conditional_logic!.conditions];
+                                  newConditions[idx] = {
+                                    ...condition,
+                                    operator: e.target.value as Condition["operator"],
+                                  };
+                                  setMappingForm({
+                                    ...mappingForm,
+                                    conditional_logic: {
+                                      ...mappingForm.conditional_logic!,
+                                      conditions: newConditions,
+                                    },
+                                  });
+                                }}
+                                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                              >
+                                <option value="equals">Equals</option>
+                                <option value="not_equals">Not Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="not_contains">Not Contains</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700">
+                                Expected Value
+                              </label>
+                              <input
+                                type="text"
+                                value={condition.answer_value}
+                                onChange={(e) => {
+                                  const newConditions = [...mappingForm.conditional_logic!.conditions];
+                                  newConditions[idx] = { ...condition, answer_value: e.target.value };
+                                  setMappingForm({
+                                    ...mappingForm,
+                                    conditional_logic: {
+                                      ...mappingForm.conditional_logic!,
+                                      conditions: newConditions,
+                                    },
+                                  });
+                                }}
+                                placeholder="e.g., Yes, No, Foreclosure"
+                                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                              />
+                            </div>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newConditions = [
+                              ...mappingForm.conditional_logic!.conditions,
+                              { question_id: "", answer_value: "", operator: "equals" as const },
+                            ];
+                            setMappingForm({
+                              ...mappingForm,
+                              conditional_logic: {
+                                ...mappingForm.conditional_logic!,
+                                conditions: newConditions,
+                              },
+                            });
+                          }}
+                          className="w-full rounded border-2 border-dashed border-purple-300 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 transition hover:bg-purple-100"
+                        >
+                          + Add Another Condition
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {mappingForm.error && (
                   <p className="text-sm text-red-600">{mappingForm.error}</p>
                 )}
@@ -713,6 +910,21 @@ export default function QuestionsClient({
                         <p className="mt-1 font-semibold text-orange-700">
                           → End of flow (submit)
                         </p>
+                      )}
+                      {mapping.conditional_logic && mapping.conditional_logic.conditions.length > 0 && (
+                        <div className="mt-2 rounded border border-purple-200 bg-purple-50 p-2">
+                          <p className="text-xs font-bold text-purple-900">
+                            ⚡ Conditional Logic ({mapping.conditional_logic.operator})
+                          </p>
+                          {mapping.conditional_logic.conditions.map((cond, idx) => {
+                            const condQuestion = questions.find(q => q.id === cond.question_id);
+                            return (
+                              <p key={idx} className="mt-1 text-xs text-purple-700">
+                                • {condQuestion?.question_text || "Unknown"} {cond.operator} "{cond.answer_value}"
+                              </p>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
                   </div>
