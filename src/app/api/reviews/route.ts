@@ -10,7 +10,6 @@ export async function GET() {
       .from("reviews")
       .select("*")
       .eq("is_active", true)
-      .eq("is_approved", true)
       .is("deleted_at", null)
       .order("display_order", { ascending: true });
 
