@@ -32,17 +32,19 @@ export default async function AdminDashboardPage() {
   const queryClient = adminClient ?? supabase;
 
   // Fetch key metrics
-  const [leadsResult, appointmentsResult, pendingRequestsResult, reviewsResult] = await Promise.all([
+  const [leadsResult, appointmentsResult, pendingRequestsResult, reviewsResult, voicemailsResult] = await Promise.all([
     queryClient.from("leads").select("id, status, isHotLead, created_at").order("created_at", { ascending: false }),
     queryClient.from("appointments").select("id, status, start_time").order("start_time", { ascending: false }),
     queryClient.from("appointment_requests").select("id, status").eq("status", "pending"),
     queryClient.from("reviews").select("id, is_approved").eq("is_approved", false),
+    queryClient.from("voicemails").select("id, is_read"),
   ]);
 
   const leads = leadsResult.data ?? [];
   const appointments = appointmentsResult.data ?? [];
   const pendingRequests = pendingRequestsResult.data ?? [];
   const unapprovedReviews = reviewsResult.data ?? [];
+  const voicemails = voicemailsResult.data ?? [];
 
   // Calculate stats
   const today = new Date();
@@ -56,6 +58,8 @@ export default async function AdminDashboardPage() {
   const upcomingAppointments = appointments.filter(
     (apt) => new Date(apt.start_time) > new Date() && apt.status === "scheduled"
   ).length;
+
+  const unreadVoicemails = voicemails.filter((vm) => !vm.is_read).length;
 
   const actionItems = [
     { count: pendingRequests.length, label: "Pending Appointment Requests", href: "/admin/appointments", urgent: pendingRequests.length > 0 },
@@ -106,6 +110,13 @@ export default async function AdminDashboardPage() {
       href: "/admin/phone-settings",
       icon: "📞",
       stats: "Call availability & voicemail",
+    },
+    {
+      title: "Voicemails",
+      description: "Listen to and manage voicemail messages",
+      href: "/admin/voicemails",
+      icon: "🎤",
+      stats: `${unreadVoicemails} unread messages`,
     },
   ];
 
