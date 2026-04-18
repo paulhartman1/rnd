@@ -44,6 +44,7 @@ export async function PATCH(request: Request) {
   if (forward_to_number !== undefined) updateData.forward_to_number = forward_to_number;
   if (is_forwarding_enabled !== undefined) updateData.is_forwarding_enabled = is_forwarding_enabled;
   if (voicemail_message !== undefined) updateData.voicemail_message = voicemail_message;
+  if (body.voicemail_voice !== undefined) updateData.voicemail_voice = body.voicemail_voice;
 
   if (existing) {
     // Update the single existing row

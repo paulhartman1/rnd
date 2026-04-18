@@ -188,7 +188,16 @@ export default function VoicemailsClient({ initialVoicemails }: Props) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {voicemail.transcription && (
+                    <button
+                      onClick={() => extractData(voicemail)}
+                      className="rounded-lg bg-green-100 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-200"
+                      title="Extract contact info from transcription"
+                    >
+                      Extract Data
+                    </button>
+                  )}
                   {!voicemail.is_read && (
                     <button
                       onClick={() => markAsRead(voicemail.id)}

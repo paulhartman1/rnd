@@ -7,6 +7,7 @@ type PhoneSettings = {
   forward_to_number: string;
   is_forwarding_enabled: boolean;
   voicemail_message: string;
+  voicemail_voice: string | null;
   created_at: string;
   updated_at: string;
 } | null;
@@ -41,6 +42,7 @@ export default function PhoneSettingsClient({ initialSettings, initialAvailabili
     settings?.voicemail_message ||
       "Thank you for calling Rush N Dush Logistics. We are unable to take your call at this time. Please leave a detailed message with your name, phone number, and property address, and we will get back to you as soon as possible."
   );
+  const [voicemailVoice, setVoicemailVoice] = useState(settings?.voicemail_voice || "Polly.Matthew");
 
   // New availability window state
   const [newDay, setNewDay] = useState(1);
@@ -57,6 +59,7 @@ export default function PhoneSettingsClient({ initialSettings, initialAvailabili
           forward_to_number: forwardNumber,
           is_forwarding_enabled: isEnabled,
           voicemail_message: voicemailMsg,
+          voicemail_voice: voicemailVoice,
         }),
       });
 
@@ -194,6 +197,33 @@ export default function PhoneSettingsClient({ initialSettings, initialAvailabili
             />
             <p className="mt-1 text-xs text-[var(--color-muted)]">
               This message will be read aloud when forwarding is disabled or outside availability hours
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-[var(--color-muted)]">
+              Voicemail voice
+            </label>
+            <select
+              value={voicemailVoice}
+              onChange={(e) => setVoicemailVoice(e.target.value)}
+              className="mt-2 w-full rounded-lg border border-black/10 px-4 py-2 text-sm outline-none transition focus:border-[var(--color-primary-gold)]"
+            >
+              <optgroup label="Male Voices">
+                <option value="Polly.Matthew">Matthew (US English - Male, Neural)</option>
+                <option value="Polly.Joey">Joey (US English - Male)</option>
+                <option value="Polly.Justin">Justin (US English - Male, Child)</option>
+              </optgroup>
+              <optgroup label="Female Voices">
+                <option value="Polly.Joanna">Joanna (US English - Female, Neural)</option>
+                <option value="Polly.Kendra">Kendra (US English - Female)</option>
+                <option value="Polly.Kimberly">Kimberly (US English - Female)</option>
+                <option value="Polly.Salli">Salli (US English - Female)</option>
+                <option value="Polly.Ivy">Ivy (US English - Female, Child)</option>
+              </optgroup>
+            </select>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              Choose the voice that will read your voicemail message
             </p>
           </div>
 

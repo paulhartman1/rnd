@@ -87,6 +87,7 @@ async function getVoiceResponseXml() {
   const isForwardingEnabled = settings?.is_forwarding_enabled ?? true;
   const voicemailMessage = settings?.voicemail_message ||
     "Thank you for calling Rush N Dush Logistics. We are unable to take your call at this time. Please leave a message after the beep.";
+  const voicemailVoice = (settings as any)?.voicemail_voice || "Polly.Matthew";
 
   // Check if we're within availability hours
   const isAvailable = availability && availability.length > 0 
@@ -105,9 +106,9 @@ async function getVoiceResponseXml() {
     console.log('[Going to voicemail]', { isForwardingEnabled, isAvailable });
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Matthew">${voicemailMessage}</Say>
+  <Say voice="${voicemailVoice}">${voicemailMessage}</Say>
   <Record maxLength="180" transcribe="true" transcribeCallback="${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/twilio/voicemail"/>
-  <Say voice="Polly.Matthew">Thank you. Goodbye.</Say>
+  <Say voice="${voicemailVoice}">Thank you. Goodbye.</Say>
 </Response>`;
   }
 
