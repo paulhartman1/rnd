@@ -48,12 +48,13 @@ async function getVoiceResponseXml() {
     return '<Response><Say>We are unable to connect your call right now.</Say><Hangup/></Response>';
   }
 
-  // Get phone settings
+  // Get phone settings (most recent)
   const { data: settings } = await supabase
     .from("phone_settings")
     .select("*")
+    .order("updated_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   // Get phone availability windows
   const { data: availability } = await supabase
