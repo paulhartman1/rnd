@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { Review } from "@/lib/reviews";
 
 export async function GET() {
   try {
-    const supabase = createAdminClient();
-    
-    if (!supabase) {
-      return NextResponse.json(
-        { error: "Database client initialization failed" },
-        { status: 500 }
-      );
-    }
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("reviews")
       .select("*")
       .eq("is_active", true)
+      .eq("is_approved", true)
       .is("deleted_at", null)
       .order("display_order", { ascending: true });
 
