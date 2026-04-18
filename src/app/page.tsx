@@ -67,6 +67,7 @@ const faqs = [
 ];
 
 export default function Home() {
+  const twilioPhone = process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "(720) 897-5219";
   const contactPhone = process.env.NEXT_PUBLIC_CONTACT_PHONE || "(720) 897-5219";
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "rushndushlogistics@gmail.com";
 
@@ -261,9 +262,9 @@ export default function Home() {
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <a
-                href={`tel:${contactPhone.replace(/\D/g, '')}`}
+                href={`tel:${twilioPhone.replace(/\D/g, '')}`}
                 className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-[var(--color-navy)]"
-                aria-label={`Call us at ${contactPhone}`}
+                aria-label={`Call us at ${twilioPhone}`}
               >
                 Call Now
               </a>
