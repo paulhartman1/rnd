@@ -30,15 +30,35 @@ function isWithinAvailability(
   const currentDay = denverTime.getDay();
   const currentTime = denverTime.toTimeString().split(" ")[0].substring(0, 5); // HH:MM
 
+  console.log('[Availability Check]', {
+    currentDay,
+    currentTime,
+    denverTime: denverTime.toISOString(),
+    availabilityWindows: availability
+  });
+
   // Check if current day/time falls within any active availability window
-  return availability.some((window) => {
-    if (!window.is_active || window.day_of_week !== currentDay) return false;
+  const isAvailable = availability.some((window) => {
+    if (!window.is_active) {
+      console.log(`[Window Skip] Not active:`, window);
+      return false;
+    }
+    
+    if (window.day_of_week !== currentDay) {
+      console.log(`[Window Skip] Wrong day (need ${currentDay}, got ${window.day_of_week}):`, window);
+      return false;
+    }
     
     const startTime = window.start_time.substring(0, 5);
     const endTime = window.end_time.substring(0, 5);
+    const inWindow = currentTime >= startTime && currentTime < endTime;
     
-    return currentTime >= startTime && currentTime <= endTime;
+    console.log(`[Window Check] Day ${window.day_of_week}: ${startTime}-${endTime}, current: ${currentTime}, inWindow: ${inWindow}`);
+    return inWindow;
   });
+
+  console.log('[Availability Result]', isAvailable);
+  return isAvailable;
 }
 
 async function getVoiceResponseXml() {
@@ -73,8 +93,16 @@ async function getVoiceResponseXml() {
     ? isWithinAvailability(availability)
     : true; // If no availability set, assume always available
 
+  console.log('[Voice Route]', {
+    hasAvailability: availability?.length,
+    isAvailable,
+    isForwardingEnabled,
+    willForward: isForwardingEnabled && isAvailable
+  });
+
   // If forwarding is disabled OR outside availability hours, send to voicemail
   if (!isForwardingEnabled || !isAvailable) {
+    console.log('[Going to voicemail]', { isForwardingEnabled, isAvailable });
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Matthew">${voicemailMessage}</Say>
