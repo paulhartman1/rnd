@@ -11,6 +11,7 @@ export default function AdminNav() {
   const [pendingCount, setPendingCount] = useState(0);
   const [upcomingAppointments, setUpcomingAppointments] = useState(0);
   const [hotLeads, setHotLeads] = useState(0);
+  const [unreadVoicemails, setUnreadVoicemails] = useState(0);
 
   // Fetch key metrics
   useEffect(() => {
@@ -45,6 +46,16 @@ export default function AdminNav() {
             (lead: { isHotLead: boolean }) => lead.isHotLead
           ).length;
           setHotLeads(hot);
+        }
+
+        // Fetch unread voicemails
+        const voicemailsResponse = await fetch("/api/admin/voicemails");
+        if (voicemailsResponse.ok) {
+          const voicemailsData = await voicemailsResponse.json();
+          const unread = voicemailsData.voicemails.filter(
+            (vm: { is_read: boolean }) => !vm.is_read
+          ).length;
+          setUnreadVoicemails(unread);
         }
       } catch (error) {
         console.error("Failed to fetch metrics:", error);
@@ -121,6 +132,22 @@ export default function AdminNav() {
               <span className={`hidden text-xs lg:inline ${
                 hotLeads > 0 ? "text-orange-600" : "text-green-600"
               }`}>hot leads</span>
+            </Link>
+            <Link
+              href="/admin/voicemails"
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+                unreadVoicemails > 0
+                  ? "bg-purple-50 hover:bg-purple-100"
+                  : "bg-green-50 hover:bg-green-100"
+              }`}
+              title="View unread voicemails"
+            >
+              <span className={`text-sm font-semibold ${
+                unreadVoicemails > 0 ? "text-purple-700" : "text-green-700"
+              }`}>🎤 {unreadVoicemails}</span>
+              <span className={`hidden text-xs lg:inline ${
+                unreadVoicemails > 0 ? "text-purple-600" : "text-green-600"
+              }`}>voicemails</span>
             </Link>
           </div>
 
@@ -251,6 +278,19 @@ export default function AdminNav() {
                   <span className={`text-sm font-semibold ${
                     hotLeads > 0 ? "text-orange-700" : "text-green-700"
                   }`}>🔥 {hotLeads} hot lead{hotLeads !== 1 ? 's' : ''}</span>
+                </Link>
+                <Link
+                  href="/admin/voicemails"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`rounded-lg px-3 py-2 transition-all ${
+                    unreadVoicemails > 0
+                      ? "bg-purple-50 hover:bg-purple-100"
+                      : "bg-green-50 hover:bg-green-100"
+                  }`}
+                >
+                  <span className={`text-sm font-semibold ${
+                    unreadVoicemails > 0 ? "text-purple-700" : "text-green-700"
+                  }`}>🎤 {unreadVoicemails} voicemail{unreadVoicemails !== 1 ? 's' : ''}</span>
                 </Link>
               </div>
             </div>
