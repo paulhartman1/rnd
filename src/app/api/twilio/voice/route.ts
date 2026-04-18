@@ -62,8 +62,8 @@ async function getVoiceResponseXml() {
     .select("*")
     .eq("is_active", true);
 
-  // Fallback to env var if no settings in DB
-  const forwardToPhone = settings?.forward_to_number || process.env.TWILIO_FORWARD_TO_NUMBER || "";
+  // Use DB settings if available, otherwise fallback to env var
+  const forwardToPhone = settings ? (settings.forward_to_number || "") : (process.env.TWILIO_FORWARD_TO_NUMBER || "");
   const isForwardingEnabled = settings?.is_forwarding_enabled ?? true;
   const voicemailMessage = settings?.voicemail_message ||
     "Thank you for calling Rush N Dush Logistics. We are unable to take your call at this time. Please leave a message after the beep.";
