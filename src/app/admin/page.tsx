@@ -91,20 +91,6 @@ export default async function AdminDashboardPage() {
       stats: `${upcomingAppointments} upcoming • ${pendingRequests.length} pending`,
     },
     {
-      title: "Appointment Settings",
-      description: "Configure availability, blackout dates, and types",
-      href: "/admin/appointments/settings",
-      icon: "⚙️",
-      stats: "Availability & scheduling",
-    },
-    {
-      title: "Questions",
-      description: "Manage intake form questions",
-      href: "/admin/questions",
-      icon: "❓",
-      stats: "Customize lead capture",
-    },
-    {
       title: "Reviews",
       description: "Approve and manage customer testimonials",
       href: "/admin/reviews",
@@ -112,18 +98,18 @@ export default async function AdminDashboardPage() {
       stats: `${unapprovedReviews.length} awaiting approval`,
     },
     {
-      title: "Phone Settings",
-      description: "Configure call forwarding and voicemail",
-      href: "/admin/phone-settings",
-      icon: "📞",
-      stats: "Call availability & voicemail",
-    },
-    {
       title: "Voicemails",
       description: "Listen to and manage voicemail messages",
       href: "/admin/voicemails",
       icon: "🎤",
       stats: `${unreadVoicemails} unread messages`,
+    },
+    {
+      title: "Settings",
+      description: "Manage lead sources, phone, appointments, and questions",
+      href: "/admin/settings",
+      icon: "⚙️",
+      stats: "System configuration",
     },
   ];
 
