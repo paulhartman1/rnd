@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSuperAdmin, isFeatureEnabled } from "@/lib/feature-flags";
 import AdminNav from "./admin-nav";
 
 export default async function AdminDashboardPage() {
@@ -61,6 +62,12 @@ export default async function AdminDashboardPage() {
 
   const unreadVoicemails = voicemails.filter((vm) => !vm.is_read).length;
 
+  // Check if user is a super admin
+  const isUserSuperAdmin = isSuperAdmin(user.email);
+
+  // Check feature flags (available to all admins if enabled)
+  const showSocialMediaIntegration = await isFeatureEnabled("social_media_integration");
+
   const actionItems = [
     { count: pendingRequests.length, label: "Pending Appointment Requests", href: "/admin/appointments", urgent: pendingRequests.length > 0 },
     { count: unapprovedReviews.length, label: "Reviews Awaiting Approval", href: "/admin/reviews", urgent: false },
@@ -119,6 +126,28 @@ export default async function AdminDashboardPage() {
       stats: `${unreadVoicemails} unread messages`,
     },
   ];
+
+  // Add Feature Flags for super admins only
+  if (isUserSuperAdmin) {
+    adminTools.push({
+      title: "Feature Flags",
+      description: "Control which features are enabled system-wide",
+      href: "/admin/feature-flags",
+      icon: "🚩",
+      stats: "Super admin only",
+    });
+  }
+
+  // Add Social Media Integration if feature flag is enabled
+  if (showSocialMediaIntegration) {
+    adminTools.push({
+      title: "Social Media Integration",
+      description: "Connect and manage social media accounts",
+      href: "/admin/social-integrations",
+      icon: "📱",
+      stats: "Coming soon",
+    });
+  }
 
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
