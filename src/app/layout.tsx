@@ -30,7 +30,7 @@ export const metadata: Metadata = {
       { url: "/android-chrome-512x512.png?v=2", sizes: "512x512", type: "image/png" },
     ],
   },
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json",
   openGraph: {
     title: "Rush N Dush | Sell Your House Fast for Cash",
     description:

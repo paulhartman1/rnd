@@ -28,20 +28,20 @@ export type IntakeAnswers = {
 };
 
 export type LeadInsert = {
-  listed_with_agent: boolean;
-  property_type: string;
+  listed_with_agent: boolean | null;
+  property_type: string | null;
   owns_land: boolean | null;
   repairs_needed: string | null;
-  close_timeline: string;
-  sell_reason: string;
-  acceptable_offer: string;
-  street_address: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  full_name: string;
-  email: string;
-  phone: string;
+  close_timeline: string | null;
+  sell_reason: string | null;
+  acceptable_offer: string | null;
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
   sms_consent: boolean;
 };
 
@@ -49,6 +49,7 @@ export type LeadRow = LeadInsert & {
   id: string;
   status: LeadStatus;
   owner_notes: string | null;
+  source_id: string;
   isHotLead?: boolean;
   deleted_at?: string | null;
   created_at: string;

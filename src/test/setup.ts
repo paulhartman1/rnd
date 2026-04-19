@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import React from "react";
+import { mockQuestionsResponse } from "./mocks";
 
 // Cleanup after each test
 afterEach(() => {
@@ -36,3 +37,35 @@ vi.mock("next/link", () => ({
     return React.createElement("a", { href, ...props }, children);
   },
 }));
+
+// Mock global fetch for API calls
+beforeAll(() => {
+  global.fetch = vi.fn((url: string | URL | Request) => {
+    const urlString = typeof url === "string" ? url : url.toString();
+
+    // Mock /api/questions
+    if (urlString.includes("/api/questions")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => mockQuestionsResponse,
+      } as Response);
+    }
+
+    // Mock /api/reviews
+    if (urlString.includes("/api/reviews")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ reviews: [] }),
+      } as Response);
+    }
+
+    // Default mock for other endpoints
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    } as Response);
+  });
+});

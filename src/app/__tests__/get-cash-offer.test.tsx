@@ -11,33 +11,42 @@ describe("Get Cash Offer Page", () => {
     vi.clearAllMocks();
   });
 
-  it("should render the first step question", () => {
+  it("should render the first step question", async () => {
     render(<GetCashOfferPage />);
 
-    expect(
-      screen.getByText(/Is your property listed with an agent/i),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Is your property listed with an agent/i),
+      ).toBeInTheDocument();
+    });
   });
 
-  it("should show progress bar", () => {
+  it("should show progress bar", async () => {
     render(<GetCashOfferPage />);
 
     // Progress should be visible - looking for any indication of step 1
-    expect(screen.getByText(/Is your property listed with an agent/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Is your property listed with an agent/i)).toBeInTheDocument();
+    });
   });
 
-  it("should render answer options for first step", () => {
+  it("should render answer options for first step", async () => {
     render(<GetCashOfferPage />);
 
-    expect(screen.getByText("Yes")).toBeInTheDocument();
-    expect(screen.getByText("No")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Yes")).toBeInTheDocument();
+      expect(screen.getByText("No")).toBeInTheDocument();
+    });
   });
 
   it("should enable continue button when an option is selected", async () => {
     const user = userEvent.setup();
     render(<GetCashOfferPage />);
 
-    // Find and click "No" option
+    // Wait for questions to load, then find and click "No" option
+    await waitFor(() => {
+      expect(screen.getByText("No")).toBeInTheDocument();
+    });
     const noButton = screen.getByText("No");
     await user.click(noButton);
 
@@ -49,6 +58,11 @@ describe("Get Cash Offer Page", () => {
   it("should advance to next step when continue is clicked", async () => {
     const user = userEvent.setup();
     render(<GetCashOfferPage />);
+
+    // Wait for questions to load
+    await waitFor(() => {
+      expect(screen.getByText("No")).toBeInTheDocument();
+    });
 
     // Answer first question
     await user.click(screen.getByText("No"));
@@ -63,6 +77,11 @@ describe("Get Cash Offer Page", () => {
   it("should show property type options on step 2", async () => {
     const user = userEvent.setup();
     render(<GetCashOfferPage />);
+
+    // Wait for questions to load
+    await waitFor(() => {
+      expect(screen.getByText("No")).toBeInTheDocument();
+    });
 
     // Navigate to step 2
     await user.click(screen.getByText("No"));

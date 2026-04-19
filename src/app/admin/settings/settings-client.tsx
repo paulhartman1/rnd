@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import PushNotificationToggle from "@/components/admin/PushNotificationToggle";
 
 type Source = {
   id: string;
@@ -64,6 +65,7 @@ type Props = {
   initialPhoneAvailability: PhoneAvailability[];
   initialAppointmentTypes: AppointmentType[];
   initialQuestions: Question[];
+  showPushNotifications: boolean;
 };
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -74,8 +76,9 @@ export default function SettingsClient({
   initialPhoneAvailability,
   initialAppointmentTypes,
   initialQuestions,
+  showPushNotifications,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"sources" | "phone" | "appointments" | "questions">("sources");
+  const [activeTab, setActiveTab] = useState<"sources" | "phone" | "appointments" | "questions" | "notifications">("sources");
   
   // Lead Sources state
   const [sources, setSources] = useState<Source[]>(initialSources);
@@ -248,6 +251,18 @@ export default function SettingsClient({
         >
           Questions
         </button>
+        {showPushNotifications && (
+          <button
+            onClick={() => setActiveTab("notifications")}
+            className={`px-4 py-2 text-sm font-bold transition ${
+              activeTab === "notifications"
+                ? "border-b-2 border-[var(--color-primary-gold)] text-[var(--color-navy)]"
+                : "text-[var(--color-muted)] hover:text-[var(--color-navy)]"
+            }`}
+          >
+            Notifications
+          </button>
+        )}
       </div>
 
       {/* Lead Sources Tab */}
@@ -594,6 +609,57 @@ export default function SettingsClient({
               >
                 Manage Questions →
               </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Tab */}
+      {activeTab === "notifications" && showPushNotifications && (
+        <div className="space-y-4">
+          <div className="rounded-[1.4rem] border border-black/6 bg-white px-6 py-8 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-[var(--color-navy)]">Notification Settings</h2>
+              <p className="mt-1 text-sm text-[var(--color-muted)]">
+                Manage how you receive alerts for new leads and important events
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Push Notifications */}
+              <PushNotificationToggle />
+
+              {/* Info Section */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <h3 className="text-sm font-semibold text-blue-900">💡 About Notifications</h3>
+                <ul className="mt-2 space-y-1 text-xs text-blue-700">
+                  <li>• Push notifications work in your mobile browser - no app needed</li>
+                  <li>• Each device you enable will receive notifications independently</li>
+                  <li>• Notifications are sent instantly when new leads arrive</li>
+                  <li>• You can disable notifications anytime from this page</li>
+                </ul>
+              </div>
+
+              {/* Additional notification methods info */}
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <h3 className="text-sm font-semibold text-gray-900">Other Notification Methods</h3>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className="text-lg">📧</span>
+                    <div>
+                      <p className="font-semibold text-gray-900">Email Notifications</p>
+                      <p className="text-gray-600">Configured via environment variables (ADMIN_NOTIFICATION_EMAIL)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className="text-lg">📱</span>
+                    <div>
+                      <p className="font-semibold text-gray-900">SMS Notifications</p>
+                      <p className="text-gray-600">Configured via environment variables (ADMIN_NOTIFICATION_PHONE)</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import AdminNav from "../admin-nav";
 import SettingsClient from "./settings-client";
 
@@ -29,6 +30,9 @@ export default async function AdminSettingsPage() {
 
   const adminClient = createAdminClient();
   const queryClient = adminClient ?? supabase;
+
+  // Check feature flags
+  const showPushNotifications = await isFeatureEnabled("pwa_push_notifications");
 
   // Fetch all settings data
   const [sourcesResult, phoneSettingsResult, phoneAvailabilityResult, appointmentTypesResult, questionsResult] =
@@ -63,6 +67,7 @@ export default async function AdminSettingsPage() {
           initialPhoneAvailability={phoneAvailabilityResult.data || []}
           initialAppointmentTypes={appointmentTypesResult.data || []}
           initialQuestions={questionsResult.data || []}
+          showPushNotifications={showPushNotifications}
         />
       </div>
     </main>

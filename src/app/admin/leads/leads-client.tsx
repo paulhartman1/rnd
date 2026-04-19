@@ -76,6 +76,20 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
     error: null as string | null,
     success: false,
   });
+  const [showCreateLeadModal, setShowCreateLeadModal] = useState(false);
+  const [createLeadDraft, setCreateLeadDraft] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    streetAddress: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    ownerNotes: "",
+    isCreating: false,
+    error: null as string | null,
+    success: false,
+  });
 
   const visibleLeads = useMemo(() => {
     let filtered = leads.filter((lead) => showDeleted || !lead.deleted_at);
@@ -85,13 +99,13 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (lead) =>
-          lead.full_name.toLowerCase().includes(query) ||
-          lead.email.toLowerCase().includes(query) ||
-          lead.phone.toLowerCase().includes(query) ||
-          lead.street_address.toLowerCase().includes(query) ||
-          lead.city.toLowerCase().includes(query) ||
-          lead.state.toLowerCase().includes(query) ||
-          lead.property_type.toLowerCase().includes(query),
+          lead.full_name?.toLowerCase().includes(query) ||
+          lead.email?.toLowerCase().includes(query) ||
+          lead.phone?.toLowerCase().includes(query) ||
+          lead.street_address?.toLowerCase().includes(query) ||
+          lead.city?.toLowerCase().includes(query) ||
+          lead.state?.toLowerCase().includes(query) ||
+          lead.property_type?.toLowerCase().includes(query),
       );
     }
 
@@ -119,7 +133,7 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       } else {
         // name
-        return a.full_name.localeCompare(b.full_name);
+        return (a.full_name || "").localeCompare(b.full_name || "");
       }
     });
 
@@ -214,10 +228,13 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
     const lead = leads.find((l) => l.id === leadId);
     if (!lead) return;
 
+    const firstName = lead.full_name ? lead.full_name.split(' ')[0] : 'there';
+    const subject = lead.street_address ? `Re: ${lead.street_address}` : 'Following up';
+
     setEmailingLeadId(leadId);
     setEmailDraft({
-      subject: `Re: ${lead.street_address}`,
-      message: `Hi ${lead.full_name.split(' ')[0]},\n\n`,
+      subject,
+      message: `Hi ${firstName},\n\n`,
       isSending: false,
       error: null,
       success: false,
@@ -370,6 +387,83 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
     closeAppointmentModal();
   };
 
+  const openCreateLeadModal = () => {
+    setCreateLeadDraft({
+      fullName: "",
+      email: "",
+      phone: "",
+      streetAddress: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      ownerNotes: "",
+      isCreating: false,
+      error: null,
+      success: false,
+    });
+    setShowCreateLeadModal(true);
+  };
+
+  const closeCreateLeadModal = () => {
+    setShowCreateLeadModal(false);
+  };
+
+  const createManualLead = async () => {
+    // Validate at least one contact method
+    if (!createLeadDraft.email.trim() && !createLeadDraft.phone.trim()) {
+      setCreateLeadDraft((prev) => ({
+        ...prev,
+        error: "Either phone or email is required.",
+      }));
+      return;
+    }
+
+    setCreateLeadDraft((prev) => ({ ...prev, isCreating: true, error: null, success: false }));
+
+    const response = await fetch("/api/admin/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: createLeadDraft.fullName || null,
+        email: createLeadDraft.email || null,
+        phone: createLeadDraft.phone || null,
+        streetAddress: createLeadDraft.streetAddress || null,
+        city: createLeadDraft.city || null,
+        state: createLeadDraft.state || null,
+        postalCode: createLeadDraft.postalCode || null,
+        ownerNotes: createLeadDraft.ownerNotes || null,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      setCreateLeadDraft((prev) => ({
+        ...prev,
+        isCreating: false,
+        error: body?.error ?? "Could not create lead. Please try again.",
+      }));
+      return;
+    }
+
+    const { lead } = (await response.json()) as { lead: LeadRow };
+    
+    // Add the new lead to the list and initialize its draft state
+    setLeads((prev) => [lead, ...prev]);
+    setDrafts((prev) => ({
+      ...prev,
+      [lead.id]: toLeadDraft(lead),
+    }));
+
+    setCreateLeadDraft((prev) => ({ ...prev, isCreating: false, error: null, success: true }));
+    
+    // Auto-close after 1 second on success
+    setTimeout(() => {
+      closeCreateLeadModal();
+    }, 1000);
+  };
+
 
   return (
     <section className="space-y-4">
@@ -388,14 +482,23 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
             {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={signOut}
-          disabled={isSigningOut}
-          className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          {isSigningOut ? "Signing out..." : "Sign out"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={openCreateLeadModal}
+            className="rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
+          >
+            + Create Lead
+          </button>
+          <button
+            type="button"
+            onClick={signOut}
+            disabled={isSigningOut}
+            className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isSigningOut ? "Signing out..." : "Sign out"}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-[1.4rem] border border-black/6 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
@@ -543,7 +646,7 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl font-black tracking-tight">
-                          {lead.full_name}
+                          {lead.full_name || "(No name)"}
                         </h2>
                         {lead.isHotLead && (
                           <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold text-white" title="Hot Lead: Close in ≤30 days + Inherited/Foreclosure">
@@ -551,9 +654,11 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-sm text-[var(--color-muted)]">
-                        {lead.street_address}, {lead.city}, {lead.state} {lead.postal_code}
-                      </p>
+                      {(lead.street_address || lead.city || lead.state || lead.postal_code) && (
+                        <p className="mt-1 text-sm text-[var(--color-muted)]">
+                          {[lead.street_address, lead.city, lead.state, lead.postal_code].filter(Boolean).join(", ")}
+                        </p>
+                      )}
                     </div>
                     {isDeleted && (
                       <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-700">
@@ -563,20 +668,27 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                   </div>
 
                   <div className="flex flex-wrap gap-4 text-sm">
-                    <a 
-                      href={`mailto:${lead.email}`}
-                      className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
-                    >
-                      <span>✉️</span>
-                      {lead.email}
-                    </a>
-                    <a 
-                      href={`tel:${lead.phone.replace(/\D/g, '')}`}
-                      className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
-                    >
-                      <span>📞</span>
-                      {lead.phone}
-                    </a>
+                    {lead.email && (
+                      <a 
+                        href={`mailto:${lead.email}`}
+                        className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
+                      >
+                        <span>✉️</span>
+                        {lead.email}
+                      </a>
+                    )}
+                    {lead.phone && (
+                      <a 
+                        href={`tel:${lead.phone.replace(/\D/g, '')}`}
+                        className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
+                      >
+                        <span>📞</span>
+                        {lead.phone}
+                      </a>
+                    )}
+                    {!lead.email && !lead.phone && (
+                      <span className="text-[var(--color-muted)] text-xs">(No contact info)</span>
+                    )}
                   </div>
 
                   {/* Display all answered questions */}
@@ -750,8 +862,8 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
               if (!lead) return null;
               return (
                 <div className="mb-4 rounded-lg bg-[var(--color-surface-soft)] p-3 text-sm text-[var(--color-navy)]">
-                  <p className="font-bold">{lead.full_name}</p>
-                  <p className="text-[var(--color-muted)]">{lead.email}</p>
+                  <p className="font-bold">{lead.full_name || "(No name)"}</p>
+                  <p className="text-[var(--color-muted)]">{lead.email || "(No email)"}</p>
                 </div>
               );
             })()}
@@ -832,12 +944,13 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
             {(() => {
               const lead = leads.find((l) => l.id === schedulingLeadId);
               if (!lead) return null;
+              const address = [lead.street_address, lead.city, lead.state].filter(Boolean).join(", ");
               return (
                 <div className="mb-4 rounded-lg bg-[var(--color-surface-soft)] p-3 text-sm text-[var(--color-navy)]">
-                  <p className="font-bold">{lead.full_name}</p>
-                  <p className="text-[var(--color-muted)]">
-                    {lead.street_address}, {lead.city}, {lead.state}
-                  </p>
+                  <p className="font-bold">{lead.full_name || "(No name)"}</p>
+                  {address && (
+                    <p className="text-[var(--color-muted)]">{address}</p>
+                  )}
                 </div>
               );
             })()}
@@ -969,6 +1082,177 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                   className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateLeadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[1.4rem] border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
+            <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
+              Create Lead Manually
+            </h3>
+
+            <p className="mb-4 text-sm text-[var(--color-muted)]">
+              Source will be set to "manual". At least one contact method (phone or email) is required.
+            </p>
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Full Name
+                </span>
+                <input
+                  type="text"
+                  value={createLeadDraft.fullName}
+                  onChange={(e) =>
+                    setCreateLeadDraft({ ...createLeadDraft, fullName: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="John Doe"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    Email
+                  </span>
+                  <input
+                    type="email"
+                    value={createLeadDraft.email}
+                    onChange={(e) =>
+                      setCreateLeadDraft({ ...createLeadDraft, email: e.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                    placeholder="john@example.com"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    Phone
+                  </span>
+                  <input
+                    type="tel"
+                    value={createLeadDraft.phone}
+                    onChange={(e) =>
+                      setCreateLeadDraft({ ...createLeadDraft, phone: e.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                    placeholder="(555) 123-4567"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Street Address
+                </span>
+                <input
+                  type="text"
+                  value={createLeadDraft.streetAddress}
+                  onChange={(e) =>
+                    setCreateLeadDraft({ ...createLeadDraft, streetAddress: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="123 Main St"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    City
+                  </span>
+                  <input
+                    type="text"
+                    value={createLeadDraft.city}
+                    onChange={(e) =>
+                      setCreateLeadDraft({ ...createLeadDraft, city: e.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                    placeholder="City"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    State
+                  </span>
+                  <input
+                    type="text"
+                    value={createLeadDraft.state}
+                    onChange={(e) =>
+                      setCreateLeadDraft({ ...createLeadDraft, state: e.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                    placeholder="CA"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    Postal Code
+                  </span>
+                  <input
+                    type="text"
+                    value={createLeadDraft.postalCode}
+                    onChange={(e) =>
+                      setCreateLeadDraft({ ...createLeadDraft, postalCode: e.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                    placeholder="12345"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Owner Notes
+                </span>
+                <textarea
+                  value={createLeadDraft.ownerNotes}
+                  onChange={(e) =>
+                    setCreateLeadDraft({ ...createLeadDraft, ownerNotes: e.target.value })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                    }
+                  }}
+                  rows={4}
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  placeholder="Any notes about this lead..."
+                />
+              </label>
+
+              {createLeadDraft.error && (
+                <p className="text-sm text-red-700">{createLeadDraft.error}</p>
+              )}
+              {createLeadDraft.success && (
+                <p className="text-sm text-emerald-700">✓ Lead created successfully!</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={createManualLead}
+                  disabled={createLeadDraft.isCreating || createLeadDraft.success}
+                  className="flex-1 rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {createLeadDraft.isCreating ? "Creating..." : createLeadDraft.success ? "Created!" : "Create Lead"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeCreateLeadModal}
+                  disabled={createLeadDraft.isCreating}
+                  className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {createLeadDraft.success ? "Close" : "Cancel"}
                 </button>
               </div>
             </div>
