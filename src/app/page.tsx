@@ -72,7 +72,7 @@ export default function Home() {
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "rushndushlogistics@gmail.com";
 
   return (
-    <main id="top" className="bg-[var(--color-surface)] text-[var(--color-ink)]">
+    <main id="top" className="bg-sky-100 text-[var(--color-ink)]">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-[var(--color-primary-gold)] focus:px-4 focus:py-2 focus:text-[var(--color-navy)] focus:font-bold">
         Skip to main content
       </a>
