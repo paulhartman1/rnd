@@ -5,6 +5,13 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
+// Detect if app is running as a PWA
+function isPWA() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         (window.navigator as any).standalone === true;
+}
+
 export default function AdminNav() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,6 +19,12 @@ export default function AdminNav() {
   const [upcomingAppointments, setUpcomingAppointments] = useState(0);
   const [hotLeads, setHotLeads] = useState(0);
   const [unreadVoicemails, setUnreadVoicemails] = useState(0);
+  const [exitUrl, setExitUrl] = useState("/");
+
+  // Detect PWA and set exit URL
+  useEffect(() => {
+    setExitUrl(isPWA() ? "/admin" : "/");
+  }, []);
 
   // Fetch key metrics
   useEffect(() => {
@@ -154,9 +167,9 @@ export default function AdminNav() {
           {/* Exit & Home Link */}
           <div className="flex items-center gap-2">
             <Link
-              href="/"
+              href={exitUrl}
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-              title="Exit to homepage"
+              title={exitUrl === "/admin" ? "Exit to dashboard" : "Exit to homepage"}
             >
               Exit →
             </Link>
@@ -175,7 +188,7 @@ export default function AdminNav() {
           {/* Mobile Header */}
           <div className="flex items-center justify-between px-3 py-2.5">
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0" title="Go to home">
+            <Link href={exitUrl} className="flex-shrink-0" title={exitUrl === "/admin" ? "Go to dashboard" : "Go to home"}>
               <Image
                 src="/logo.png"
                 alt="Rush N Dush Logistics"
@@ -187,9 +200,9 @@ export default function AdminNav() {
             
             <div className="flex items-center gap-2">
               <Link
-                href="/"
+                href={exitUrl}
                 className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
-                title="Exit to homepage"
+                title={exitUrl === "/admin" ? "Exit to dashboard" : "Exit to homepage"}
               >
                 Exit →
               </Link>
