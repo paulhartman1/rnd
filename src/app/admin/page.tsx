@@ -34,7 +34,7 @@ export default async function AdminDashboardPage() {
 
   // Fetch key metrics
   const [leadsResult, appointmentsResult, pendingRequestsResult, reviewsResult, voicemailsResult] = await Promise.all([
-    queryClient.from("leads").select("id, status, isHotLead, created_at").order("created_at", { ascending: false }),
+    queryClient.from("leads").select("id, status, isHotLead, created_at").is("deleted_at", null).order("created_at", { ascending: false }),
     queryClient.from("appointments").select("id, status, start_time").order("start_time", { ascending: false }),
     queryClient.from("appointment_requests").select("id, status").eq("status", "pending"),
     queryClient.from("reviews").select("id, is_approved").eq("is_approved", false),
