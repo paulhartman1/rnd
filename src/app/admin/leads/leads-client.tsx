@@ -24,6 +24,7 @@ type LeadDraftState = {
 type Props = {
   initialLeads: LeadRow[];
   leadAnswers: Record<string, LeadAnswer[]>;
+  canBulkImport: boolean;
 };
 
 function toLeadDraft(lead: LeadRow): LeadDraftState {
@@ -40,7 +41,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
   };
 }
 
-export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
+export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }: Props) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
@@ -553,13 +554,15 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
           </span>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={openBulkImportModal}
-            className="rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
-          >
-            📊 Bulk Import
-          </button>
+          {canBulkImport && (
+            <button
+              type="button"
+              onClick={openBulkImportModal}
+              className="rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
+            >
+              📊 Bulk Import
+            </button>
+          )}
           <button
             type="button"
             onClick={openCreateLeadModal}
@@ -1345,23 +1348,28 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
             </h3>
 
             <p className="mb-4 text-sm text-[var(--color-muted)]">
-              Upload a tab-delimited CSV file from BatchLeads. The file should include columns like Lead Status, First Name, Last Name, Property Address, Email, Phone, etc.
+              Upload a CSV or Excel file from BatchLeads. The file should include columns like Lead Status, First Name, Last Name, Property Address, Email, Phone, etc.
             </p>
 
             <div className="space-y-4">
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
-                  CSV File
+                  CSV or Excel File
                 </span>
                 <input
                   type="file"
-                  accept=".csv,.txt,.tsv"
+                  accept=".csv,.txt,.tsv,.xlsx,.xls"
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
                     setBulkImportDraft({ ...bulkImportDraft, file, error: null });
                   }}
                   className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
                 />
+                {bulkImportDraft.file && (
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">
+                    Selected: {bulkImportDraft.file.name} ({(bulkImportDraft.file.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
               </label>
 
               <label className="inline-flex items-center gap-2">

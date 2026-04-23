@@ -1,34 +1,62 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as XLSX from 'xlsx';
 
 type CSVRow = Record<string, string>;
 
-function parseCSV(csvText: string): CSVRow[] {
-  const lines = csvText.split('\n').filter(line => line.trim());
-  if (lines.length < 2) return [];
-
-  // Try to detect delimiter - check if first line has tabs or commas
-  const firstLine = lines[0];
-  const delimiter = firstLine.includes('\t') ? '\t' : ',';
-  
-  const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
-  const rows: CSVRow[] = [];
-
-  console.log('CSV Headers:', headers);
-  console.log('Delimiter:', delimiter === '\t' ? 'TAB' : 'COMMA');
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
-    const row: Record<string, string> = {};
+function parseExcel(buffer: ArrayBuffer): CSVRow[] {
+  try {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
     
-    headers.forEach((header, index) => {
-      row[header] = values[index] || '';
-    });
+    // Convert to JSON with header row
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as CSVRow[];
     
-    rows.push(row);
+    console.log('Excel file parsed successfully');
+    console.log('Rows:', jsonData.length);
+    if (jsonData.length > 0) {
+      console.log('Headers:', Object.keys(jsonData[0]));
+    }
+    
+    return jsonData;
+  } catch (error) {
+    console.error('Error parsing Excel file:', error);
+    throw new Error('Failed to parse Excel file');
   }
+}
 
-  return rows;
+function parseCSV(csvText: string): CSVRow[] {
+  try {
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+
+    // Try to detect delimiter - check if first line has tabs or commas
+    const firstLine = lines[0];
+    const delimiter = firstLine.includes('\t') ? '\t' : ',';
+    
+    const headers = firstLine.split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
+    const rows: CSVRow[] = [];
+
+    console.log('CSV Headers:', headers);
+    console.log('Delimiter:', delimiter === '\t' ? 'TAB' : 'COMMA');
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
+      const row: Record<string, string> = {};
+      
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      
+      rows.push(row);
+    }
+
+    return rows;
+  } catch (error) {
+    console.error('Error parsing CSV file:', error);
+    throw new Error('Failed to parse CSV file');
+  }
 }
 
 function parseBool(value: string): boolean | null {
@@ -274,12 +302,59 @@ export async function POST(request: Request) {
       );
     }
 
-    const csvText = await file.text();
-    const rows = parseCSV(csvText);
+    console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+    let rows: CSVRow[] = [];
+    const fileName = file.name.toLowerCase();
+    
+    try {
+      // Determine file type and parse accordingly
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet')) {
+        console.log('Parsing as Excel file');
+        const buffer = await file.arrayBuffer();
+        rows = parseExcel(buffer);
+      } else {
+        console.log('Parsing as CSV/TSV file');
+        const csvText = await file.text();
+        rows = parseCSV(csvText);
+      }
+    } catch (parseError) {
+      console.error('File parsing error:', parseError);
+      return NextResponse.json(
+        { 
+          error: "Failed to parse file",
+          details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
+        },
+        { status: 400 }
+      );
+    }
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { error: "CSV file is empty or invalid" },
+        { error: "File is empty or contains no valid data rows" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Successfully parsed ${rows.length} rows from file`);
+
+    // Validate that we have expected columns
+    const firstRow = rows[0];
+    const hasRequiredColumns = firstRow && (
+      'First Name' in firstRow || 
+      'Last Name' in firstRow || 
+      'Email' in firstRow || 
+      'Phone 1' in firstRow
+    );
+
+    if (!hasRequiredColumns) {
+      console.warn('Missing expected columns. Found columns:', Object.keys(firstRow));
+      return NextResponse.json(
+        { 
+          error: "File format not recognized",
+          details: "Expected columns like 'First Name', 'Last Name', 'Email', 'Phone 1' not found",
+          foundColumns: Object.keys(firstRow).slice(0, 10)
+        },
         { status: 400 }
       );
     }
@@ -299,6 +374,8 @@ export async function POST(request: Request) {
     // Map CSV rows to batchleads format and track duplicates
     const batchLeadsToInsert = [];
     const seen = new Set<string>();
+
+    console.log(`Processing ${totalRows} rows from file`);
 
     for (let i = 0; i < rows.length; i++) {
       const mapped = mapCSVToBatchLead(rows[i]);
@@ -324,19 +401,55 @@ export async function POST(request: Request) {
       console.log('First mapped batch lead:', JSON.stringify(batchLeadsToInsert[0], null, 2));
     }
 
-    // Bulk insert into batchleads table
-    const { data: insertedBatchLeads, error: insertError } = await supabase
-      .from("batchleads")
-      .insert(batchLeadsToInsert)
-      .select();
+    // Insert in batches to handle large datasets
+    const BATCH_SIZE = 500; // Insert 500 records at a time
+    const insertedBatchLeads = [];
+    
+    console.log(`Inserting ${batchLeadsToInsert.length} batch leads in batches of ${BATCH_SIZE}`);
+    
+    for (let i = 0; i < batchLeadsToInsert.length; i += BATCH_SIZE) {
+      const batch = batchLeadsToInsert.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(batchLeadsToInsert.length / BATCH_SIZE);
+      
+      console.log(`Inserting batch ${batchNumber}/${totalBatches} (${batch.length} records)`);
+      
+      const { data: batchData, error: batchError } = await supabase
+        .from("batchleads")
+        .insert(batch)
+        .select();
+      
+      if (batchError) {
+        console.error(`Batch ${batchNumber} insert error:`, batchError);
+        return NextResponse.json(
+          { 
+            error: `Failed to import batch ${batchNumber}/${totalBatches}`,
+            details: batchError.message,
+            hint: batchError.hint,
+            code: batchError.code,
+            imported: insertedBatchLeads.length,
+            totalRows,
+            skipped: skippedRows.length,
+            skippedRows
+          },
+          { status: 500 }
+        );
+      }
+      
+      if (batchData) {
+        insertedBatchLeads.push(...batchData);
+      }
+    }
 
-    if (insertError) {
-      console.error("Bulk insert error:", insertError);
+    if (!insertedBatchLeads || insertedBatchLeads.length === 0) {
+      console.error('No batch leads were inserted');
       return NextResponse.json(
-        { error: "Failed to import batch leads", details: insertError.message },
+        { error: "No batch leads were inserted" },
         { status: 500 }
       );
     }
+
+    console.log(`Successfully inserted ${insertedBatchLeads.length} batch leads`);
 
     let leadsCreated = 0;
     let mappingsCreated = 0;
@@ -409,23 +522,48 @@ export async function POST(request: Request) {
       }
 
       if (leadsToInsert.length > 0) {
-        const { data: insertedLeads, error: leadsInsertError } = await supabase
-          .from("leads")
-          .insert(leadsToInsert)
-          .select();
+        console.log(`Creating ${leadsToInsert.length} leads in batches`);
+        
+        const insertedLeads = [];
+        const LEAD_BATCH_SIZE = 500;
+        
+        for (let i = 0; i < leadsToInsert.length; i += LEAD_BATCH_SIZE) {
+          const leadBatch = leadsToInsert.slice(i, i + LEAD_BATCH_SIZE);
+          const leadBatchNumber = Math.floor(i / LEAD_BATCH_SIZE) + 1;
+          const totalLeadBatches = Math.ceil(leadsToInsert.length / LEAD_BATCH_SIZE);
+          
+          console.log(`Creating lead batch ${leadBatchNumber}/${totalLeadBatches} (${leadBatch.length} leads)`);
+          
+          const { data: leadBatchData, error: leadsInsertError } = await supabase
+            .from("leads")
+            .insert(leadBatch)
+            .select();
 
-        if (leadsInsertError) {
-          console.error("Leads insert error:", leadsInsertError);
-          return NextResponse.json({
-            success: true,
-            totalRows,
-            batchLeadsImported: insertedBatchLeads.length,
-            leadsCreated: 0,
-            skipped: skippedRows.length,
-            skippedRows,
-            error: "Batch leads imported but failed to create leads",
-            details: leadsInsertError.message,
-          });
+          if (leadsInsertError) {
+            console.error(`Lead batch ${leadBatchNumber} insert error:`, leadsInsertError);
+            return NextResponse.json({
+              success: true,
+              totalRows,
+              batchLeadsImported: insertedBatchLeads.length,
+              leadsCreated: insertedLeads.length,
+              skipped: skippedRows.length,
+              skippedRows,
+              error: `Batch leads imported but failed to create leads at batch ${leadBatchNumber}/${totalLeadBatches}`,
+              details: leadsInsertError.message,
+              hint: leadsInsertError.hint,
+              code: leadsInsertError.code,
+            });
+          }
+          
+          if (leadBatchData) {
+            insertedLeads.push(...leadBatchData);
+          }
+        }
+
+        if (insertedLeads.length === 0) {
+          console.warn('No leads were created');
+        } else {
+          console.log(`Successfully created ${insertedLeads.length} leads`);
         }
 
         leadsCreated = insertedLeads?.length || 0;

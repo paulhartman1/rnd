@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { type LeadRow } from "@/lib/leads";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import AdminNav from "../admin-nav";
 import LeadsClient from "./leads-client";
 
@@ -65,6 +66,9 @@ export default async function AdminLeadsPage() {
     return acc;
   }, {} as Record<string, LeadAnswer[]>);
 
+  // Check if bulk import is enabled for this user
+  const canBulkImport = await isFeatureEnabled('bulk_import_leads', user.email || undefined);
+
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -87,7 +91,7 @@ export default async function AdminLeadsPage() {
             Failed to load leads. Confirm the `leads` table and RLS policies are applied.
           </div>
         ) : (
-          <LeadsClient initialLeads={leads} leadAnswers={answersByLeadId} />
+          <LeadsClient initialLeads={leads} leadAnswers={answersByLeadId} canBulkImport={canBulkImport} />
         )}
       </div>
     </main>

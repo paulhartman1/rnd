@@ -2,7 +2,12 @@
 
 ## Overview
 
-The bulk import feature allows administrators to import leads in bulk from CSV files exported from BatchLeads. The system stores all raw data in a dedicated `batchleads` table and optionally creates corresponding entries in the `leads` table with essential fields mapped.
+The bulk import feature allows administrators to import leads in bulk from CSV or Excel files exported from BatchLeads. The system stores all raw data in a dedicated `batchleads` table and optionally creates corresponding entries in the `leads` table with essential fields mapped.
+
+**Supported file formats:**
+- CSV (.csv) - comma or tab-delimited
+- TSV (.tsv, .txt) - tab-delimited
+- Excel (.xlsx, .xls)
 
 ## Database Structure
 
@@ -42,9 +47,9 @@ The following fields are automatically mapped from `batchleads` to `leads`:
 
 ## How to Use
 
-### 1. Prepare Your CSV File
+### 1. Prepare Your File
 
-Export leads from BatchLeads with the following columns (tab-delimited):
+Export leads from BatchLeads as CSV, TSV, or Excel format with the following columns:
 
 ```
 Lead Status, First Name, Last Name, Mailing Address, Mailing City, Mailing State, 
@@ -78,7 +83,7 @@ Phone 5 DNC, Phone 5 TYPE, List
 
 ### 3. Upload and Import
 
-1. **Select your CSV file** - Choose the tab-delimited CSV export from BatchLeads
+1. **Select your file** - Choose the CSV, TSV, or Excel export from BatchLeads
 2. **Choose import options:**
    - ✅ **Also create leads in the leads table** (recommended)
      - Imports raw data to `batchleads` table
