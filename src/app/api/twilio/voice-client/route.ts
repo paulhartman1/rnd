@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
     if (!supabase) {
+      console.error('[Voice Client] Failed to create admin client');
       const response = new VoiceResponse();
       response.say('Server configuration error.');
       response.hangup();
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    console.log('[Voice Client] Querying database for queue item:', queueItemId);
     // Get queue item with lead information
     const { data: queueItem, error: queueError } = await supabase
       .from('dialer_queue')
@@ -54,6 +56,8 @@ export async function POST(request: NextRequest) {
       `)
       .eq('id', queueItemId)
       .single();
+    
+    console.log('[Voice Client] Query result:', { queueItem, queueError });
 
     if (queueError || !queueItem) {
       console.error('Queue item not found:', queueError);
@@ -84,14 +88,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Update queue item status to calling
+    console.log('[Voice Client] Updating queue item status to calling');
     await supabase
       .from('dialer_queue')
       .update({ status: 'calling', updated_at: new Date().toISOString() })
       .eq('id', queueItemId);
 
     // Create TwiML response to dial the lead
+    console.log('[Voice Client] Creating TwiML to dial:', lead.phone);
     const response = new VoiceResponse();
     const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+    console.log('[Voice Client] Using caller ID:', twilioPhoneNumber);
 
     const dial = response.dial({
       callerId: twilioPhoneNumber,
@@ -101,7 +108,9 @@ export async function POST(request: NextRequest) {
     
     dial.number(lead.phone);
 
-    return new NextResponse(response.toString(), {
+    const twiml = response.toString();
+    console.log('[Voice Client] Generated TwiML:', twiml);
+    return new NextResponse(twiml, {
       headers: { 'Content-Type': 'text/xml' }
     });
 
