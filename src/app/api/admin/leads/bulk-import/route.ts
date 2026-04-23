@@ -249,7 +249,7 @@ function mapBatchLeadToLead(batchLead: BatchLead, sourceId: string) {
     owner_notes: batchLead.notes,
     source_id: sourceId,
     sms_consent: false,
-    status: mapStatusToLeadStatus(batchLead.lead_status),
+    status: mapStatusToLeadStatus(batchLead.lead_status || ''),
     // Optional fields
     listed_with_agent: null,
     property_type: batchLead.property_type_detail,
