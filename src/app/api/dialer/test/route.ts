@@ -29,13 +29,19 @@ export async function GET() {
     const AccessToken = twilio.jwt.AccessToken;
     const VoiceGrant = AccessToken.VoiceGrant;
 
-    const token = new AccessToken(accountSid, apiKey, apiSecret, {
-      identity: 'test-user',
-      ttl: 3600
-    });
+    // Type assertions safe because we validated above
+    const token = new AccessToken(
+      accountSid as string,
+      apiKey as string,
+      apiSecret as string,
+      {
+        identity: 'test-user',
+        ttl: 3600
+      }
+    );
 
     const voiceGrant = new VoiceGrant({
-      outgoingApplicationSid: twimlAppSid,
+      outgoingApplicationSid: twimlAppSid as string,
       incomingAllow: true
     });
 
@@ -46,10 +52,10 @@ export async function GET() {
       status: 'success',
       message: 'All Twilio Voice SDK environment variables are set correctly',
       config: {
-        accountSid: accountSid.substring(0, 10) + '...',
-        apiKeySid: apiKey.substring(0, 10) + '...',
-        twimlAppSid: twimlAppSid.substring(0, 10) + '...',
-        phoneNumber: phoneNumber
+        accountSid: (accountSid as string).substring(0, 10) + '...',
+        apiKeySid: (apiKey as string).substring(0, 10) + '...',
+        twimlAppSid: (twimlAppSid as string).substring(0, 10) + '...',
+        phoneNumber: phoneNumber as string
       },
       tokenGenerated: jwt.length > 0
     });

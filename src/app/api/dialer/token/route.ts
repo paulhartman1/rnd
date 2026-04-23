@@ -44,10 +44,16 @@ export async function GET() {
     }
 
     // Create access token with user's ID as identity
-    const token = new AccessToken(accountSid, apiKey, apiSecret, {
-      identity: user.id,
-      ttl: 3600 // Token expires in 1 hour
-    });
+    // Type assertion safe because we validated above
+    const token = new AccessToken(
+      accountSid as string,
+      apiKey as string,
+      apiSecret as string,
+      {
+        identity: user.id,
+        ttl: 3600 // Token expires in 1 hour
+      }
+    );
 
     // Add voice grant
     const voiceGrant = new VoiceGrant({
