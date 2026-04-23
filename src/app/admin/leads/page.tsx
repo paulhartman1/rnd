@@ -66,8 +66,8 @@ export default async function AdminLeadsPage() {
     return acc;
   }, {} as Record<string, LeadAnswer[]>);
 
-  // Check if bulk import is enabled for this user
-  const canBulkImport = await isFeatureEnabled('bulk_import_leads', user.email || undefined);
+  // Check if bulk import is enabled globally
+  const canBulkImport = await isFeatureEnabled('bulk_import_leads');
 
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
