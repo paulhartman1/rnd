@@ -54,6 +54,9 @@ export default function DialerClient() {
   const [callStatus, setCallStatus] = useState<string>("");
   const [isMuted, setIsMuted] = useState(false);
   const [currentLead, setCurrentLead] = useState<any>(null);
+  
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const [newCampaign, setNewCampaign] = useState({
     name: "",
@@ -363,6 +366,34 @@ export default function DialerClient() {
       currentCall.mute(!isMuted);
       setIsMuted(!isMuted);
     }
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+    // Reorder the local state immediately for responsiveness
+    const newQueue = [...queue];
+    const [draggedItem] = newQueue.splice(draggedIndex, 1);
+    newQueue.splice(dropIndex, 0, draggedItem);
+    setQueue(newQueue);
+    setDraggedIndex(null);
+
+    // Send the new order to the server
+    const orderedIds = newQueue.map(item => item.id);
+    await fetch("/api/admin/dialer/queue/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds }),
+    });
   };
 
   return (
@@ -689,12 +720,24 @@ export default function DialerClient() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {queue.map((item) => (
-                  <tr key={item.id}>
+                {queue.map((item, index) => (
+                  <tr
+                    key={item.id}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`cursor-move hover:bg-gray-50 ${draggedIndex === index ? 'opacity-50' : ''}`}
+                  >
                     <td className="px-4 py-3 text-sm">
-                      {item.lead?.full_name || "Unknown"}
-                      <br />
-                      <span className="text-xs text-gray-500">{item.lead?.phone}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">☰</span>
+                        <div>
+                          {item.lead?.full_name || "Unknown"}
+                          <br />
+                          <span className="text-xs text-gray-500">{item.lead?.phone}</span>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm">{item.campaign?.name || "N/A"}</td>
                     <td className="px-4 py-3 text-sm">
