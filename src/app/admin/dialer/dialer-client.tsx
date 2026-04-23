@@ -293,6 +293,14 @@ export default function DialerClient() {
   };
 
   const processNext = async () => {
+    // Check if processing was stopped
+    if (!isProcessing) {
+      console.log('[Dialer] Processing stopped by user');
+      await loadQueue();
+      await loadStats();
+      return;
+    }
+    
     // Get next queue item and process it
     const response = await fetch("/api/admin/dialer/process", {
       method: "POST",
@@ -592,14 +600,24 @@ export default function DialerClient() {
       {activeTab === "queue" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Call Queue</h2>
-            <button
-              onClick={processDialer}
-              disabled={isProcessing}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isProcessing ? "Processing..." : "Process Now"}
-            </button>
+            <h2 className="text-xl font-bold">Queue</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={processDialer}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
+              >
+                {isProcessing ? "Processing..." : "Process Now"}
+              </button>
+              {isProcessing && (
+                <button
+                  onClick={() => setIsProcessing(false)}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Stop
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Active Call Controls */}
@@ -609,7 +627,7 @@ export default function DialerClient() {
                 <div>
                   <h3 className="font-bold text-lg">Active Call</h3>
                   <p className="text-sm text-gray-700 mt-1">
-                    <strong>{currentLead.name || "Unknown"}</strong>
+                    <strong>{currentLead.full_name || "Unknown"}</strong>
                   </p>
                   <p className="text-sm text-gray-600">{currentLead.phone}</p>
                   <p className="text-sm text-blue-600 mt-2">{callStatus}</p>

@@ -6,8 +6,10 @@ const VoiceResponse = twilio.twiml.VoiceResponse;
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Voice Client] Received request');
     const formData = await request.formData();
     const queueItemId = formData.get('queueItemId') as string;
+    console.log('[Voice Client] Queue Item ID:', queueItemId);
 
     if (!queueItemId) {
       // This is likely a device registration call from Twilio - return empty response
