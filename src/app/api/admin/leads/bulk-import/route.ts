@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import * as XLSX from 'xlsx';
 
-type CSVRow = Record<string, string>;
+type CSVRow = Record<string, string | number | boolean>;
 
 function parseExcel(buffer: ArrayBuffer): CSVRow[] {
   try {
@@ -59,29 +59,41 @@ function parseCSV(csvText: string): CSVRow[] {
   }
 }
 
-function parseBool(value: string): boolean | null {
-  if (!value) return null;
-  const lower = value.toLowerCase().trim();
+function parseBool(value: string | number | boolean): boolean | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return value;
+  const lower = String(value).toLowerCase().trim();
   if (lower === 'true' || lower === 'yes' || lower === '1') return true;
   if (lower === 'false' || lower === 'no' || lower === '0') return false;
   return null;
 }
 
-function parseNumber(value: string): number | null {
-  if (!value) return null;
-  const parsed = parseFloat(value.replace(/[,$]/g, ''));
+function parseNumber(value: string | number | boolean): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return null;
+  if (typeof value === 'number') return value;
+  const parsed = parseFloat(String(value).replace(/[,$]/g, ''));
   return isNaN(parsed) ? null : parsed;
 }
 
-function parseInt(value: string): number | null {
-  if (!value) return null;
-  const parsed = Number.parseInt(value.replace(/[,$]/g, ''), 10);
+function parseInt(value: string | number | boolean): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return null;
+  if (typeof value === 'number') return Math.floor(value);
+  const parsed = Number.parseInt(String(value).replace(/[,$]/g, ''), 10);
   return isNaN(parsed) ? null : parsed;
 }
 
-function parseDate(value: string): string | null {
-  if (!value) return null;
+function parseDate(value: string | number | Date | boolean): string | null {
+  if (!value || typeof value === 'boolean') return null;
   try {
+    // Excel stores dates as numbers (days since 1900-01-01)
+    if (typeof value === 'number') {
+      // Excel date serial number
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + value * 86400000);
+      return isNaN(date.getTime()) ? null : date.toISOString();
+    }
     const date = new Date(value);
     return isNaN(date.getTime()) ? null : date.toISOString();
   } catch {
@@ -90,49 +102,55 @@ function parseDate(value: string): string | null {
 }
 
 function mapCSVToBatchLead(row: CSVRow) {
+  // Helper to safely convert to string
+  const toString = (val: string | number | boolean | null | undefined): string | null => {
+    if (val === null || val === undefined || val === '') return null;
+    return String(val);
+  };
+
   return {
     // Lead Status & Identifiers
-    lead_status: row["Lead Status"] || null,
+    lead_status: toString(row["Lead Status"]),
     
     // Owner Information
-    first_name: row["First Name"] || null,
-    last_name: row["Last Name"] || null,
-    owner_2_first_name: row["Owner 2 First Name"] || null,
-    owner_2_last_name: row["Owner 2 Last Name"] || null,
+    first_name: toString(row["First Name"]),
+    last_name: toString(row["Last Name"]),
+    owner_2_first_name: toString(row["Owner 2 First Name"]),
+    owner_2_last_name: toString(row["Owner 2 Last Name"]),
     
     // Mailing Address
-    mailing_address: row["Mailing Address"] || null,
-    mailing_city: row["Mailing City"] || null,
-    mailing_state: row["Mailing State"] || null,
-    mailing_zip: row["Mailing Zip"] || null,
-    mailing_county: row["Mailing County"] || null,
+    mailing_address: toString(row["Mailing Address"]),
+    mailing_city: toString(row["Mailing City"]),
+    mailing_state: toString(row["Mailing State"]),
+    mailing_zip: toString(row["Mailing Zip"]),
+    mailing_county: toString(row["Mailing County"]),
     
     // Property Address
-    property_address: row["Property Address"] || null,
-    property_city: row["Property City"] || null,
-    property_state: row["Property State"] || null,
-    property_zip: row["Property Zip"] || null,
-    property_county: row["Property County"] || null,
+    property_address: toString(row["Property Address"]),
+    property_city: toString(row["Property City"]),
+    property_state: toString(row["Property State"]),
+    property_zip: toString(row["Property Zip"]),
+    property_county: toString(row["Property County"]),
     
     // Contact Information
-    email: row["Email"] || null,
-    email_2: row["Email 2"] || null,
-    phone_1: row["Phone 1"] || null,
+    email: toString(row["Email"]),
+    email_2: toString(row["Email 2"]),
+    phone_1: toString(row["Phone 1"]),
     phone_1_dnc: parseBool(row["Phone 1 DNC"]),
-    phone_1_type: row["Phone 1 TYPE"] || null,
-    phone_2: row["Phone 2"] || null,
+    phone_1_type: toString(row["Phone 1 TYPE"]),
+    phone_2: toString(row["Phone 2"]),
     phone_2_dnc: parseBool(row["Phone 2 DNC"]),
-    phone_2_type: row["Phone 2 TYPE"] || null,
-    phone_3: row["Phone 3"] || null,
+    phone_2_type: toString(row["Phone 2 TYPE"]),
+    phone_3: toString(row["Phone 3"]),
     phone_3_dnc: parseBool(row["Phone 3 DNC"]),
-    phone_3_type: row["Phone 3 TYPE"] || null,
-    phone_4: row["Phone 4"] || null,
+    phone_3_type: toString(row["Phone 3 TYPE"]),
+    phone_4: toString(row["Phone 4"]),
     phone_4_dnc: parseBool(row["Phone 4 DNC"]),
-    phone_4_type: row["Phone 4 TYPE"] || null,
-    phone_5: row["Phone 5"] || null,
+    phone_4_type: toString(row["Phone 4 TYPE"]),
+    phone_5: toString(row["Phone 5"]),
     phone_5_dnc: parseBool(row["Phone 5 DNC"]),
-    phone_5_type: row["Phone 5 TYPE"] || null,
-    office: row["Office"] || null,
+    phone_5_type: toString(row["Phone 5 TYPE"]),
+    office: toString(row["Office"]),
     
     // Flags
     litigator: parseBool(row["Litigator"]),
@@ -150,15 +168,15 @@ function mapCSVToBatchLead(row: CSVRow) {
     residential_unit_count: parseInt(row["Residential Unit Count"]),
     
     // Property Details
-    apn: row["Apn"] || null,
-    property_type_detail: row["Property Type Detail"] || null,
+    apn: toString(row["Apn"]),
+    property_type_detail: toString(row["Property Type Detail"]),
     owner_occupied: parseBool(row["Owner Occupied"]),
     bedroom_count: parseInt(row["Bedroom Count"]),
     bathroom_count: parseInt(row["Bathroom Count"]),
     total_building_area_sqft: parseInt(row["Total Building Area Square Feet"]),
     lot_size_sqft: parseInt(row["Lot Size Square Feet"]),
     year_built: parseInt(row["Year Built"]),
-    zoning_code: row["Zoning Code"] || null,
+    zoning_code: toString(row["Zoning Code"]),
     
     // Financial Information
     total_assessed_value: parseNumber(row["Total Assessed Value"]),
@@ -173,20 +191,20 @@ function mapCSVToBatchLead(row: CSVRow) {
     pct_arv: parseNumber(row["% ARV"]),
     
     // MLS Information
-    mls_status: row["Mls Status"] || null,
+    mls_status: toString(row["Mls Status"]),
     mls_listing_date: parseDate(row["Mls Listing Date"]),
     mls_listing_amount: parseNumber(row["Mls Listing Amount"]),
-    mls_listing_agent_fullname: row["Mls Listing Agent Fullname"] || null,
-    mls_agent_primary_phone: row["Mls Agent Primary Phone"] || null,
-    mls_agent_email: row["Mls Agent Email"] || null,
-    mls_agent_brokerage_name: row["Mls Agent Brokerage Name"] || null,
-    mls_agent_brokerage_phone: row["Mls Agent Brokerage Phone"] || null,
+    mls_listing_agent_fullname: toString(row["Mls Listing Agent Fullname"]),
+    mls_agent_primary_phone: toString(row["Mls Agent Primary Phone"]),
+    mls_agent_email: toString(row["Mls Agent Email"]),
+    mls_agent_brokerage_name: toString(row["Mls Agent Brokerage Name"]),
+    mls_agent_brokerage_phone: toString(row["Mls Agent Brokerage Phone"]),
     
     // Loan Information
     loan_recording_date: parseDate(row["Loan Recording Date"]),
-    loan_type: row["Loan Type"] || null,
+    loan_type: toString(row["Loan Type"]),
     loan_amount: parseNumber(row["Loan Amount"]),
-    loan_lender_name: row["Loan Lender Name"] || null,
+    loan_lender_name: toString(row["Loan Lender Name"]),
     loan_due_date: parseDate(row["Loan Due Date"]),
     loan_est_payment: parseNumber(row["Loan Est Payment"]),
     loan_est_interest_rate: parseNumber(row["Loan Est Interest Rate"]),
@@ -194,21 +212,21 @@ function mapCSVToBatchLead(row: CSVRow) {
     loan_term_months: parseInt(row["Loan Term (Months)"]),
     
     // Foreclosure Information
-    foreclosure_document_type: row["Foreclosure Document Type"] || null,
-    foreclosure_status: row["Foreclosure Status"] || null,
+    foreclosure_document_type: toString(row["Foreclosure Document Type"]),
+    foreclosure_status: toString(row["Foreclosure Status"]),
     foreclosure_auction_date: parseDate(row["Foreclosure Auction Date"]),
     foreclosure_loan_default_date: parseDate(row["Foreclosure Loan Default Date"]),
     foreclosure_loan_recording_date: parseDate(row["Foreclosure Loan Recording Date"]),
-    foreclosure_case_number: row["Foreclosure Case Number"] || null,
-    foreclosure_trustee_attorney_name: row["Foreclosure Trustee/Attorney Name"] || null,
+    foreclosure_case_number: toString(row["Foreclosure Case Number"]),
+    foreclosure_trustee_attorney_name: toString(row["Foreclosure Trustee/Attorney Name"]),
     
     // Other
     self_managed: parseBool(row["Self Managed"]),
     pushed_to_batchdialer: parseBool(row["Pushed to BatchDialer"]),
-    batchrank_score_category: row["Batchrank Score Category"] || null,
-    tag_names: row["Tag Names"] || null,
-    notes: row["Notes"] || null,
-    list: row["List"] || null,
+    batchrank_score_category: toString(row["Batchrank Score Category"]),
+    tag_names: toString(row["Tag Names"]),
+    notes: toString(row["Notes"]),
+    list: toString(row["List"]),
     
     // Timestamps
     batch_created_date: parseDate(row["Created Date"]),
