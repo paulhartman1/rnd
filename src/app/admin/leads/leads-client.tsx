@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { leadStatuses, type LeadRow, type LeadStatus } from "@/lib/leads";
 import {
   appointmentStatuses,
@@ -56,6 +56,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
   const [hotLeadsOnly, setHotLeadsOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name" | "hot">("hot");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
   const [appointmentDraft, setAppointmentDraft] = useState({
@@ -156,6 +158,21 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
 
     return filtered;
   }, [leads, showDeleted, searchQuery, statusFilter, hotLeadsOnly, sortBy]);
+
+  // Calculate pagination
+  const totalPages = Math.max(1, Math.ceil(visibleLeads.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLeads = visibleLeads.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, hotLeadsOnly, sortBy, showDeleted]);
+
+  useEffect(() => {
+    setCurrentPage((previous) => Math.min(previous, totalPages));
+  }, [totalPages]);
 
   const hasVisibleLeads = visibleLeads.length > 0;
 
@@ -549,9 +566,33 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
             />
             Show deleted leads
           </label>
-          <span className="text-sm text-[var(--color-muted)]">
-            {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-[var(--color-muted)]">
+              {visibleLeads.length} {visibleLeads.length === 1 ? "lead" : "leads"} total
+              {visibleLeads.length > itemsPerPage && (
+                <span className="ml-2">
+                  (showing {startIndex + 1}-{Math.min(endIndex, visibleLeads.length)})
+                </span>
+              )}
+            </span>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <span className="font-semibold text-[var(--color-navy)]">Show:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded border border-black/10 px-2 py-1 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div className="flex gap-2">
           {canBulkImport && (
@@ -708,7 +749,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
             : "No active leads found. Enable “Show deleted leads” to view deleted entries."}
         </article>
       ) : (
-        visibleLeads.map((lead) => {
+        <>
+          {paginatedLeads.map((lead) => {
           const draft = drafts[lead.id];
           if (!draft) {
             return null;
@@ -927,7 +969,67 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
             </div>
           </article>
           );
-        })
+        })}
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
+                disabled={currentPage === 1}
+                className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Previous
+              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => {
+                  const isEdgePage = page === 1 || page === totalPages;
+                  const isNearbyPage = Math.abs(page - currentPage) <= 1;
+                  const shouldShow = isEdgePage || isNearbyPage;
+
+                  if (!shouldShow) {
+                    const shouldShowEllipsis =
+                      page === currentPage - 2 || page === currentPage + 2;
+
+                    return shouldShowEllipsis ? (
+                      <span
+                        key={`ellipsis-${page}`}
+                        className="px-1 text-sm text-[var(--color-muted)]"
+                      >
+                        …
+                      </span>
+                    ) : null;
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      aria-current={page === currentPage ? "page" : undefined}
+                      className={
+                        page === currentPage
+                          ? "min-w-[2.5rem] rounded-lg bg-[var(--color-primary-gold)] px-3 py-2 text-sm font-bold text-[var(--color-navy)]"
+                          : "min-w-[2.5rem] rounded-lg border border-black/12 px-3 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5"
+                      }
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((previous) => Math.min(totalPages, previous + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {showEmailModal && emailingLeadId && (

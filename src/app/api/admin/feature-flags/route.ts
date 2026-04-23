@@ -72,18 +72,34 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { id, is_enabled } = body;
+    const { id, is_enabled, allowed_users } = body;
 
-    if (!id || typeof is_enabled !== "boolean") {
+    if (!id) {
       return NextResponse.json(
-        { error: "Invalid request. Must provide id and is_enabled." },
+        { error: "Invalid request. Must provide id." },
+        { status: 400 }
+      );
+    }
+
+    // Build update object
+    const updateData: { is_enabled?: boolean; allowed_users?: string[] } = {};
+    if (typeof is_enabled === "boolean") {
+      updateData.is_enabled = is_enabled;
+    }
+    if (Array.isArray(allowed_users)) {
+      updateData.allowed_users = allowed_users;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
         { status: 400 }
       );
     }
 
     const { data, error } = await supabase
       .from("feature_flags")
-      .update({ is_enabled })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();
