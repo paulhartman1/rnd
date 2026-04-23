@@ -244,20 +244,24 @@ export default function DialerClient() {
 
   const makeCall = async (queueItem: any) => {
     try {
+      console.log('[Dialer] makeCall called with:', queueItem);
       const device = deviceRef.current;
       if (!device) {
         throw new Error("Device not initialized");
       }
 
       const lead = queueItem.leads;
+      console.log('[Dialer] Lead data:', lead);
       setCurrentLead(lead);
       setCallStatus("Initiating call...");
 
       // Connect call with queue item ID
+      console.log('[Dialer] Connecting with queue item ID:', queueItem.id);
       const call = await device.connect({
         params: { queueItemId: queueItem.id }
       });
 
+      console.log('[Dialer] Call object created:', call);
       setCurrentCall(call);
 
       call.on("accept", () => {
@@ -301,18 +305,34 @@ export default function DialerClient() {
       return;
     }
     
-    // Get next queue item and process it
-    const response = await fetch("/api/admin/dialer/process", {
-      method: "POST",
-    });
-    const data = await response.json();
-    
-    if (data.queueItems && data.queueItems.length > 0) {
-      await makeCall(data.queueItems[0]);
-    } else {
+    try {
+      // Get next queue item and process it
+      console.log('[Dialer] Fetching next queue item...');
+      const response = await fetch("/api/admin/dialer/process", {
+        method: "POST",
+      });
+      const data = await response.json();
+      console.log('[Dialer] Process response:', data);
+      
+      if (!response.ok) {
+        console.error('[Dialer] Process error:', data.error);
+        alert(`Error: ${data.error}`);
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (data.queueItems && data.queueItems.length > 0) {
+        console.log('[Dialer] Making call to:', data.queueItems[0]);
+        await makeCall(data.queueItems[0]);
+      } else {
+        console.log('[Dialer] No more queue items. Stopping.');
+        setIsProcessing(false);
+        await loadQueue();
+        await loadStats();
+      }
+    } catch (error) {
+      console.error('[Dialer] processNext error:', error);
       setIsProcessing(false);
-      await loadQueue();
-      await loadStats();
     }
   };
 
