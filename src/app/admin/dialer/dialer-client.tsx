@@ -276,8 +276,8 @@ export default function DialerClient() {
         setCurrentCall(null);
         setCurrentLead(null);
         setIsMuted(false);
-        // Process next call
-        processNext();
+        // Process next call - force to continue even if user pressed Stop
+        processNext(true);
       });
 
       call.on("cancel", () => {
