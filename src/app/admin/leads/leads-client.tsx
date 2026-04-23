@@ -90,6 +90,22 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
     error: null as string | null,
     success: false,
   });
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkImportDraft, setBulkImportDraft] = useState({
+    file: null as File | null,
+    createLeads: true,
+    isUploading: false,
+    error: null as string | null,
+    success: false,
+    result: null as { 
+      totalRows: number; 
+      batchLeadsImported: number; 
+      leadsCreated: number; 
+      mappingsCreated: number; 
+      skipped: number;
+      skippedRows?: Array<{ row: number; reason: string; data?: string }>;
+    } | null,
+  });
 
   const visibleLeads = useMemo(() => {
     let filtered = leads.filter((lead) => showDeleted || !lead.deleted_at);
@@ -464,6 +480,60 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
     }, 1000);
   };
 
+  const openBulkImportModal = () => {
+    setBulkImportDraft({
+      file: null,
+      createLeads: true,
+      isUploading: false,
+      error: null,
+      success: false,
+      result: null,
+    });
+    setShowBulkImportModal(true);
+  };
+
+  const closeBulkImportModal = () => {
+    setShowBulkImportModal(false);
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkImportDraft.file) {
+      setBulkImportDraft((prev) => ({ ...prev, error: "Please select a file" }));
+      return;
+    }
+
+    setBulkImportDraft((prev) => ({ ...prev, isUploading: true, error: null, success: false }));
+
+    const formData = new FormData();
+    formData.append('file', bulkImportDraft.file);
+    formData.append('createLeads', bulkImportDraft.createLeads.toString());
+
+    const response = await fetch("/api/admin/leads/bulk-import", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      setBulkImportDraft((prev) => ({
+        ...prev,
+        isUploading: false,
+        error: body?.error ?? "Could not import leads. Please try again.",
+      }));
+      return;
+    }
+
+    const result = await response.json();
+    setBulkImportDraft((prev) => ({ ...prev, isUploading: false, error: null, success: true, result }));
+    
+    // Reload page after 2 seconds on success
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  };
+
 
   return (
     <section className="space-y-4">
@@ -483,6 +553,13 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
           </span>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={openBulkImportModal}
+            className="rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
+          >
+            📊 Bulk Import
+          </button>
           <button
             type="button"
             onClick={openCreateLeadModal}
@@ -1253,6 +1330,124 @@ export default function LeadsClient({ initialLeads, leadAnswers }: Props) {
                   className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {createLeadDraft.success ? "Close" : "Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[1.4rem] border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
+            <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
+              Bulk Import Leads from CSV
+            </h3>
+
+            <p className="mb-4 text-sm text-[var(--color-muted)]">
+              Upload a tab-delimited CSV file from BatchLeads. The file should include columns like Lead Status, First Name, Last Name, Property Address, Email, Phone, etc.
+            </p>
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  CSV File
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.txt,.tsv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setBulkImportDraft({ ...bulkImportDraft, file, error: null });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                />
+              </label>
+
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bulkImportDraft.createLeads}
+                  onChange={(e) =>
+                    setBulkImportDraft({ ...bulkImportDraft, createLeads: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-black/20 text-[var(--color-primary-gold)] focus:ring-[var(--color-primary-gold)]"
+                />
+                <span className="text-sm font-semibold text-[var(--color-navy)]">
+                  Also create leads in the leads table (recommended)
+                </span>
+              </label>
+
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
+                <p className="font-semibold mb-1">What happens during import:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>All data is saved to the <code>batchleads</code> table</li>
+                  {bulkImportDraft.createLeads && (
+                    <>
+                      <li>Essential fields are mapped to create entries in the <code>leads</code> table</li>
+                      <li>A mapping record links each batch lead to its corresponding lead</li>
+                    </>
+                  )}
+                  <li>You can access all raw data from the batchleads table later</li>
+                </ul>
+              </div>
+
+              {bulkImportDraft.error && (
+                <p className="text-sm text-red-700">{bulkImportDraft.error}</p>
+              )}
+              {bulkImportDraft.success && bulkImportDraft.result && (
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-700">
+                    <p className="font-semibold">✓ Import successful!</p>
+                    <ul className="mt-2 space-y-1 text-xs">
+                      <li>Total rows in file: {bulkImportDraft.result.totalRows}</li>
+                      <li>Batch leads imported: {bulkImportDraft.result.batchLeadsImported}</li>
+                      {bulkImportDraft.createLeads && (
+                        <>
+                          <li>Leads created: {bulkImportDraft.result.leadsCreated}</li>
+                          <li>Mappings created: {bulkImportDraft.result.mappingsCreated}</li>
+                        </>
+                      )}
+                      <li className="font-semibold">Skipped: {bulkImportDraft.result.skipped}</li>
+                    </ul>
+                    <p className="mt-2 text-xs">Reloading page...</p>
+                  </div>
+                  
+                  {bulkImportDraft.result.skippedRows && bulkImportDraft.result.skippedRows.length > 0 && (
+                    <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
+                      <p className="font-semibold mb-2">Skipped Rows ({bulkImportDraft.result.skippedRows.length}):</p>
+                      <div className="max-h-40 overflow-y-auto space-y-1.5">
+                        {bulkImportDraft.result.skippedRows.slice(0, 20).map((skip, idx) => (
+                          <div key={idx} className="text-xs border-l-2 border-yellow-400 pl-2 py-0.5">
+                            <span className="font-semibold">{skip.reason}</span>
+                            {skip.data && <span className="text-yellow-700"> - {skip.data}</span>}
+                          </div>
+                        ))}
+                        {bulkImportDraft.result.skippedRows.length > 20 && (
+                          <p className="text-xs italic pt-1">...and {bulkImportDraft.result.skippedRows.length - 20} more</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleBulkImport}
+                  disabled={bulkImportDraft.isUploading || !bulkImportDraft.file || bulkImportDraft.success}
+                  className="flex-1 rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {bulkImportDraft.isUploading ? "Importing..." : bulkImportDraft.success ? "Imported!" : "Import Leads"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeBulkImportModal}
+                  disabled={bulkImportDraft.isUploading}
+                  className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {bulkImportDraft.success ? "Close" : "Cancel"}
                 </button>
               </div>
             </div>
