@@ -261,7 +261,7 @@ export default function DialerClient() {
       setCurrentCall(call);
 
       call.on("accept", () => {
-        setCallStatus(`Connected to ${lead.name || lead.phone}`);
+        setCallStatus(`Connected to ${lead.full_name || lead.phone}`);
       });
 
       call.on("disconnect", () => {

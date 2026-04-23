@@ -124,7 +124,7 @@ export async function POST() {
         campaign_id,
         leads (
           id,
-          name,
+          full_name,
           phone,
           email
         )

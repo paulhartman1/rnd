@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         leads (
           id,
           phone,
-          name,
+          full_name,
           email
         ),
         dialer_campaigns (
