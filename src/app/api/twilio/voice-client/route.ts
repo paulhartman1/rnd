@@ -10,9 +10,10 @@ export async function POST(request: NextRequest) {
     const queueItemId = formData.get('queueItemId') as string;
 
     if (!queueItemId) {
-      console.error('Missing queueItemId parameter');
+      // This is likely a device registration call from Twilio - return empty response
+      console.log('[Voice Client] No queueItemId - likely device registration');
       const response = new VoiceResponse();
-      response.say('An error occurred. Missing queue item ID.');
+      response.say('Device ready.');
       response.hangup();
       return new NextResponse(response.toString(), {
         headers: { 'Content-Type': 'text/xml' }
