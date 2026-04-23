@@ -211,7 +211,10 @@ export default function DialerClient() {
 
       // Initialize Twilio Device
       console.log("[Dialer] Initializing Twilio Device...");
-      const device = new Device(token);
+      const device = new Device(token, {
+        logLevel: 1, // Enable debug logging
+        edge: 'ashburn' // Use closest edge location
+      });
       deviceRef.current = device;
 
       device.on("registered", () => {
@@ -221,6 +224,9 @@ export default function DialerClient() {
 
       device.on("error", (error) => {
         console.error("[Dialer] Device error:", error);
+        console.error("[Dialer] Error code:", error.code);
+        console.error("[Dialer] Error message:", error.message);
+        console.error("[Dialer] Error details:", JSON.stringify(error));
         setCallStatus(`Error: ${error.message}`);
       });
 
