@@ -296,9 +296,9 @@ export default function DialerClient() {
     }
   };
 
-  const processNext = async () => {
-    // Check if processing was stopped
-    if (!isProcessing) {
+  const processNext = async (forceProcess = false) => {
+    // Check if processing was stopped (unless forced)
+    if (!forceProcess && !isProcessing) {
       console.log('[Dialer] Processing stopped by user');
       await loadQueue();
       await loadStats();
@@ -344,8 +344,8 @@ export default function DialerClient() {
         await initializeDevice();
       }
 
-      // Start processing
-      await processNext();
+      // Start processing - force first call since state update is async
+      await processNext(true);
     } catch (error) {
       console.error("Process error:", error);
       setIsProcessing(false);
