@@ -308,6 +308,11 @@ export default function DialerClient() {
       return;
     }
     
+    // If forcing, ensure processing state is active
+    if (forceProcess) {
+      setIsProcessing(true);
+    }
+    
     try {
       // Get next queue item and process it
       console.log('[Dialer] Fetching next queue item...');
