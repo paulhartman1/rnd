@@ -12,6 +12,9 @@ export async function POST(request: Request) {
     const callSid = formData.get("CallSid") as string;
     const callStatus = formData.get("CallStatus") as string;
     const callDuration = formData.get("CallDuration") as string;
+    const queueItemId = new URL(request.url).searchParams.get("queueItemId");
+
+    console.log('[Call Status] Received:', { callSid, callStatus, callDuration, queueItemId });
 
     if (!callSid || !callStatus) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -32,23 +35,61 @@ export async function POST(request: Request) {
 
     const mappedStatus = statusMap[callStatus.toLowerCase()] || callStatus;
 
-    // Update call log
-    const { data: callLog, error: logError } = await adminClient
+    // Try to find existing call log
+    let { data: callLog } = await adminClient
       .from("dialer_call_logs")
-      .update({
-        call_status: mappedStatus,
-        call_duration: callDuration ? parseInt(callDuration, 10) : null,
-        ended_at: ["completed", "busy", "failed", "no-answer", "canceled"].includes(mappedStatus)
-          ? new Date().toISOString()
-          : null,
-      })
+      .select("id, queue_id, lead_id, user_id, campaign_id")
       .eq("twilio_call_sid", callSid)
-      .select("queue_id, lead_id")
       .single();
 
-    if (logError || !callLog) {
-      console.error("Failed to update call log:", logError);
-      // Don't fail the request - Twilio will retry
+    // If no call log exists and we have queueItemId, create one
+    if (!callLog && queueItemId) {
+      console.log('[Call Status] Creating new call log for queue item:', queueItemId);
+      
+      // Get queue item details
+      const { data: queueItem } = await adminClient
+        .from("dialer_queue")
+        .select("lead_id, campaign_id, assigned_user_id")
+        .eq("id", queueItemId)
+        .single();
+
+      if (queueItem) {
+        const { data: newLog } = await adminClient
+          .from("dialer_call_logs")
+          .insert({
+            queue_id: queueItemId,
+            lead_id: queueItem.lead_id,
+            campaign_id: queueItem.campaign_id,
+            user_id: queueItem.assigned_user_id,
+            twilio_call_sid: callSid,
+            call_status: mappedStatus,
+            call_duration: callDuration ? parseInt(callDuration, 10) : null,
+            started_at: new Date().toISOString(),
+            ended_at: ["completed", "busy", "failed", "no-answer", "canceled"].includes(mappedStatus)
+              ? new Date().toISOString()
+              : null,
+          })
+          .select("id, queue_id, lead_id")
+          .single();
+        
+        callLog = newLog || null;
+      }
+    } else if (callLog) {
+      // Update existing call log
+      await adminClient
+        .from("dialer_call_logs")
+        .update({
+          call_status: mappedStatus,
+          call_duration: callDuration ? parseInt(callDuration, 10) : null,
+          ended_at: ["completed", "busy", "failed", "no-answer", "canceled"].includes(mappedStatus)
+            ? new Date().toISOString()
+            : null,
+        })
+        .eq("twilio_call_sid", callSid);
+    }
+
+    if (!callLog) {
+      console.error('[Call Status] No call log found or created for:', callSid);
       return new NextResponse("", { status: 200 });
     }
 
@@ -87,7 +128,7 @@ export async function POST(request: Request) {
         .from("dialer_queue")
         .update({ 
           status: queueStatus,
-          assigned_agent_id: queueStatus === "pending" ? null : undefined,
+          assigned_user_id: queueStatus === "pending" ? null : undefined,
         })
         .eq("id", callLog.queue_id);
     }
