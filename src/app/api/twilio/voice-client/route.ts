@@ -100,9 +100,14 @@ export async function POST(request: NextRequest) {
     const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
     console.log('[Voice Client] Using caller ID:', twilioPhoneNumber);
 
+    // Use absolute URL for action callback
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.rushndush.com';
+    const actionUrl = `${baseUrl}/api/twilio/call-status?queueItemId=${queueItemId}`;
+    console.log('[Voice Client] Action URL:', actionUrl);
+
     const dial = response.dial({
       callerId: twilioPhoneNumber,
-      action: `/api/twilio/call-status?queueItemId=${queueItemId}`,
+      action: actionUrl,
       timeout: 30
     });
     
