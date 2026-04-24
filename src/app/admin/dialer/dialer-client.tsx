@@ -373,7 +373,8 @@ export default function DialerClient() {
         setCallStatus("Call ended. Review notes, then click Next Lead.");
         setCurrentCall(null);
         setIsMuted(false);
-        setAwaitingNextLead(isProcessing);
+        // Always show workspace after call ends, keep processing state
+        setAwaitingNextLead(true);
         void loadQueue();
         void loadStats();
       });
