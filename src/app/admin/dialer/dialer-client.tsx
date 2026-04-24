@@ -55,6 +55,7 @@ export default function DialerClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<string | null>(null);
   const [editingAgent, setEditingAgent] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -73,6 +74,10 @@ export default function DialerClient() {
   // Appointment scheduling state
   const [scheduledDateTime, setScheduledDateTime] = useState<string>("");
   const [isSchedulingAppointment, setIsSchedulingAppointment] = useState(false);
+  
+  // Lead editing state
+  const [isEditingLead, setIsEditingLead] = useState(false);
+  const [leadEdit, setLeadEdit] = useState({ full_name: "", phone: "", email: "" });
   
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -103,6 +108,13 @@ export default function DialerClient() {
   })();
 
   const [newCampaign, setNewCampaign] = useState({
+    name: "",
+    description: "",
+    priority: 0,
+    lead_filters: { status: ["new"], isHotLead: false },
+  });
+
+  const [campaignEdit, setCampaignEdit] = useState({
     name: "",
     description: "",
     priority: 0,
@@ -259,6 +271,41 @@ export default function DialerClient() {
     });
     if (response.ok) {
       await loadCampaigns();
+    }
+  };
+
+  const updateCampaign = async (id: string) => {
+    const response = await fetch(`/api/admin/dialer/campaigns/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(campaignEdit),
+    });
+
+    if (response.ok) {
+      setEditingCampaign(null);
+      setCampaignEdit({ name: "", description: "", priority: 0, lead_filters: { status: ["new"], isHotLead: false } });
+      await loadCampaigns();
+    } else {
+      const data = await response.json();
+      alert(data.error || "Failed to update campaign");
+    }
+  };
+
+  const deleteCampaign = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete the campaign "${name}"? This will remove all associated queue items.`)) {
+      return;
+    }
+
+    const response = await fetch(`/api/admin/dialer/campaigns/${id}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      await loadCampaigns();
+      await loadQueue(); // Refresh queue since items may have been removed
+    } else {
+      const data = await response.json();
+      alert(data.error || "Failed to delete campaign");
     }
   };
 
@@ -487,6 +534,54 @@ export default function DialerClient() {
     setAwaitingNextLead(false);
   };
 
+  const updateLead = async () => {
+    if (!currentLead) return;
+
+    // Warn about phone number changes
+    if (leadEdit.phone !== currentLead.phone) {
+      if (!confirm(
+        "⚠️ WARNING: Changing the phone number will affect:\n" +
+        "• Call history linked to this lead\n" +
+        "• Appointment records\n" +
+        "• Text message history\n" +
+        "\nAre you sure you want to change the phone number?"
+      )) {
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(`/api/admin/leads/${currentLead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: leadEdit.full_name,
+          phone: leadEdit.phone,
+          email: leadEdit.email || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update lead");
+      }
+
+      // Update local state
+      setCurrentLead(prev => prev ? {
+        ...prev,
+        full_name: leadEdit.full_name,
+        phone: leadEdit.phone,
+        email: leadEdit.email || null,
+      } : prev);
+
+      setIsEditingLead(false);
+      alert("Lead updated successfully");
+    } catch (error) {
+      console.error("[Dialer] Failed to update lead:", error);
+      alert(error instanceof Error ? error.message : "Failed to update lead");
+    }
+  };
+
   const scheduleAppointment = async (autoAdvance = false) => {
     if (!currentLead || !scheduledDateTime) {
       alert("Please select a date and time for the appointment");
@@ -683,36 +778,131 @@ export default function DialerClient() {
           <div className="space-y-3">
             {campaigns.map((campaign) => (
               <div key={campaign.id} className="bg-white p-4 rounded-lg shadow border">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold">{campaign.name}</h3>
-                    {campaign.description && <p className="text-sm text-gray-600">{campaign.description}</p>}
-                    <p className="text-xs text-gray-500 mt-1">
-                      Priority: {campaign.priority} | Filters: {JSON.stringify(campaign.lead_filters)}
-                    </p>
+                {editingCampaign === campaign.id ? (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={campaignEdit.name}
+                      onChange={(e) => setCampaignEdit({ ...campaignEdit, name: e.target.value })}
+                      className="w-full px-3 py-2 border rounded text-sm"
+                      placeholder="Campaign Name"
+                    />
+                    <textarea
+                      value={campaignEdit.description}
+                      onChange={(e) => setCampaignEdit({ ...campaignEdit, description: e.target.value })}
+                      className="w-full px-3 py-2 border rounded text-sm"
+                      placeholder="Description"
+                      rows={2}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Lead Filters</label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={campaignEdit.lead_filters.isHotLead === true}
+                            onChange={(e) =>
+                              setCampaignEdit({
+                                ...campaignEdit,
+                                lead_filters: { ...campaignEdit.lead_filters, isHotLead: e.target.checked },
+                              })
+                            }
+                          />
+                          Hot Leads Only
+                        </label>
+                        <div>
+                          <span className="text-sm">Status: </span>
+                          {["new", "contacted"].map((status) => (
+                            <label key={status} className="inline-flex items-center gap-1 mr-4">
+                              <input
+                                type="checkbox"
+                                checked={(campaignEdit.lead_filters.status as string[])?.includes(status)}
+                                onChange={(e) => {
+                                  const current = (campaignEdit.lead_filters.status as string[]) || [];
+                                  const updated = e.target.checked
+                                    ? [...current, status]
+                                    : current.filter((s) => s !== status);
+                                  setCampaignEdit({
+                                    ...campaignEdit,
+                                    lead_filters: { ...campaignEdit.lead_filters, status: updated },
+                                  });
+                                }}
+                              />
+                              {status}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateCampaign(campaign.id)}
+                        className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingCampaign(null)}
+                        className="px-3 py-1 bg-gray-300 rounded text-sm hover:bg-gray-400"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {campaign.is_active ? (
-                      <button
-                        onClick={() => stopCampaign(campaign.id)}
-                        className="px-3 py-1 bg-red-600 text-white rounded text-sm"
-                      >
-                        Stop
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => startCampaign(campaign.id)}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-sm"
-                      >
-                        Start
-                      </button>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold">{campaign.name}</h3>
+                        {campaign.description && <p className="text-sm text-gray-600">{campaign.description}</p>}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Priority: {campaign.priority} | Filters: {JSON.stringify(campaign.lead_filters)}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingCampaign(campaign.id);
+                            setCampaignEdit({
+                              name: campaign.name,
+                              description: campaign.description || "",
+                              priority: campaign.priority,
+                              lead_filters: campaign.lead_filters as { status: string[]; isHotLead: boolean },
+                            });
+                          }}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                          Edit
+                        </button>
+                        {campaign.is_active ? (
+                          <button
+                            onClick={() => stopCampaign(campaign.id)}
+                            className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
+                          >
+                            Stop
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => startCampaign(campaign.id)}
+                            className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                          >
+                            Start
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteCampaign(campaign.id, campaign.name)}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    {campaign.is_active && (
+                      <span className="inline-block mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                        Active
+                      </span>
                     )}
-                  </div>
-                </div>
-                {campaign.is_active && (
-                  <span className="inline-block mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-                    Active
-                  </span>
+                  </>
                 )}
               </div>
             ))}
@@ -894,13 +1084,78 @@ export default function DialerClient() {
           {awaitingNextLead && currentLead && !currentCall && (
             <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
               <div className="space-y-4">
-                <div>
-                  <h3 className="font-bold text-lg">Call Complete</h3>
-                  <p className="text-sm text-gray-700 mt-1">
-                    <strong>{currentLead.full_name || "Unknown"}</strong>
-                  </p>
-                  <p className="text-sm text-gray-600">{currentLead.phone}</p>
-                  <p className="text-sm text-green-700 mt-2">{callStatus}</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-lg">Call Complete</h3>
+                    {isEditingLead ? (
+                      <div className="mt-2 space-y-2">
+                        <input
+                          type="text"
+                          value={leadEdit.full_name}
+                          onChange={(e) => setLeadEdit({ ...leadEdit, full_name: e.target.value })}
+                          className="w-full px-3 py-2 border rounded text-sm"
+                          placeholder="Full Name"
+                        />
+                        <input
+                          type="tel"
+                          value={leadEdit.phone}
+                          onChange={(e) => setLeadEdit({ ...leadEdit, phone: e.target.value })}
+                          className="w-full px-3 py-2 border rounded text-sm"
+                          placeholder="Phone (e.g., +15551234567)"
+                        />
+                        <input
+                          type="email"
+                          value={leadEdit.email}
+                          onChange={(e) => setLeadEdit({ ...leadEdit, email: e.target.value })}
+                          className="w-full px-3 py-2 border rounded text-sm"
+                          placeholder="Email (optional)"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={updateLead}
+                            className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                          >
+                            Save Changes
+                          </button>
+                          <button
+                            onClick={() => setIsEditingLead(false)}
+                            className="px-3 py-1 bg-gray-300 rounded text-sm hover:bg-gray-400"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <p className="text-xs text-orange-600 mt-1">
+                          ⚠️ Changing phone number will affect call history and appointments
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-700 mt-1">
+                          <strong>{currentLead.full_name || "Unknown"}</strong>
+                        </p>
+                        <p className="text-sm text-gray-600">{currentLead.phone}</p>
+                        {currentLead.email && (
+                          <p className="text-sm text-gray-600">{currentLead.email}</p>
+                        )}
+                        <p className="text-sm text-green-700 mt-2">{callStatus}</p>
+                      </>
+                    )}
+                  </div>
+                  {!isEditingLead && (
+                    <button
+                      onClick={() => {
+                        setIsEditingLead(true);
+                        setLeadEdit({
+                          full_name: currentLead.full_name || "",
+                          phone: currentLead.phone || "",
+                          email: currentLead.email || "",
+                        });
+                      }}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                    >
+                      Edit Lead
+                    </button>
+                  )}
                 </div>
                 
                 <div>
