@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Device, Call } from "@twilio/voice-sdk";
 import type { LeadStatus } from "@/lib/leads";
+import { leadStatuses } from "@/lib/leads";
 
 type Agent = {
   user_id: string;
@@ -66,9 +67,11 @@ export default function DialerClient() {
   const [isMuted, setIsMuted] = useState(false);
   const [currentLead, setCurrentLead] = useState<WorkspaceLead | null>(null);
   const [currentLeadNotes, setCurrentLeadNotes] = useState("");
+  const [currentLeadStatus, setCurrentLeadStatus] = useState<LeadStatus | null>(null);
   const [currentQueueItemId, setCurrentQueueItemId] = useState<string | null>(null);
   const [isFetchingNextLead, setIsFetchingNextLead] = useState(false);
   const [isSavingLeadNotes, setIsSavingLeadNotes] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [awaitingNextLead, setAwaitingNextLead] = useState(false);
   
   // Appointment scheduling state
@@ -160,16 +163,70 @@ export default function DialerClient() {
     }
   };
 
+  const updateLeadStatus = async (newStatus: LeadStatus) => {
+    if (!currentLead) return;
+
+    setIsUpdatingStatus(true);
+    const previousStatus = currentLeadStatus;
+
+    // Optimistically update UI
+    setCurrentLeadStatus(newStatus);
+
+    try {
+      const response = await fetch(`/api/admin/leads/${currentLead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: newStatus,
+          ownerNotes: currentLeadNotes,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update lead status");
+      }
+
+      setCurrentLead((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: newStatus,
+            }
+          : previous,
+      );
+    } catch (error) {
+      console.error("[Dialer] Failed to update lead status:", error);
+      alert(error instanceof Error ? error.message : "Failed to update lead status");
+      // Revert on error
+      setCurrentLeadStatus(previousStatus);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const markQueueItemCompleted = async (queueItemId: string) => {
+    try {
+      await fetch(`/api/admin/dialer/queue/${queueItemId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      console.error("[Dialer] Failed to mark queue item complete:", error);
+    }
+  };
+
   const persistCurrentLeadNotes = async () => {
-    if (!currentLead) {
+    if (!currentLead || !currentLeadStatus) {
       return true;
     }
 
     setIsSavingLeadNotes(true);
 
     try {
+      // Auto-advance from "new" to "contacted" if still new
       const nextStatus: LeadStatus =
-        currentLead.status === "new" ? "contacted" : currentLead.status;
+        currentLeadStatus === "new" ? "contacted" : currentLeadStatus;
 
       const response = await fetch(`/api/admin/leads/${currentLead.id}`, {
         method: "PATCH",
@@ -194,6 +251,12 @@ export default function DialerClient() {
             }
           : previous,
       );
+      setCurrentLeadStatus(nextStatus);
+
+      // Mark queue item as completed
+      if (currentQueueItemId) {
+        await markQueueItemCompleted(currentQueueItemId);
+      }
 
       return true;
     } catch (error) {
@@ -209,6 +272,7 @@ export default function DialerClient() {
     setCurrentCall(null);
     setCurrentLead(null);
     setCurrentLeadNotes("");
+    setCurrentLeadStatus(null);
     setCurrentQueueItemId(null);
     setIsMuted(false);
     setAwaitingNextLead(false);
@@ -403,6 +467,7 @@ export default function DialerClient() {
       setCurrentQueueItemId(queueItem.id);
       setCurrentLead(lead);
       setCurrentLeadNotes(lead.owner_notes || "");
+      setCurrentLeadStatus(lead.status);
       setAwaitingNextLead(false);
       setCallStatus("Initiating call...");
       setQueue((previous) => previous.filter((item) => item.id !== queueItem.id));
@@ -420,26 +485,38 @@ export default function DialerClient() {
         setCallStatus(`Connected to ${lead.full_name || lead.phone}`);
       });
 
-      call.on("disconnect", () => {
+      call.on("disconnect", async () => {
         setCallStatus("Call ended. Review notes, then click Next Lead.");
         setCurrentCall(null);
         setIsMuted(false);
+        // Mark queue item as complete to prevent stuck "calling" status
+        if (currentQueueItemId) {
+          await markQueueItemCompleted(currentQueueItemId);
+        }
         // Always show workspace after call ends, keep processing state
         setAwaitingNextLead(true);
         void loadQueue();
         void loadStats();
       });
 
-      call.on("cancel", () => {
+      call.on("cancel", async () => {
         setCallStatus("Call cancelled. Review notes, then click Next Lead.");
         setCurrentCall(null);
+        // Mark queue item as complete even on cancel
+        if (currentQueueItemId) {
+          await markQueueItemCompleted(currentQueueItemId);
+        }
         setAwaitingNextLead(false);
       });
 
-      call.on("error", (error) => {
+      call.on("error", async (error) => {
         console.error("Call error:", error);
         setCallStatus(`Call error: ${error.message}. Review notes, then click Next Lead.`);
         setCurrentCall(null);
+        // Mark queue item as complete even on error
+        if (currentQueueItemId) {
+          await markQueueItemCompleted(currentQueueItemId);
+        }
         setAwaitingNextLead(false);
       });
 
@@ -598,11 +675,11 @@ export default function DialerClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lead_id: currentLead.id,
+          leadId: currentLead.id,
           title: `Follow-up call with ${currentLead.full_name || currentLead.phone}`,
           description: currentLeadNotes.trim() || null,
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
           status: "scheduled",
           location: null,
         }),
@@ -1049,6 +1126,21 @@ export default function DialerClient() {
                       <strong>{currentLead.full_name || "Unknown"}</strong>
                     </p>
                     <p className="text-sm text-gray-600">{currentLead.phone}</p>
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Lead Status</label>
+                      <select
+                        value={currentLeadStatus || "new"}
+                        onChange={(e) => updateLeadStatus(e.target.value as LeadStatus)}
+                        disabled={isUpdatingStatus}
+                        className="px-2 py-1 text-sm border rounded bg-white disabled:bg-gray-100"
+                      >
+                        {leadStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <p className="text-sm text-blue-600 mt-2">{callStatus}</p>
                   </div>
                   <div className="flex gap-2">
@@ -1137,6 +1229,21 @@ export default function DialerClient() {
                         {currentLead.email && (
                           <p className="text-sm text-gray-600">{currentLead.email}</p>
                         )}
+                        <div className="mt-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Lead Status</label>
+                          <select
+                            value={currentLeadStatus || "new"}
+                            onChange={(e) => updateLeadStatus(e.target.value as LeadStatus)}
+                            disabled={isUpdatingStatus}
+                            className="px-2 py-1 text-sm border rounded bg-white disabled:bg-gray-100"
+                          >
+                            {leadStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                         <p className="text-sm text-green-700 mt-2">{callStatus}</p>
                       </>
                     )}
