@@ -57,6 +57,8 @@ export async function POST() {
       return NextResponse.json({ error: campaignsError.message }, { status: 500 });
     }
 
+    const activeCampaignIds = campaigns.map((campaign) => campaign.id);
+
     if (!campaigns || campaigns.length === 0) {
       console.log('[Dialer] No active campaigns found');
       return NextResponse.json({ 
@@ -126,9 +128,12 @@ export async function POST() {
           id,
           full_name,
           phone,
-          email
+          email,
+          status,
+          owner_notes
         )
       `)
+      .in("campaign_id", activeCampaignIds)
       .eq("status", "pending")
       .is("assigned_user_id", null)
       .order("created_at", { ascending: true })

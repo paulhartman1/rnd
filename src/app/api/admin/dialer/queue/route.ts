@@ -28,6 +28,7 @@ export async function GET() {
       campaign:dialer_campaigns(id, name),
       lead:leads(id, full_name, phone, street_address)
     `)
+    .in("status", ["pending", "assigned", "calling"])
     .order("created_at", { ascending: true });
 
   // Get user emails for assigned agents

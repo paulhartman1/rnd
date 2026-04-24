@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Device, Call } from "@twilio/voice-sdk";
+import type { LeadStatus } from "@/lib/leads";
 
 type Agent = {
   user_id: string;
@@ -34,6 +35,15 @@ type QueueItem = {
   agent: { id: string; name: string } | null;
 };
 
+type WorkspaceLead = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  email?: string | null;
+  status: LeadStatus;
+  owner_notes: string | null;
+};
+
 type Tab = "campaigns" | "agents" | "queue" | "stats";
 
 export default function DialerClient() {
@@ -53,7 +63,12 @@ export default function DialerClient() {
   const [currentCall, setCurrentCall] = useState<Call | null>(null);
   const [callStatus, setCallStatus] = useState<string>("");
   const [isMuted, setIsMuted] = useState(false);
-  const [currentLead, setCurrentLead] = useState<any>(null);
+  const [currentLead, setCurrentLead] = useState<WorkspaceLead | null>(null);
+  const [currentLeadNotes, setCurrentLeadNotes] = useState("");
+  const [currentQueueItemId, setCurrentQueueItemId] = useState<string | null>(null);
+  const [isFetchingNextLead, setIsFetchingNextLead] = useState(false);
+  const [isSavingLeadNotes, setIsSavingLeadNotes] = useState(false);
+  const [awaitingNextLead, setAwaitingNextLead] = useState(false);
   
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -101,6 +116,60 @@ export default function DialerClient() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const persistCurrentLeadNotes = async () => {
+    if (!currentLead) {
+      return true;
+    }
+
+    setIsSavingLeadNotes(true);
+
+    try {
+      const nextStatus: LeadStatus =
+        currentLead.status === "new" ? "contacted" : currentLead.status;
+
+      const response = await fetch(`/api/admin/leads/${currentLead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: nextStatus,
+          ownerNotes: currentLeadNotes,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save lead notes");
+      }
+
+      setCurrentLead((previous) =>
+        previous
+          ? {
+              ...previous,
+              status: nextStatus,
+              owner_notes: currentLeadNotes.trim() || null,
+            }
+          : previous,
+      );
+
+      return true;
+    } catch (error) {
+      console.error("[Dialer] Failed to save lead notes:", error);
+      alert(error instanceof Error ? error.message : "Failed to save lead notes");
+      return false;
+    } finally {
+      setIsSavingLeadNotes(false);
+    }
+  };
+
+  const clearCurrentWorkspace = () => {
+    setCurrentCall(null);
+    setCurrentLead(null);
+    setCurrentLeadNotes("");
+    setCurrentQueueItemId(null);
+    setIsMuted(false);
+    setAwaitingNextLead(false);
   };
 
   const loadCampaigns = async () => {
@@ -252,11 +321,14 @@ export default function DialerClient() {
       if (!device) {
         throw new Error("Device not initialized");
       }
-
-      const lead = queueItem.leads;
+      const lead = queueItem.leads as WorkspaceLead;
       console.log('[Dialer] Lead data:', lead);
+      setCurrentQueueItemId(queueItem.id);
       setCurrentLead(lead);
+      setCurrentLeadNotes(lead.owner_notes || "");
+      setAwaitingNextLead(false);
       setCallStatus("Initiating call...");
+      setQueue((previous) => previous.filter((item) => item.id !== queueItem.id));
 
       // Connect call with queue item ID
       console.log('[Dialer] Connecting with queue item ID:', queueItem.id);
@@ -272,30 +344,31 @@ export default function DialerClient() {
       });
 
       call.on("disconnect", () => {
-        setCallStatus("");
+        setCallStatus("Call ended. Review notes, then click Next Lead.");
         setCurrentCall(null);
-        setCurrentLead(null);
         setIsMuted(false);
-        // Process next call - force to continue even if user pressed Stop
-        processNext(true);
+        setAwaitingNextLead(isProcessing);
+        void loadQueue();
+        void loadStats();
       });
 
       call.on("cancel", () => {
-        setCallStatus("Call cancelled");
+        setCallStatus("Call cancelled. Review notes, then click Next Lead.");
         setCurrentCall(null);
-        setCurrentLead(null);
+        setAwaitingNextLead(false);
       });
 
       call.on("error", (error) => {
         console.error("Call error:", error);
-        setCallStatus(`Call error: ${error.message}`);
+        setCallStatus(`Call error: ${error.message}. Review notes, then click Next Lead.`);
         setCurrentCall(null);
-        setCurrentLead(null);
+        setAwaitingNextLead(false);
       });
 
     } catch (error) {
       console.error("Failed to make call:", error);
       setCallStatus("Failed to initiate call");
+      setAwaitingNextLead(false);
     }
   };
 
@@ -314,6 +387,16 @@ export default function DialerClient() {
     }
     
     try {
+      setIsFetchingNextLead(true);
+
+      if (awaitingNextLead || currentLead) {
+        const saved = await persistCurrentLeadNotes();
+        if (!saved) {
+          return;
+        }
+      }
+
+      clearCurrentWorkspace();
       // Get next queue item and process it
       console.log('[Dialer] Fetching next queue item...');
       const response = await fetch("/api/admin/dialer/process", {
@@ -341,6 +424,8 @@ export default function DialerClient() {
     } catch (error) {
       console.error('[Dialer] processNext error:', error);
       setIsProcessing(false);
+    } finally {
+      setIsFetchingNextLead(false);
     }
   };
 
@@ -364,6 +449,11 @@ export default function DialerClient() {
     if (currentCall) {
       currentCall.disconnect();
     }
+  };
+
+  const stopWorkspace = () => {
+    setIsProcessing(false);
+    setAwaitingNextLead(false);
   };
 
   const toggleMute = () => {
@@ -667,7 +757,7 @@ export default function DialerClient() {
               </button>
               {isProcessing && (
                 <button
-                  onClick={() => setIsProcessing(false)}
+                  onClick={stopWorkspace}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                 >
                   Stop
@@ -679,27 +769,80 @@ export default function DialerClient() {
           {/* Active Call Controls */}
           {currentCall && currentLead && (
             <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-4">
-              <div className="flex justify-between items-start">
+              <div className="space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-lg">Active Call</h3>
+                    <p className="text-sm text-gray-700 mt-1">
+                      <strong>{currentLead.full_name || "Unknown"}</strong>
+                    </p>
+                    <p className="text-sm text-gray-600">{currentLead.phone}</p>
+                    <p className="text-sm text-blue-600 mt-2">{callStatus}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={toggleMute}
+                      className={`px-4 py-2 rounded ${isMuted ? "bg-red-600 text-white" : "bg-gray-200"}`}
+                    >
+                      {isMuted ? "Unmute" : "Mute"}
+                    </button>
+                    <button
+                      onClick={hangupCall}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Hang Up
+                    </button>
+                  </div>
+                </div>
                 <div>
-                  <h3 className="font-bold text-lg">Active Call</h3>
+                  <label className="block text-sm font-medium mb-1">Lead Notes</label>
+                  <textarea
+                    value={currentLeadNotes}
+                    onChange={(e) => setCurrentLeadNotes(e.target.value)}
+                    placeholder="Notes about this call..."
+                    className="w-full px-3 py-2 border rounded text-sm"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lead Workspace - shown when awaiting next lead */}
+          {awaitingNextLead && currentLead && !currentCall && (
+            <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-bold text-lg">Last Call</h3>
                   <p className="text-sm text-gray-700 mt-1">
                     <strong>{currentLead.full_name || "Unknown"}</strong>
                   </p>
                   <p className="text-sm text-gray-600">{currentLead.phone}</p>
-                  <p className="text-sm text-blue-600 mt-2">{callStatus}</p>
+                  <p className="text-sm text-green-700 mt-2">{callStatus}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lead Notes</label>
+                  <textarea
+                    value={currentLeadNotes}
+                    onChange={(e) => setCurrentLeadNotes(e.target.value)}
+                    placeholder="Notes about this lead..."
+                    className="w-full px-3 py-2 border rounded text-sm"
+                    rows={4}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={toggleMute}
-                    className={`px-4 py-2 rounded ${isMuted ? "bg-red-600 text-white" : "bg-gray-200"}`}
+                    onClick={() => processNext()}
+                    disabled={isFetchingNextLead || isSavingLeadNotes}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
                   >
-                    {isMuted ? "Unmute" : "Mute"}
+                    {isFetchingNextLead ? "Loading..." : "Next Lead"}
                   </button>
                   <button
-                    onClick={hangupCall}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    onClick={stopWorkspace}
+                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
                   >
-                    Hang Up
+                    Finish Session
                   </button>
                 </div>
               </div>
@@ -707,7 +850,7 @@ export default function DialerClient() {
           )}
 
           {/* Call Status */}
-          {callStatus && !currentCall && (
+          {callStatus && !currentCall && !awaitingNextLead && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800">{callStatus}</p>
             </div>
