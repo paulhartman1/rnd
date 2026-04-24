@@ -73,6 +73,31 @@ export default function DialerClient() {
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
+  // Computed filtered queue: only active campaigns, deduplicated by phone
+  const filteredQueue = (() => {
+    const activeCampaignIds = new Set(
+      campaigns.filter(c => c.is_active).map(c => c.id)
+    );
+    
+    const seenPhones = new Set<string>();
+    
+    return queue.filter(item => {
+      // Only include items from active campaigns
+      if (!item.campaign || !activeCampaignIds.has(item.campaign.id)) {
+        return false;
+      }
+      
+      // Deduplicate by phone number
+      const phone = item.lead?.phone;
+      if (!phone || seenPhones.has(phone)) {
+        return false;
+      }
+      
+      seenPhones.add(phone);
+      return true;
+    });
+  })();
+
   const [newCampaign, setNewCampaign] = useState({
     name: "",
     description: "",
@@ -107,7 +132,8 @@ export default function DialerClient() {
       } else if (activeTab === "agents") {
         await loadAgents();
       } else if (activeTab === "queue") {
-        await loadQueue();
+        // Load both campaigns and queue for filtering
+        await Promise.all([loadCampaigns(), loadQueue()]);
       } else if (activeTab === "stats") {
         await loadStats();
       }
@@ -475,20 +501,22 @@ export default function DialerClient() {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === dropIndex) return;
 
-    // Reorder the local state immediately for responsiveness
-    const newQueue = [...queue];
-    const [draggedItem] = newQueue.splice(draggedIndex, 1);
-    newQueue.splice(dropIndex, 0, draggedItem);
-    setQueue(newQueue);
+    // Reorder the filtered queue items
+    const newFiltered = [...filteredQueue];
+    const [draggedItem] = newFiltered.splice(draggedIndex, 1);
+    newFiltered.splice(dropIndex, 0, draggedItem);
     setDraggedIndex(null);
 
-    // Send the new order to the server
-    const orderedIds = newQueue.map(item => item.id);
+    // Send the new order to the server (only reorder the filtered items)
+    const orderedIds = newFiltered.map(item => item.id);
     await fetch("/api/admin/dialer/queue/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderedIds }),
     });
+    
+    // Reload queue to get updated order
+    await loadQueue();
   };
 
   return (
@@ -505,7 +533,7 @@ export default function DialerClient() {
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            {tab}
+            {tab === "queue" ? "Dialer" : tab}
           </button>
         ))}
       </div>
@@ -746,7 +774,7 @@ export default function DialerClient() {
       {activeTab === "queue" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Queue</h2>
+            <h2 className="text-xl font-bold">Dialer</h2>
             <div className="flex gap-2">
               <button
                 onClick={processDialer}
@@ -856,7 +884,9 @@ export default function DialerClient() {
             </div>
           )}
 
-          <div className="bg-white rounded-lg shadow border overflow-x-auto">
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Call Queue</h3>
+            <div className="bg-white rounded-lg shadow border overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -868,7 +898,7 @@ export default function DialerClient() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {queue.map((item, index) => (
+                {filteredQueue.map((item, index) => (
                   <tr
                     key={item.id}
                     draggable
@@ -909,6 +939,7 @@ export default function DialerClient() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
