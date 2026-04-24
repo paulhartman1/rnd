@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { AppointmentWithLead } from "@/lib/appointments";
 
 export async function GET() {
@@ -18,6 +19,7 @@ export async function GET() {
       `
       id,
       lead_id,
+      user_id,
       title,
       description,
       start_time,
@@ -52,6 +54,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const userSupabase = await createClient();
+  const { data: { user } } = await userSupabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const supabase = createAdminClient();
 
   if (!supabase) {
@@ -76,6 +85,7 @@ export async function POST(request: Request) {
     .from("appointments")
     .insert({
       lead_id: leadId || null,
+      user_id: user.id,
       title,
       description: description || null,
       start_time: startTime,

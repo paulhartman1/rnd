@@ -10,6 +10,7 @@ export type AppointmentStatus = (typeof appointmentStatuses)[number];
 export type AppointmentRow = {
   id: string;
   lead_id: string | null;
+  user_id: string | null;
   title: string;
   description: string | null;
   start_time: string;

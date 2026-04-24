@@ -34,6 +34,7 @@ export function createMockAppointment(overrides?: Partial<AppointmentRow>): Appo
   return {
     id: "223e4567-e89b-12d3-a456-426614174000",
     lead_id: "123e4567-e89b-12d3-a456-426614174000",
+    user_id: null,
     title: "Property Viewing",
     description: "Initial property inspection",
     start_time: "2024-01-15T10:00:00.000Z",

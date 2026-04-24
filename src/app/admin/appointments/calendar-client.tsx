@@ -253,6 +253,26 @@ export default function CalendarClient({ initialAppointments, allLeads, initialR
     }
   };
 
+  const callLead = async (leadId: string) => {
+    try {
+      const response = await fetch(`/api/admin/leads/${leadId}/call`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || "Failed to initiate call");
+        return;
+      }
+
+      const data = await response.json();
+      alert(`Call initiated! Call SID: ${data.callSid}`);
+    } catch (error) {
+      console.error("Failed to call lead:", error);
+      alert("Failed to initiate call");
+    }
+  };
+
   const handleRequestAction = async (requestId: string, action: "approve" | "reject") => {
     const response = await fetch(`/api/admin/appointment-requests/${requestId}`, {
       method: "PATCH",
@@ -626,6 +646,16 @@ export default function CalendarClient({ initialAppointments, allLeads, initialR
                       </p>
                     </div>
                     <div className="flex gap-2">
+                      {apt.lead?.phone && (
+                        <button
+                          type="button"
+                          onClick={() => callLead(apt.lead!.id)}
+                          className="rounded-lg border border-green-600 px-3 py-1 text-sm font-bold text-green-700 transition hover:bg-green-50"
+                          title={`Call ${apt.lead.phone}`}
+                        >
+                          📞 Call
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => openEditForm(apt)}

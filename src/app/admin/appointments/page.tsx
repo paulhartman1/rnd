@@ -49,6 +49,7 @@ export default async function AdminCalendarPage() {
       `
       id,
       lead_id,
+      user_id,
       title,
       description,
       start_time,
