@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     // Try to find existing call log
     let { data: callLog } = await adminClient
       .from("dialer_call_logs")
-      .select("id, queue_id, lead_id, user_id, campaign_id")
+      .select("id, queue_id, lead_id")
       .eq("twilio_call_sid", callSid)
       .single();
 
