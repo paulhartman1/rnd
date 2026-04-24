@@ -70,6 +70,10 @@ export default function DialerClient() {
   const [isSavingLeadNotes, setIsSavingLeadNotes] = useState(false);
   const [awaitingNextLead, setAwaitingNextLead] = useState(false);
   
+  // Appointment scheduling state
+  const [scheduledDateTime, setScheduledDateTime] = useState<string>("");
+  const [isSchedulingAppointment, setIsSchedulingAppointment] = useState(false);
+  
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -483,6 +487,55 @@ export default function DialerClient() {
     setAwaitingNextLead(false);
   };
 
+  const scheduleAppointment = async (autoAdvance = false) => {
+    if (!currentLead || !scheduledDateTime) {
+      alert("Please select a date and time for the appointment");
+      return false;
+    }
+
+    setIsSchedulingAppointment(true);
+
+    try {
+      const startTime = new Date(scheduledDateTime);
+      const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes later
+
+      const response = await fetch("/api/admin/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lead_id: currentLead.id,
+          title: `Follow-up call with ${currentLead.full_name || currentLead.phone}`,
+          description: currentLeadNotes.trim() || null,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          status: "scheduled",
+          location: null,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to schedule appointment");
+      }
+
+      alert(`Appointment scheduled for ${startTime.toLocaleString()}`);
+      setScheduledDateTime("");
+      
+      if (autoAdvance) {
+        // Save notes and move to next lead
+        await processNext();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("[Dialer] Failed to schedule appointment:", error);
+      alert(error instanceof Error ? error.message : "Failed to schedule appointment");
+      return false;
+    } finally {
+      setIsSchedulingAppointment(false);
+    }
+  };
+
   const toggleMute = () => {
     if (currentCall) {
       currentCall.mute(!isMuted);
@@ -782,7 +835,7 @@ export default function DialerClient() {
                 disabled={isProcessing}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
               >
-                {isProcessing ? "Processing..." : "Process Now"}
+                {isProcessing ? "Calling Session Active" : "Start Calling"}
               </button>
               {isProcessing && (
                 <button
@@ -840,39 +893,70 @@ export default function DialerClient() {
           {/* Lead Workspace - shown when awaiting next lead */}
           {awaitingNextLead && currentLead && !currentCall && (
             <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <h3 className="font-bold text-lg">Last Call</h3>
+                  <h3 className="font-bold text-lg">Call Complete</h3>
                   <p className="text-sm text-gray-700 mt-1">
                     <strong>{currentLead.full_name || "Unknown"}</strong>
                   </p>
                   <p className="text-sm text-gray-600">{currentLead.phone}</p>
                   <p className="text-sm text-green-700 mt-2">{callStatus}</p>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-1">Lead Notes</label>
+                  <label className="block text-sm font-medium mb-1">Call Notes</label>
                   <textarea
                     value={currentLeadNotes}
                     onChange={(e) => setCurrentLeadNotes(e.target.value)}
-                    placeholder="Notes about this lead..."
+                    placeholder="Notes about this call..."
                     className="w-full px-3 py-2 border rounded text-sm"
-                    rows={4}
+                    rows={3}
                   />
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => processNext()}
-                    disabled={isFetchingNextLead || isSavingLeadNotes}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                  >
-                    {isFetchingNextLead ? "Loading..." : "Next Lead"}
-                  </button>
-                  <button
-                    onClick={stopWorkspace}
-                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                  >
-                    Finish Session
-                  </button>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Schedule Follow-Up (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledDateTime}
+                    onChange={(e) => setScheduledDateTime(e.target.value)}
+                    className="w-full px-3 py-2 border rounded text-sm"
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => processNext()}
+                      disabled={isFetchingNextLead || isSavingLeadNotes}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      {isFetchingNextLead ? "Loading..." : "Next Lead"}
+                    </button>
+                    <button
+                      onClick={() => scheduleAppointment(true)}
+                      disabled={!scheduledDateTime || isSchedulingAppointment || isFetchingNextLead}
+                      className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400"
+                    >
+                      {isSchedulingAppointment ? "Scheduling..." : "Schedule & Next"}
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => scheduleAppointment(false)}
+                      disabled={!scheduledDateTime || isSchedulingAppointment}
+                      className="flex-1 px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:bg-gray-400"
+                    >
+                      Schedule Only
+                    </button>
+                    <button
+                      onClick={stopWorkspace}
+                      className="flex-1 px-3 py-2 bg-gray-300 rounded text-sm hover:bg-gray-400"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
