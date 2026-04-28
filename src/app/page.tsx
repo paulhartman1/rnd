@@ -2,6 +2,7 @@ import Image from "next/image";
 import { FaHouseChimneyWindow, FaBusinessTime, FaMoneyBillWave, FaHandshakeAngle } from "react-icons/fa6";
 import NavCtaLink from "./nav-cta-link";
 import TestimonialCarousel from "./testimonial-carousel";
+import SecretAdminLink from "@/components/SecretAdminLink";
 
 const primaryLinks = [
   { href: "#how-it-works", label: "How It Works" },
@@ -72,7 +73,7 @@ export default function Home() {
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "rushndushlogistics@gmail.com";
 
   return (
-    <main id="top" className="bg-sky-100 text-[var(--color-ink)]">
+    <main id="top" className="text-[var(--color-ink)]">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-[var(--color-primary-gold)] focus:px-4 focus:py-2 focus:text-[var(--color-navy)] focus:font-bold">
         Skip to main content
       </a>
@@ -100,12 +101,6 @@ export default function Home() {
                 {link.label}
               </a>
             ))}
-            <a
-              href="/admin/login"
-              className="underline decoration-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-primary-gold)] hover:decoration-[var(--color-primary-gold)]"
-            >
-              Admin Login
-            </a>
           </nav>
           <NavCtaLink />
         </div>
@@ -292,7 +287,8 @@ export default function Home() {
                 className="h-8 w-auto rounded object-contain"
               />
               <p className="text-xs font-bold text-[var(--color-muted)]">
-                © {new Date().getFullYear()} Rush N Dush Logistics, LLC
+                <SecretAdminLink />{" "}
+                {new Date().getFullYear()} Rush N Dush Logistics, LLC
               </p>
             </div>
             <nav className="flex flex-wrap items-center justify-center gap-4 text-sm font-semibold text-[var(--color-muted)]">
@@ -312,10 +308,19 @@ export default function Home() {
                 Privacy
               </a>
               <a
-                href="/admin/login"
-                className="underline decoration-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-primary-gold)] hover:decoration-[var(--color-primary-gold)]"
+                href="https://loveondev.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 underline decoration-[var(--color-muted)] underline-offset-4 transition hover:text-[var(--color-primary-gold)] hover:decoration-[var(--color-primary-gold)]"
               >
-                Admin Login
+                <span>Crafted with</span>
+                <Image
+                  src="/lod.ico"
+                  alt="LoveOnDev"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5"
+                />
               </a>
             </nav>
           </div>
