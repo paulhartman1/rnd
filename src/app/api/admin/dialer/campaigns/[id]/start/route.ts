@@ -41,23 +41,41 @@ export async function POST(
   }
 
   // Build query based on lead_filters
-  let query = adminClient
-    .from("leads")
-    .select("id")
-    .is("deleted_at", null);
-
   const filters = campaign.lead_filters as Record<string, unknown>;
+  let leads;
+  let leadsError;
 
-  if (filters.status && Array.isArray(filters.status)) {
-    query = query.in("status", filters.status);
+  // Check if specific lead IDs are provided
+  if (filters.leadIds && Array.isArray(filters.leadIds) && filters.leadIds.length > 0) {
+    // Use specific lead IDs
+    const { data, error } = await adminClient
+      .from("leads")
+      .select("id")
+      .in("id", filters.leadIds)
+      .is("deleted_at", null);
+    
+    leads = data;
+    leadsError = error;
+  } else {
+    // Use filter-based query
+    let query = adminClient
+      .from("leads")
+      .select("id")
+      .is("deleted_at", null);
+
+    if (filters.status && Array.isArray(filters.status)) {
+      query = query.in("status", filters.status);
+    }
+
+    if (filters.isHotLead === true) {
+      query = query.eq("isHotLead", true);
+    }
+
+    // Execute query to get matching leads
+    const { data, error } = await query;
+    leads = data;
+    leadsError = error;
   }
-
-  if (filters.isHotLead === true) {
-    query = query.eq("isHotLead", true);
-  }
-
-  // Execute query to get matching leads
-  const { data: leads, error: leadsError } = await query;
 
   if (leadsError) {
     return NextResponse.json({ error: leadsError.message }, { status: 500 });
@@ -67,12 +85,38 @@ export async function POST(
     return NextResponse.json({ error: "No leads match campaign filters" }, { status: 400 });
   }
 
-  // Insert leads into queue (ON CONFLICT DO NOTHING to prevent duplicates)
-  const queueItems = leads.map((lead) => ({
+  // Get agents for pre-assignment
+  let agentsQuery = adminClient
+    .from("dialer_agent_settings")
+    .select("user_id")
+    .eq("is_active", true);
+
+  // If specific agent IDs are specified in filters, use those
+  if (filters.agentIds && Array.isArray(filters.agentIds) && filters.agentIds.length > 0) {
+    agentsQuery = agentsQuery.in("user_id", filters.agentIds);
+  }
+
+  const { data: activeAgents, error: agentsError } = await agentsQuery;
+
+  if (agentsError) {
+    return NextResponse.json({ error: agentsError.message }, { status: 500 });
+  }
+
+  if (!activeAgents || activeAgents.length === 0) {
+    return NextResponse.json({ 
+      error: filters.agentIds && Array.isArray(filters.agentIds) && filters.agentIds.length > 0
+        ? "Specified agents are not active or do not exist"
+        : "No active agents available. Please activate at least one agent before starting campaign." 
+    }, { status: 400 });
+  }
+
+  // Distribute leads round-robin among active agents
+  const queueItems = leads.map((lead, index) => ({
     campaign_id: id,
     lead_id: lead.id,
     status: "pending",
     attempts: 0,
+    assigned_user_id: activeAgents[index % activeAgents.length].user_id,
   }));
 
   const { error: insertError } = await adminClient
@@ -96,6 +140,7 @@ export async function POST(
   return NextResponse.json({ 
     success: true, 
     leads_queued: leads.length,
-    message: `Campaign started with ${leads.length} leads in queue` 
+    agents_assigned: activeAgents.length,
+    message: `Campaign started with ${leads.length} leads distributed among ${activeAgents.length} agent(s)` 
   });
 }

@@ -117,7 +117,7 @@ export async function POST() {
       });
     }
 
-    // Get pending queue items with lead data for browser to process
+    // Get pending queue items assigned to this user
     const { data: pendingItems, error: queueError } = await adminClient
       .from("dialer_queue")
       .select(`
@@ -135,7 +135,7 @@ export async function POST() {
       `)
       .in("campaign_id", activeCampaignIds)
       .eq("status", "pending")
-      .is("assigned_user_id", null)
+      .eq("assigned_user_id", user.id)
       .order("created_at", { ascending: true })
       .limit(availableSlots);
 
@@ -144,25 +144,15 @@ export async function POST() {
     }
 
     if (!pendingItems || pendingItems.length === 0) {
-      console.log('[Dialer] No pending queue items found');
+      console.log('[Dialer] No pending queue items assigned to this agent');
       return NextResponse.json({
-        message: "No pending items in queue",
+        message: "No pending items assigned to you. All your leads have been called.",
         queueItems: [],
         callsAvailable: 0
       });
     }
 
-    // Mark items as assigned to this user
-    const itemIds = pendingItems.map(item => item.id);
-    await adminClient
-      .from("dialer_queue")
-      .update({
-        assigned_user_id: user.id,
-        status: "assigned"
-      })
-      .in("id", itemIds);
-
-    console.log(`[Dialer] Returning ${pendingItems.length} queue items for browser calling`);
+    console.log(`[Dialer] Returning ${pendingItems.length} pre-assigned queue items for browser calling`);
 
     return NextResponse.json({
       success: true,

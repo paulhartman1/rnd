@@ -84,6 +84,16 @@ export default function DialerClient() {
   
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  
+  // Redistribute and assignment state
+  const [isRedistributing, setIsRedistributing] = useState(false);
+  const [selectedQueueItems, setSelectedQueueItems] = useState<Set<string>>(new Set());
+  const [isAssigning, setIsAssigning] = useState(false);
+  
+  // Lead selection for campaigns
+  const [leadSearchQuery, setLeadSearchQuery] = useState("");
+  const [searchedLeads, setSearchedLeads] = useState<any[]>([]);
+  const [isSearchingLeads, setIsSearchingLeads] = useState(false);
 
   // Computed filtered queue: only active campaigns, deduplicated by phone
   const filteredQueue = (() => {
@@ -114,14 +124,14 @@ export default function DialerClient() {
     name: "",
     description: "",
     priority: 0,
-    lead_filters: { status: ["new"], isHotLead: false },
+    lead_filters: { status: ["new"] as string[], isHotLead: false, agentIds: [] as string[], leadIds: [] as string[] },
   });
 
   const [campaignEdit, setCampaignEdit] = useState({
     name: "",
     description: "",
     priority: 0,
-    lead_filters: { status: ["new"], isHotLead: false },
+    lead_filters: { status: ["new"] as string[], isHotLead: false, agentIds: [] as string[], leadIds: [] as string[] },
   });
 
   const [agentEdit, setAgentEdit] = useState({
@@ -147,12 +157,13 @@ export default function DialerClient() {
     setIsLoading(true);
     try {
       if (activeTab === "campaigns") {
-        await loadCampaigns();
+        // Load both campaigns and agents for campaign creation UI
+        await Promise.all([loadCampaigns(), loadAgents()]);
       } else if (activeTab === "agents") {
         await loadAgents();
       } else if (activeTab === "queue") {
-        // Load both campaigns and queue for filtering
-        await Promise.all([loadCampaigns(), loadQueue()]);
+        // Load campaigns, queue, and agents for assignment UI
+        await Promise.all([loadCampaigns(), loadQueue(), loadAgents()]);
       } else if (activeTab === "stats") {
         await loadStats();
       }
@@ -311,7 +322,14 @@ export default function DialerClient() {
 
     if (response.ok) {
       setShowCreateCampaign(false);
-      setNewCampaign({ name: "", description: "", priority: 0, lead_filters: { status: ["new"], isHotLead: false } });
+      setNewCampaign({ 
+        name: "", 
+        description: "", 
+        priority: 0, 
+        lead_filters: { status: ["new"] as string[], isHotLead: false, agentIds: [] as string[], leadIds: [] as string[] } 
+      });
+      setLeadSearchQuery("");
+      setSearchedLeads([]);
       await loadCampaigns();
     }
   };
@@ -347,7 +365,7 @@ export default function DialerClient() {
 
     if (response.ok) {
       setEditingCampaign(null);
-      setCampaignEdit({ name: "", description: "", priority: 0, lead_filters: { status: ["new"], isHotLead: false } });
+      setCampaignEdit({ name: "", description: "", priority: 0, lead_filters: { status: ["new"], isHotLead: false, agentIds: [], leadIds: [] } });
       await loadCampaigns();
     } else {
       const data = await response.json();
@@ -745,6 +763,130 @@ export default function DialerClient() {
     await loadQueue();
   };
 
+  const handleRedistribute = async () => {
+    setIsRedistributing(true);
+    try {
+      const response = await fetch("/api/admin/dialer/redistribute", {
+        method: "POST",
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert(data.message || `Claimed ${data.redistributed} lead(s)`);
+        await loadQueue();
+      } else {
+        alert(data.error || "Failed to redistribute leads");
+      }
+    } catch (error) {
+      console.error("Redistribute error:", error);
+      alert("Failed to redistribute leads");
+    } finally {
+      setIsRedistributing(false);
+    }
+  };
+
+  const toggleQueueItemSelection = (itemId: string) => {
+    setSelectedQueueItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllQueueItems = () => {
+    setSelectedQueueItems(new Set(filteredQueue.map(item => item.id)));
+  };
+
+  const deselectAllQueueItems = () => {
+    setSelectedQueueItems(new Set());
+  };
+
+  const assignSelected = async (userId: string | null) => {
+    if (selectedQueueItems.size === 0) {
+      alert("Please select queue items first");
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const response = await fetch("/api/admin/dialer/queue/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          queueItemIds: Array.from(selectedQueueItems),
+          userId,
+        }),
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert(data.message || "Assignment updated");
+        setSelectedQueueItems(new Set());
+        await loadQueue();
+      } else {
+        alert(data.error || "Failed to assign leads");
+      }
+    } catch (error) {
+      console.error("Assignment error:", error);
+      alert("Failed to assign leads");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const searchLeads = async (query: string) => {
+    if (!query.trim()) {
+      setSearchedLeads([]);
+      return;
+    }
+
+    setIsSearchingLeads(true);
+    try {
+      const response = await fetch(`/api/admin/leads/search?q=${encodeURIComponent(query)}&limit=20`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSearchedLeads(data.leads || []);
+      } else {
+        console.error("Search error:", data.error);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setIsSearchingLeads(false);
+    }
+  };
+
+  const toggleLeadSelection = (leadId: string) => {
+    setNewCampaign(prev => {
+      const currentLeadIds = (prev.lead_filters.leadIds as string[]) || [];
+      const updated = currentLeadIds.includes(leadId)
+        ? currentLeadIds.filter(id => id !== leadId)
+        : [...currentLeadIds, leadId];
+      return {
+        ...prev,
+        lead_filters: { ...prev.lead_filters, leadIds: updated }
+      };
+    });
+  };
+
+  const toggleAgentSelection = (agentId: string) => {
+    setNewCampaign(prev => {
+      const currentAgentIds = (prev.lead_filters.agentIds as string[]) || [];
+      const updated = currentAgentIds.includes(agentId)
+        ? currentAgentIds.filter(id => id !== agentId)
+        : [...currentAgentIds, agentId];
+      return {
+        ...prev,
+        lead_filters: { ...prev.lead_filters, agentIds: updated }
+      };
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -834,6 +976,75 @@ export default function DialerClient() {
                     </div>
                   </div>
                 </div>
+
+                {/* Agent Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Agents ({((newCampaign.lead_filters.agentIds as string[]) || []).length} selected)
+                  </label>
+                  <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                    {agents.filter(a => a.has_settings && a.is_active).map(agent => (
+                      <label key={agent.user_id} className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={((newCampaign.lead_filters.agentIds as string[]) || []).includes(agent.user_id)}
+                          onChange={() => toggleAgentSelection(agent.user_id)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{agent.email}</span>
+                      </label>
+                    ))}
+                    {agents.filter(a => a.has_settings && a.is_active).length === 0 && (
+                      <p className="text-sm text-gray-500">No active agents available</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave empty to assign to ALL active agents
+                  </p>
+                </div>
+
+                {/* Lead Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Specific Leads ({((newCampaign.lead_filters.leadIds as string[]) || []).length} selected)
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Search leads by name, phone, or address..."
+                      value={leadSearchQuery}
+                      onChange={(e) => {
+                        setLeadSearchQuery(e.target.value);
+                        searchLeads(e.target.value);
+                      }}
+                      className="w-full px-3 py-2 border rounded text-sm"
+                    />
+                    {isSearchingLeads && (
+                      <p className="text-xs text-gray-500">Searching...</p>
+                    )}
+                    {searchedLeads.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                        {searchedLeads.map(lead => (
+                          <label key={lead.id} className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={((newCampaign.lead_filters.leadIds as string[]) || []).includes(lead.id)}
+                              onChange={() => toggleLeadSelection(lead.id)}
+                              className="rounded"
+                            />
+                            <span className="text-sm">
+                              {lead.full_name || "Unknown"} - {lead.phone}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave empty to use filter-based lead selection
+                  </p>
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     onClick={createCampaign}
@@ -842,7 +1053,11 @@ export default function DialerClient() {
                     Create
                   </button>
                   <button
-                    onClick={() => setShowCreateCampaign(false)}
+                    onClick={() => {
+                      setShowCreateCampaign(false);
+                      setLeadSearchQuery("");
+                      setSearchedLeads([]);
+                    }}
                     className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
                   >
                     Cancel
@@ -944,7 +1159,7 @@ export default function DialerClient() {
                               name: campaign.name,
                               description: campaign.description || "",
                               priority: campaign.priority,
-                              lead_filters: campaign.lead_filters as { status: string[]; isHotLead: boolean },
+                              lead_filters: campaign.lead_filters as { status: string[]; isHotLead: boolean; agentIds: string[]; leadIds: string[] },
                             });
                           }}
                           className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
@@ -1331,12 +1546,93 @@ export default function DialerClient() {
             </div>
           )}
 
+          {/* Help Team / Redistribute */}
+          {!isProcessing && !currentCall && !awaitingNextLead && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-purple-900">Need More Leads?</h3>
+                  <p className="text-sm text-purple-700 mt-1">
+                    Claim pending leads from teammates who haven't called them yet
+                  </p>
+                </div>
+                <button
+                  onClick={handleRedistribute}
+                  disabled={isRedistributing}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400"
+                >
+                  {isRedistributing ? "Claiming..." : "Help Team"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Manual Assignment Controls */}
+          {selectedQueueItems.size > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-blue-900">
+                    {selectedQueueItems.size} item(s) selected
+                  </h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Assign to agents or unassign
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    onChange={(e) => assignSelected(e.target.value || null)}
+                    disabled={isAssigning}
+                    className="px-3 py-2 border rounded text-sm bg-white disabled:bg-gray-100"
+                  >
+                    <option value="">-- Assign to Agent --</option>
+                    {agents.filter(a => a.is_active && a.has_settings).map(agent => (
+                      <option key={agent.user_id} value={agent.user_id}>
+                        {agent.email}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => assignSelected(null)}
+                    disabled={isAssigning}
+                    className="px-3 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 disabled:bg-gray-400"
+                  >
+                    Unassign
+                  </button>
+                  <button
+                    onClick={deselectAllQueueItems}
+                    className="px-3 py-2 bg-gray-300 rounded text-sm hover:bg-gray-400"
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
-            <h3 className="text-lg font-semibold mb-3">Call Queue</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold">Call Queue</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={selectAllQueueItems}
+                  className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={deselectAllQueueItems}
+                  className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                >
+                  Deselect All
+                </button>
+              </div>
+            </div>
             <div className="bg-white rounded-lg shadow border overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">Select</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaign</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -1352,11 +1648,19 @@ export default function DialerClient() {
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}
                     onDrop={(e) => handleDrop(e, index)}
-                    className={`cursor-move hover:bg-gray-50 ${draggedIndex === index ? 'opacity-50' : ''}`}
+                    className={`hover:bg-gray-50 ${draggedIndex === index ? 'opacity-50' : ''} ${selectedQueueItems.has(item.id) ? 'bg-blue-50' : ''}`}
                   >
                     <td className="px-4 py-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedQueueItems.has(item.id)}
+                        onChange={() => toggleQueueItemSelection(item.id)}
+                        className="rounded border-gray-300"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-400">☰</span>
+                        <span className="text-gray-400 cursor-move">☰</span>
                         <div>
                           {item.lead?.full_name || "Unknown"}
                           <br />
