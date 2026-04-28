@@ -15,12 +15,31 @@ type Agent = {
   created_at: string;
 };
 
+type Source = {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+type LeadFilters = {
+  status: string[];
+  isHotLead: boolean;
+  sourceIds: string[];
+  assignedUserIds: string[];
+  unassignedOnly: boolean;
+  lastContactedDaysMin: number | null;
+  lastContactedDaysMax: number | null;
+  leadIds: string[];
+};
+
 type Campaign = {
   id: string;
   name: string;
   description: string | null;
   is_active: boolean;
-  lead_filters: Record<string, unknown>;
+  lead_filters: Partial<LeadFilters>;
   priority: number;
   created_at: string;
 };
@@ -51,6 +70,7 @@ export default function DialerClient() {
   const [activeTab, setActiveTab] = useState<Tab>("campaigns");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,14 +144,32 @@ export default function DialerClient() {
     name: "",
     description: "",
     priority: 0,
-    lead_filters: { status: ["new"] as string[], isHotLead: false, agentIds: [] as string[], leadIds: [] as string[] },
+    lead_filters: { 
+      status: ["new"] as string[], 
+      isHotLead: false, 
+      sourceIds: [] as string[], 
+      assignedUserIds: [] as string[], 
+      unassignedOnly: false,
+      lastContactedDaysMin: null as number | null,
+      lastContactedDaysMax: null as number | null,
+      leadIds: [] as string[] 
+    },
   });
 
   const [campaignEdit, setCampaignEdit] = useState({
     name: "",
     description: "",
     priority: 0,
-    lead_filters: { status: ["new"] as string[], isHotLead: false, agentIds: [] as string[], leadIds: [] as string[] },
+    lead_filters: { 
+      status: ["new"] as string[], 
+      isHotLead: false, 
+      sourceIds: [] as string[], 
+      assignedUserIds: [] as string[], 
+      unassignedOnly: false,
+      lastContactedDaysMin: null as number | null,
+      lastContactedDaysMax: null as number | null,
+      leadIds: [] as string[] 
+    },
   });
 
   const [agentEdit, setAgentEdit] = useState({
@@ -157,8 +195,8 @@ export default function DialerClient() {
     setIsLoading(true);
     try {
       if (activeTab === "campaigns") {
-        // Load both campaigns and agents for campaign creation UI
-        await Promise.all([loadCampaigns(), loadAgents()]);
+        // Load campaigns, agents, and sources for campaign creation UI
+        await Promise.all([loadCampaigns(), loadAgents(), loadSources()]);
       } else if (activeTab === "agents") {
         await loadAgents();
       } else if (activeTab === "queue") {
@@ -301,6 +339,12 @@ export default function DialerClient() {
     if (data.agents) setAgents(data.agents);
   };
 
+  const loadSources = async () => {
+    const response = await fetch("/api/admin/sources");
+    const data = await response.json();
+    if (data.sources) setSources(data.sources.filter((s: Source) => s.is_active));
+  };
+
   const loadQueue = async () => {
     const response = await fetch("/api/admin/dialer/queue");
     const data = await response.json();
@@ -326,7 +370,16 @@ export default function DialerClient() {
         name: "", 
         description: "", 
         priority: 0, 
-        lead_filters: { status: ["new"] as string[], isHotLead: false, agentIds: [] as string[], leadIds: [] as string[] } 
+        lead_filters: { 
+          status: ["new"] as string[], 
+          isHotLead: false, 
+          sourceIds: [] as string[], 
+          assignedUserIds: [] as string[], 
+          unassignedOnly: false,
+          lastContactedDaysMin: null,
+          lastContactedDaysMax: null,
+          leadIds: [] as string[] 
+        } 
       });
       setLeadSearchQuery("");
       setSearchedLeads([]);
@@ -365,7 +418,21 @@ export default function DialerClient() {
 
     if (response.ok) {
       setEditingCampaign(null);
-      setCampaignEdit({ name: "", description: "", priority: 0, lead_filters: { status: ["new"], isHotLead: false, agentIds: [], leadIds: [] } });
+      setCampaignEdit({ 
+        name: "", 
+        description: "", 
+        priority: 0, 
+        lead_filters: { 
+          status: ["new"], 
+          isHotLead: false, 
+          sourceIds: [], 
+          assignedUserIds: [], 
+          unassignedOnly: false,
+          lastContactedDaysMin: null,
+          lastContactedDaysMax: null,
+          leadIds: [] 
+        } 
+      });
       await loadCampaigns();
     } else {
       const data = await response.json();
@@ -874,15 +941,28 @@ export default function DialerClient() {
     });
   };
 
-  const toggleAgentSelection = (agentId: string) => {
+  const toggleAssignedUserSelection = (userId: string) => {
     setNewCampaign(prev => {
-      const currentAgentIds = (prev.lead_filters.agentIds as string[]) || [];
-      const updated = currentAgentIds.includes(agentId)
-        ? currentAgentIds.filter(id => id !== agentId)
-        : [...currentAgentIds, agentId];
+      const currentUserIds = (prev.lead_filters.assignedUserIds as string[]) || [];
+      const updated = currentUserIds.includes(userId)
+        ? currentUserIds.filter(id => id !== userId)
+        : [...currentUserIds, userId];
       return {
         ...prev,
-        lead_filters: { ...prev.lead_filters, agentIds: updated }
+        lead_filters: { ...prev.lead_filters, assignedUserIds: updated }
+      };
+    });
+  };
+
+  const toggleSourceSelection = (sourceId: string) => {
+    setNewCampaign(prev => {
+      const currentSourceIds = (prev.lead_filters.sourceIds as string[]) || [];
+      const updated = currentSourceIds.includes(sourceId)
+        ? currentSourceIds.filter(id => id !== sourceId)
+        : [...currentSourceIds, sourceId];
+      return {
+        ...prev,
+        lead_filters: { ...prev.lead_filters, sourceIds: updated }
       };
     });
   };
@@ -977,29 +1057,115 @@ export default function DialerClient() {
                   </div>
                 </div>
 
-                {/* Agent Selection */}
+                {/* Source Selection */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Agents ({((newCampaign.lead_filters.agentIds as string[]) || []).length} selected)
+                    Sources ({((newCampaign.lead_filters.sourceIds as string[]) || []).length} selected)
                   </label>
-                  <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
-                    {agents.filter(a => a.has_settings && a.is_active).map(agent => (
-                      <label key={agent.user_id} className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded">
+                  <div className="max-h-32 overflow-y-auto border rounded p-2 space-y-1">
+                    {sources.map(source => (
+                      <label key={source.id} className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded">
                         <input
                           type="checkbox"
-                          checked={((newCampaign.lead_filters.agentIds as string[]) || []).includes(agent.user_id)}
-                          onChange={() => toggleAgentSelection(agent.user_id)}
+                          checked={((newCampaign.lead_filters.sourceIds as string[]) || []).includes(source.id)}
+                          onChange={() => toggleSourceSelection(source.id)}
                           className="rounded"
                         />
-                        <span className="text-sm">{agent.email}</span>
+                        <span className="text-sm">{source.name}</span>
                       </label>
                     ))}
-                    {agents.filter(a => a.has_settings && a.is_active).length === 0 && (
-                      <p className="text-sm text-gray-500">No active agents available</p>
-                    )}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Leave empty to assign to ALL active agents
+                    Leave empty to include all sources
+                  </p>
+                </div>
+
+                {/* Assigned User Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Filter by Assigned Agent
+                  </label>
+                  <label className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={newCampaign.lead_filters.unassignedOnly === true}
+                      onChange={(e) => setNewCampaign({
+                        ...newCampaign,
+                        lead_filters: { 
+                          ...newCampaign.lead_filters, 
+                          unassignedOnly: e.target.checked,
+                          assignedUserIds: e.target.checked ? [] : newCampaign.lead_filters.assignedUserIds
+                        }
+                      })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Unassigned leads only</span>
+                  </label>
+                  {!newCampaign.lead_filters.unassignedOnly && (
+                    <>
+                      <div className="max-h-32 overflow-y-auto border rounded p-2 space-y-1">
+                        {agents.filter(a => a.has_settings).map(agent => (
+                          <label key={agent.user_id} className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={((newCampaign.lead_filters.assignedUserIds as string[]) || []).includes(agent.user_id)}
+                              onChange={() => toggleAssignedUserSelection(agent.user_id)}
+                              className="rounded"
+                            />
+                            <span className="text-sm">{agent.email}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Leave empty to include all assigned leads
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* Last Contact Date Range */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Last Contact Date Range (days ago)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-600">Min (contacted within)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g., 14"
+                        value={newCampaign.lead_filters.lastContactedDaysMin ?? ""}
+                        onChange={(e) => setNewCampaign({
+                          ...newCampaign,
+                          lead_filters: { 
+                            ...newCampaign.lead_filters, 
+                            lastContactedDaysMin: e.target.value ? parseInt(e.target.value) : null
+                          }
+                        })}
+                        className="w-full px-3 py-2 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Max (contacted before)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g., 30"
+                        value={newCampaign.lead_filters.lastContactedDaysMax ?? ""}
+                        onChange={(e) => setNewCampaign({
+                          ...newCampaign,
+                          lead_filters: { 
+                            ...newCampaign.lead_filters, 
+                            lastContactedDaysMax: e.target.value ? parseInt(e.target.value) : null
+                          }
+                        })}
+                        className="w-full px-3 py-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Example: min=14, max=30 finds leads contacted 2-4 weeks ago
                   </p>
                 </div>
 
@@ -1155,11 +1321,21 @@ export default function DialerClient() {
                         <button
                           onClick={() => {
                             setEditingCampaign(campaign.id);
+                            const filters = campaign.lead_filters || {};
                             setCampaignEdit({
                               name: campaign.name,
                               description: campaign.description || "",
                               priority: campaign.priority,
-                              lead_filters: campaign.lead_filters as { status: string[]; isHotLead: boolean; agentIds: string[]; leadIds: string[] },
+                              lead_filters: {
+                                status: (filters.status as string[]) || ["new"],
+                                isHotLead: (filters.isHotLead as boolean) || false,
+                                sourceIds: (filters.sourceIds as string[]) || [],
+                                assignedUserIds: (filters.assignedUserIds as string[]) || [],
+                                unassignedOnly: (filters.unassignedOnly as boolean) || false,
+                                lastContactedDaysMin: (filters.lastContactedDaysMin as number | null) || null,
+                                lastContactedDaysMax: (filters.lastContactedDaysMax as number | null) || null,
+                                leadIds: (filters.leadIds as string[]) || [],
+                              },
                             });
                           }}
                           className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
