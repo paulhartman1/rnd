@@ -305,6 +305,13 @@ export default function AdminNav() {
                     unreadVoicemails > 0 ? "text-purple-700" : "text-green-700"
                   }`}>🎤 {unreadVoicemails} voicemail{unreadVoicemails !== 1 ? 's' : ''}</span>
                 </Link>
+                <Link
+                  href="/admin/forms"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-muted)] transition-all hover:bg-black/[0.04] hover:text-[var(--color-navy)]"
+                >
+                  📄 Forms
+                </Link>
               </div>
             </div>
           )}

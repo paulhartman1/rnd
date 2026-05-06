@@ -68,6 +68,7 @@ export default async function AdminDashboardPage() {
   // Check feature flags (available to all admins if enabled)
   const showSocialMediaIntegration = await isFeatureEnabled("social_media_integration");
   const showAutodialer = await isFeatureEnabled("autodialer", user.email);
+  const showForms = await isFeatureEnabled("forms", user.email);
 
   const actionItems = [
     { count: pendingRequests.length, label: "Pending Appointment Requests", href: "/admin/appointments", urgent: pendingRequests.length > 0 },
@@ -144,6 +145,17 @@ export default async function AdminDashboardPage() {
       href: "/admin/dialer",
       icon: "📞",
       stats: "Campaign management",
+    });
+  }
+
+  // Add Forms if feature flag is enabled
+  if (showForms) {
+    adminTools.push({
+      title: "Forms",
+      description: "Create and manage purchase agreements and legal documents",
+      href: "/admin/forms",
+      icon: "📄",
+      stats: "Purchase agreements",
     });
   }
 
