@@ -18,7 +18,10 @@ export default defineConfig({
         "**/*.config.*",
         "**/dist/",
         "**/.next/",
+        "src/proxy.ts"
       ],
+      enabled: true,
+      include: ['src/**/*.{ts,tsx}'],
       thresholds: {
         statements: 70,
         branches: 65,
