@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { type LeadRow } from "@/lib/leads";
+import { type PropertyRow } from "@/lib/properties";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -13,6 +14,10 @@ export type LeadAnswer = {
   question_text: string;
   answer_value: string;
   created_at: string;
+};
+
+export type LeadWithProperties = LeadRow & {
+  properties: PropertyRow[];
 };
 
 export default async function AdminLeadsPage() {
@@ -40,19 +45,50 @@ export default async function AdminLeadsPage() {
   const adminClient = createAdminClient();
   const queryClient = adminClient ?? supabase;
 
-  const { data, error } = await queryClient
-    .from("leads")
-    .select(
-      "id, status, owner_notes, listed_with_agent, property_type, owns_land, repairs_needed, close_timeline, sell_reason, acceptable_offer, street_address, city, state, postal_code, full_name, email, phone, sms_consent, source_id, sources(name), isHotLead, created_at, updated_at, deleted_at",
-    )
+  // Query from properties table with inner join on leads
+  // This ensures we only get leads that have at least one property
+  const { data: propertiesData, error } = await queryClient
+    .from("properties")
+    .select(`
+      *,
+      leads!inner(
+        id, status, owner_notes, listed_with_agent, property_type, owns_land, 
+        repairs_needed, close_timeline, sell_reason, acceptable_offer, 
+        street_address, city, state, postal_code, full_name, email, phone, 
+        sms_consent, source_id, isHotLead, created_at, updated_at, deleted_at,
+        sources(name)
+      )
+    `)
+    .is("leads.deleted_at", null)
     .order("created_at", { ascending: false });
+  
+  // Log error for debugging
+  if (error) {
+    console.error("Leads query error:", error);
+  }
 
-  // Map the nested source data to source_name
-  const leads = (data ?? []).map((lead: any) => ({
-    ...lead,
-    source_name: lead.sources?.name || null,
-    sources: undefined,
-  })) as LeadRow[];
+  // Group properties by lead_id and restructure data
+  const leadsMap = new Map<string, LeadWithProperties>();
+  
+  (propertiesData ?? []).forEach((property: any) => {
+    const lead = property.leads;
+    const leadId = lead.id;
+    
+    if (!leadsMap.has(leadId)) {
+      leadsMap.set(leadId, {
+        ...lead,
+        source_name: lead.sources?.name || null,
+        sources: undefined,
+        properties: [],
+      });
+    }
+    
+    // Remove the nested leads object from property and add to lead's properties array
+    const { leads: _, ...propertyData } = property;
+    leadsMap.get(leadId)!.properties.push(propertyData as PropertyRow);
+  });
+  
+  const leads = Array.from(leadsMap.values());
 
   // Fetch all lead answers for all leads
   const { data: answersData } = await queryClient
@@ -96,7 +132,9 @@ export default async function AdminLeadsPage() {
 
         {error ? (
           <div className="rounded-[1rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Failed to load leads. Confirm the `leads` table and RLS policies are applied.
+            <p className="font-semibold">Failed to load leads</p>
+            <p className="mt-2 text-xs">{error.message}</p>
+            <p className="mt-1 text-xs opacity-75">Check console for details or run the properties migration in Supabase SQL Editor</p>
           </div>
         ) : (
           <LeadsClient initialLeads={leads} leadAnswers={answersByLeadId} canBulkImport={canBulkImport} formsEnabled={formsEnabled} />

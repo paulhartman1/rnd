@@ -7,7 +7,7 @@ import {
   type AppointmentStatus,
 } from "@/lib/appointments";
 import { createClient } from "@/lib/supabase/client";
-import type { LeadAnswer } from "./page";
+import type { LeadAnswer, LeadWithProperties } from "./page";
 
 type LeadDraftState = {
   status: LeadStatus;
@@ -22,7 +22,7 @@ type LeadDraftState = {
 };
 
 type Props = {
-  initialLeads: LeadRow[];
+  initialLeads: LeadWithProperties[];
   leadAnswers: Record<string, LeadAnswer[]>;
   canBulkImport: boolean;
   formsEnabled: boolean;
@@ -43,7 +43,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
 }
 
 export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled }: Props) {
-  const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
+  const [leads, setLeads] = useState<LeadWithProperties[]>(initialLeads);
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
     initialLeads.forEach((lead) => {
@@ -541,7 +541,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     const { lead } = (await response.json()) as { lead: LeadRow };
     
     // Add the new lead to the list and initialize its draft state
-    setLeads((prev) => [lead, ...prev]);
+    // New leads don't have properties yet, so add empty array
+    setLeads((prev) => [{ ...lead, properties: [] }, ...prev]);
     setDrafts((prev) => ({
       ...prev,
       [lead.id]: toLeadDraft(lead),
