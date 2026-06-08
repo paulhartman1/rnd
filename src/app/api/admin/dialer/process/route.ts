@@ -152,11 +152,43 @@ export async function POST() {
       });
     }
 
-    console.log(`[Dialer] Returning ${pendingItems.length} pre-assigned queue items for browser calling`);
+    // Fetch phone numbers for all leads in pending items
+    const leadIds = pendingItems.map(item => item.lead_id).filter(Boolean);
+    const { data: phones, error: phonesError } = await adminClient
+      .from("lead_phones")
+      .select("*")
+      .in("lead_id", leadIds)
+      .order("display_order", { ascending: true });
+
+    if (phonesError) {
+      console.error('[Dialer] Failed to fetch lead phones:', phonesError);
+    }
+
+    // Group phones by lead_id
+    const phonesByLeadId: Record<string, any[]> = {};
+    if (phones) {
+      phones.forEach(phone => {
+        if (!phonesByLeadId[phone.lead_id]) {
+          phonesByLeadId[phone.lead_id] = [];
+        }
+        phonesByLeadId[phone.lead_id].push(phone);
+      });
+    }
+
+    // Attach phones to leads
+    const itemsWithPhones = pendingItems.map(item => ({
+      ...item,
+      leads: item.leads ? {
+        ...item.leads,
+        phones: phonesByLeadId[item.lead_id] || []
+      } : null
+    }));
+
+    console.log(`[Dialer] Returning ${itemsWithPhones.length} pre-assigned queue items for browser calling`);
 
     return NextResponse.json({
       success: true,
-      queueItems: pendingItems,
+      queueItems: itemsWithPhones,
       callsAvailable: availableSlots,
       errors: errors.length > 0 ? errors : undefined
     });
