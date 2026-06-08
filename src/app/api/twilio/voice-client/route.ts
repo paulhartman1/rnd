@@ -9,7 +9,11 @@ export async function POST(request: NextRequest) {
     console.log('[Voice Client] Received request');
     const formData = await request.formData();
     const queueItemId = formData.get('queueItemId') as string;
+    const phoneNumber = formData.get('phoneNumber') as string;
+    const phoneId = formData.get('phoneId') as string;
     console.log('[Voice Client] Queue Item ID:', queueItemId);
+    console.log('[Voice Client] Phone Number:', phoneNumber);
+    console.log('[Voice Client] Phone ID:', phoneId);
 
     if (!queueItemId) {
       // This is likely a device registration call from Twilio - return empty response
@@ -70,10 +74,14 @@ export async function POST(request: NextRequest) {
     }
 
     const lead = queueItem.leads as any;
-    if (!lead?.phone) {
-      console.error('Lead has no phone number');
+    
+    // Use the phone number passed from the dialer, or fall back to lead's primary phone
+    const targetPhoneNumber = phoneNumber || lead?.phone;
+    
+    if (!targetPhoneNumber) {
+      console.error('No phone number available to call');
       const response = new VoiceResponse();
-      response.say('An error occurred. Lead has no phone number.');
+      response.say('An error occurred. No phone number available.');
       response.hangup();
       
       // Update queue item status to failed
@@ -95,14 +103,14 @@ export async function POST(request: NextRequest) {
       .eq('id', queueItemId);
 
     // Create TwiML response to dial the lead
-    console.log('[Voice Client] Creating TwiML to dial:', lead.phone);
+    console.log('[Voice Client] Creating TwiML to dial:', targetPhoneNumber);
     const response = new VoiceResponse();
     const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
     console.log('[Voice Client] Using caller ID:', twilioPhoneNumber);
 
     // Use absolute URL for action callback
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.rushndush.com';
-    const actionUrl = `${baseUrl}/api/twilio/call-status?queueItemId=${queueItemId}`;
+    const actionUrl = `${baseUrl}/api/twilio/call-status?queueItemId=${queueItemId}${phoneId ? `&phoneId=${phoneId}` : ''}`;
     console.log('[Voice Client] Action URL:', actionUrl);
 
     const dial = response.dial({
@@ -111,7 +119,7 @@ export async function POST(request: NextRequest) {
       timeout: 30
     });
     
-    dial.number(lead.phone);
+    dial.number(targetPhoneNumber);
 
     const twiml = response.toString();
     console.log('[Voice Client] Generated TwiML:', twiml);

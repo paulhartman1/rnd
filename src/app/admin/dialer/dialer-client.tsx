@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { Device, Call } from "@twilio/voice-sdk";
 import type { LeadStatus } from "@/lib/leads";
 import { leadStatuses } from "@/lib/leads";
+import type { LeadPhone, PhoneValidationStatus } from "@/lib/lead-phones";
+import PhoneSelector from "./phone-selector";
 
 type Agent = {
   user_id: string;
@@ -80,6 +82,7 @@ type WorkspaceLead = {
   email?: string | null;
   status: LeadStatus;
   owner_notes: string | null;
+  phones?: LeadPhone[];
 };
 
 type Tab = "campaigns" | "agents" | "queue" | "stats";
@@ -111,6 +114,10 @@ export default function DialerClient() {
   const [isSavingLeadNotes, setIsSavingLeadNotes] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [awaitingNextLead, setAwaitingNextLead] = useState(false);
+  
+  // Phone management state
+  const [currentLeadPhones, setCurrentLeadPhones] = useState<LeadPhone[]>([]);
+  const [currentCallPhoneId, setCurrentCallPhoneId] = useState<string | null>(null);
   
   // Appointment scheduling state
   const [scheduledDateTime, setScheduledDateTime] = useState<string>("");
@@ -351,8 +358,140 @@ export default function DialerClient() {
     setCurrentLeadNotes("");
     setCurrentLeadStatus(null);
     setCurrentQueueItemId(null);
+    setCurrentLeadPhones([]);
+    setCurrentCallPhoneId(null);
     setIsMuted(false);
     setAwaitingNextLead(false);
+  };
+
+  const handleCallPhone = async (phone: LeadPhone) => {
+    if (!currentLead || currentCall) return;
+    
+    try {
+      console.log('[Dialer] handleCallPhone:', phone);
+      setCurrentCallPhoneId(phone.id);
+      setCallStatus("Initiating call...");
+      
+      const device = deviceRef.current;
+      if (!device) {
+        throw new Error("Device not initialized");
+      }
+
+      // Connect call with queue item ID and phone ID
+      console.log('[Dialer] Connecting with queue item ID:', currentQueueItemId, 'phone:', phone.phone_number);
+      const call = await device.connect({
+        params: { 
+          queueItemId: currentQueueItemId || '',
+          phoneNumber: phone.phone_number,
+          phoneId: phone.id
+        }
+      });
+
+      console.log('[Dialer] Call object created:', call);
+      setCurrentCall(call);
+
+      // No immediate update - will update after call ends
+
+      // Refresh phone data
+      await loadLeadPhones(currentLead.id);
+
+      call.on("accept", () => {
+        setCallStatus(`Connected to ${currentLead.full_name || phone.phone_number}`);
+      });
+
+      call.on("disconnect", async () => {
+        setCallStatus("Call ended. Review notes, then click Next Lead.");
+        setCurrentCall(null);
+        const calledPhoneId = currentCallPhoneId;
+        setCurrentCallPhoneId(null);
+        setIsMuted(false);
+        setAwaitingNextLead(true);
+        
+        // Update call attempts for the phone that was called
+        if (currentLead && calledPhoneId) {
+          await fetch(`/api/admin/leads/${currentLead.id}/phones/${calledPhoneId}/call-attempt`, {
+            method: "POST",
+          }).catch(err => console.error('[Dialer] Failed to increment call attempt:', err));
+          
+          // Refresh phone data after call
+          await loadLeadPhones(currentLead.id);
+        }
+      });
+
+      call.on("cancel", async () => {
+        setCallStatus("Call cancelled.");
+        setCurrentCall(null);
+        setCurrentCallPhoneId(null);
+        setAwaitingNextLead(false);
+      });
+
+      call.on("error", async (error) => {
+        console.error("Call error:", error);
+        setCallStatus(`Call error: ${error.message}`);
+        setCurrentCall(null);
+        setCurrentCallPhoneId(null);
+        setAwaitingNextLead(false);
+      });
+
+    } catch (error) {
+      console.error("Failed to make call:", error);
+      setCallStatus("Failed to initiate call");
+      setCurrentCallPhoneId(null);
+    }
+  };
+
+  const handleUpdatePhoneValidation = async (
+    phoneId: string,
+    status: PhoneValidationStatus,
+    notes?: string,
+  ) => {
+    if (!currentLead) return;
+
+    await fetch(`/api/admin/leads/${currentLead.id}/phones/${phoneId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        validationStatus: status,
+        validationNotes: notes || null,
+      }),
+    });
+
+    // Refresh phone data
+    await loadLeadPhones(currentLead.id);
+  };
+
+  const handleSetPrimaryPhone = async (phoneId: string) => {
+    if (!currentLead) return;
+
+    if (confirm("Set this as the primary phone number for this lead?")) {
+      await fetch(`/api/admin/leads/${currentLead.id}/phones/${phoneId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isPrimary: true,
+        }),
+      });
+
+      // Refresh phone data and lead data
+      await loadLeadPhones(currentLead.id);
+    }
+  };
+
+  const loadLeadPhones = async (leadId: string) => {
+    try {
+      const response = await fetch(`/api/admin/leads/${leadId}/phones`);
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentLeadPhones(data.phones || []);
+        
+        // Update current lead with new phones
+        if (currentLead && currentLead.id === leadId) {
+          setCurrentLead(prev => prev ? { ...prev, phones: data.phones || [] } : prev);
+        }
+      }
+    } catch (error) {
+      console.error('[Dialer] Failed to load lead phones:', error);
+    }
   };
 
   const loadCampaigns = async () => {
@@ -613,60 +752,25 @@ export default function DialerClient() {
       setCurrentLeadNotes(lead.owner_notes || "");
       setCurrentLeadStatus(lead.status);
       setAwaitingNextLead(false);
-      setCallStatus("Initiating call...");
+      setCallStatus("Loading phone numbers...");
       setQueue((previous) => previous.filter((item) => item.id !== queueItem.id));
 
-      // Connect call with queue item ID
-      console.log('[Dialer] Connecting with queue item ID:', queueItem.id);
-      const call = await device.connect({
-        params: { queueItemId: queueItem.id }
-      });
+      // Load phones from the lead object or fetch them
+      if (lead.phones && lead.phones.length > 0) {
+        console.log('[Dialer] Using phones from lead:', lead.phones);
+        setCurrentLeadPhones(lead.phones);
+        setCallStatus("Select a phone number to call");
+      } else {
+        console.log('[Dialer] Fetching phones for lead:', lead.id);
+        await loadLeadPhones(lead.id);
+        setCallStatus("Select a phone number to call");
+      }
 
-      console.log('[Dialer] Call object created:', call);
-      setCurrentCall(call);
-
-      call.on("accept", () => {
-        setCallStatus(`Connected to ${lead.full_name || lead.phone}`);
-      });
-
-      call.on("disconnect", async () => {
-        setCallStatus("Call ended. Review notes, then click Next Lead.");
-        setCurrentCall(null);
-        setIsMuted(false);
-        // Mark queue item as complete to prevent stuck "calling" status
-        if (currentQueueItemId) {
-          await markQueueItemCompleted(currentQueueItemId);
-        }
-        // Always show workspace after call ends, keep processing state
-        setAwaitingNextLead(true);
-        void loadQueue();
-        void loadStats();
-      });
-
-      call.on("cancel", async () => {
-        setCallStatus("Call cancelled. Review notes, then click Next Lead.");
-        setCurrentCall(null);
-        // Mark queue item as complete even on cancel
-        if (currentQueueItemId) {
-          await markQueueItemCompleted(currentQueueItemId);
-        }
-        setAwaitingNextLead(false);
-      });
-
-      call.on("error", async (error) => {
-        console.error("Call error:", error);
-        setCallStatus(`Call error: ${error.message}. Review notes, then click Next Lead.`);
-        setCurrentCall(null);
-        // Mark queue item as complete even on error
-        if (currentQueueItemId) {
-          await markQueueItemCompleted(currentQueueItemId);
-        }
-        setAwaitingNextLead(false);
-      });
+      // Don't auto-initiate call anymore - user selects phone via PhoneSelector
 
     } catch (error) {
-      console.error("Failed to make call:", error);
-      setCallStatus("Failed to initiate call");
+      console.error("Failed to load lead:", error);
+      setCallStatus("Failed to load lead");
       setAwaitingNextLead(false);
     }
   };
@@ -1659,6 +1763,21 @@ export default function DialerClient() {
                     </button>
                   </div>
                 </div>
+                
+                {/* Phone Numbers */}
+                {currentLeadPhones.length > 0 && (
+                  <PhoneSelector
+                    leadId={currentLead.id}
+                    phones={currentLeadPhones}
+                    currentCallPhoneId={currentCallPhoneId}
+                    onCallPhone={handleCallPhone}
+                    onUpdateValidation={handleUpdatePhoneValidation}
+                    onSetPrimary={handleSetPrimaryPhone}
+                    isCallActive={true}
+                    disabled={false}
+                  />
+                )}
+                
                 <div>
                   <label className="block text-sm font-medium mb-1">Lead Notes</label>
                   <textarea
@@ -1669,6 +1788,54 @@ export default function DialerClient() {
                     rows={3}
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lead Selection - shown when no call active but lead loaded */}
+          {!currentCall && currentLead && !awaitingNextLead && (
+            <div className="bg-purple-50 border-2 border-purple-500 rounded-lg p-4">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-bold text-lg">Ready to Call</h3>
+                  <p className="text-sm text-gray-700 mt-1">
+                    <strong>{currentLead.full_name || "Unknown"}</strong>
+                  </p>
+                  <p className="text-sm text-gray-600">{currentLead.phone}</p>
+                  <p className="text-sm text-purple-600 mt-2">{callStatus}</p>
+                </div>
+
+                {/* Phone Numbers */}
+                {currentLeadPhones.length > 0 && (
+                  <PhoneSelector
+                    leadId={currentLead.id}
+                    phones={currentLeadPhones}
+                    currentCallPhoneId={currentCallPhoneId}
+                    onCallPhone={handleCallPhone}
+                    onUpdateValidation={handleUpdatePhoneValidation}
+                    onSetPrimary={handleSetPrimaryPhone}
+                    isCallActive={false}
+                    disabled={false}
+                  />
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lead Notes</label>
+                  <textarea
+                    value={currentLeadNotes}
+                    onChange={(e) => setCurrentLeadNotes(e.target.value)}
+                    placeholder="Notes about this lead..."
+                    className="w-full px-3 py-2 border rounded text-sm"
+                    rows={3}
+                  />
+                </div>
+
+                <button
+                  onClick={() => processNext()}
+                  className="w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Skip Lead
+                </button>
               </div>
             </div>
           )}
@@ -1765,6 +1932,20 @@ export default function DialerClient() {
                     </button>
                   )}
                 </div>
+                
+                {/* Phone Numbers */}
+                {currentLeadPhones.length > 0 && (
+                  <PhoneSelector
+                    leadId={currentLead.id}
+                    phones={currentLeadPhones}
+                    currentCallPhoneId={currentCallPhoneId}
+                    onCallPhone={handleCallPhone}
+                    onUpdateValidation={handleUpdatePhoneValidation}
+                    onSetPrimary={handleSetPrimaryPhone}
+                    isCallActive={false}
+                    disabled={false}
+                  />
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Call Notes</label>
