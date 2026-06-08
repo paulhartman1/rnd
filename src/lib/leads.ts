@@ -50,6 +50,7 @@ export type LeadRow = LeadInsert & {
   status: LeadStatus;
   owner_notes: string | null;
   source_id: string;
+  source_name?: string;
   isHotLead?: boolean;
   deleted_at?: string | null;
   created_at: string;

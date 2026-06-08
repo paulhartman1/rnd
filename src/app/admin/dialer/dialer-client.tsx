@@ -32,6 +32,24 @@ type LeadFilters = {
   lastContactedDaysMin: number | null;
   lastContactedDaysMax: number | null;
   leadIds: string[];
+  priorityScoreMin?: number;
+  hasComputedTags?: string[];
+};
+
+type CampaignTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  filters: Partial<LeadFilters>;
+  priority: number;
+};
+
+type CampaignPreview = {
+  count: number;
+  avgPriorityScore: number | null;
+  maxPriorityScore: number | null;
+  minPriorityScore: number | null;
+  tagDistribution: Record<string, number>;
 };
 
 type Campaign = {
@@ -114,6 +132,12 @@ export default function DialerClient() {
   const [leadSearchQuery, setLeadSearchQuery] = useState("");
   const [searchedLeads, setSearchedLeads] = useState<any[]>([]);
   const [isSearchingLeads, setIsSearchingLeads] = useState(false);
+  
+  // Campaign templates and preview
+  const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [campaignPreview, setCampaignPreview] = useState<CampaignPreview | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   // Computed filtered queue: only active campaigns, deduplicated by phone
   const filteredQueue = (() => {
@@ -152,7 +176,9 @@ export default function DialerClient() {
       unassignedOnly: false,
       lastContactedDaysMin: null as number | null,
       lastContactedDaysMax: null as number | null,
-      leadIds: [] as string[] 
+      leadIds: [] as string[],
+      priorityScoreMin: undefined as number | undefined,
+      hasComputedTags: [] as string[]
     },
   });
 
@@ -168,7 +194,9 @@ export default function DialerClient() {
       unassignedOnly: false,
       lastContactedDaysMin: null as number | null,
       lastContactedDaysMax: null as number | null,
-      leadIds: [] as string[] 
+      leadIds: [] as string[],
+      priorityScoreMin: undefined as number | undefined,
+      hasComputedTags: [] as string[]
     },
   });
 
@@ -195,8 +223,8 @@ export default function DialerClient() {
     setIsLoading(true);
     try {
       if (activeTab === "campaigns") {
-        // Load campaigns, agents, and sources for campaign creation UI
-        await Promise.all([loadCampaigns(), loadAgents(), loadSources()]);
+        // Load campaigns, agents, sources, and templates for campaign creation UI
+        await Promise.all([loadCampaigns(), loadAgents(), loadSources(), loadTemplates()]);
       } else if (activeTab === "agents") {
         await loadAgents();
       } else if (activeTab === "queue") {
@@ -357,6 +385,33 @@ export default function DialerClient() {
     setStats(data);
   };
 
+  const loadTemplates = async () => {
+    const response = await fetch("/api/admin/dialer/templates");
+    const data = await response.json();
+    if (data.templates) setTemplates(data.templates);
+  };
+
+  const applyTemplate = (template: CampaignTemplate) => {
+    setNewCampaign({
+      name: template.name,
+      description: template.description,
+      priority: template.priority,
+      lead_filters: {
+        status: template.filters.status || ["new"],
+        isHotLead: template.filters.isHotLead || false,
+        sourceIds: template.filters.sourceIds || [],
+        assignedUserIds: template.filters.assignedUserIds || [],
+        unassignedOnly: template.filters.unassignedOnly || false,
+        lastContactedDaysMin: template.filters.lastContactedDaysMin || null,
+        lastContactedDaysMax: template.filters.lastContactedDaysMax || null,
+        leadIds: template.filters.leadIds || [],
+        priorityScoreMin: template.filters.priorityScoreMin,
+        hasComputedTags: template.filters.hasComputedTags || [],
+      },
+    });
+    setShowTemplates(false);
+  };
+
   const createCampaign = async () => {
     const response = await fetch("/api/admin/dialer/campaigns", {
       method: "POST",
@@ -378,7 +433,9 @@ export default function DialerClient() {
           unassignedOnly: false,
           lastContactedDaysMin: null,
           lastContactedDaysMax: null,
-          leadIds: [] as string[] 
+          leadIds: [] as string[],
+          priorityScoreMin: undefined,
+          hasComputedTags: []
         } 
       });
       setLeadSearchQuery("");
@@ -430,7 +487,9 @@ export default function DialerClient() {
           unassignedOnly: false,
           lastContactedDaysMin: null,
           lastContactedDaysMax: null,
-          leadIds: [] 
+          leadIds: [],
+          priorityScoreMin: undefined,
+          hasComputedTags: []
         } 
       });
       await loadCampaigns();
@@ -744,6 +803,7 @@ export default function DialerClient() {
     }
   };
 
+
   const scheduleAppointment = async (autoAdvance = false) => {
     if (!currentLead || !scheduledDateTime) {
       alert("Please select a date and time for the appointment");
@@ -1017,6 +1077,54 @@ export default function DialerClient() {
                   className="w-full px-3 py-2 border rounded"
                 />
                 <div>
+        {/* Campaign Templates */}
+<div>
+  <button
+    onClick={() => setShowTemplates(!showTemplates)}
+    className="text-sm text-blue-600 hover:text-blue-800 underline"
+  >
+    {showTemplates ? "Hide Templates" : "Use a Template"}
+  </button>
+  
+  {showTemplates && (
+    <div className="mt-2 grid grid-cols-2 gap-2">
+      {templates.map(template => (
+        <button
+          key={template.id}
+          onClick={() => applyTemplate(template)}
+          className="p-3 text-left border rounded hover:bg-blue-50 hover:border-blue-500"
+        >
+          <div className="font-medium text-sm">{template.name}</div>
+          <div className="text-xs text-gray-600 mt-1">{template.description}</div>
+        </button>
+      ))}
+    </div>
+  )}
+</div>
+{/* Priority Score Filter */}
+<div>
+  <label className="block text-sm font-medium mb-2">
+    Minimum Priority Score (0-100)
+  </label>
+  <input
+    type="number"
+    min="0"
+    max="100"
+    placeholder="e.g., 50"
+    value={newCampaign.lead_filters.priorityScoreMin ?? ""}
+    onChange={(e) => setNewCampaign({
+      ...newCampaign,
+      lead_filters: { 
+        ...newCampaign.lead_filters, 
+        priorityScoreMin: e.target.value ? parseInt(e.target.value) : undefined
+      }
+    })}
+    className="w-full px-3 py-2 border rounded"
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Higher scores = better spread, equity, and distress signals
+  </p>
+</div>
                   <label className="block text-sm font-medium mb-2">Lead Filters</label>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2">
@@ -1335,6 +1443,8 @@ export default function DialerClient() {
                                 lastContactedDaysMin: (filters.lastContactedDaysMin as number | null) || null,
                                 lastContactedDaysMax: (filters.lastContactedDaysMax as number | null) || null,
                                 leadIds: (filters.leadIds as string[]) || [],
+                                priorityScoreMin: (filters.priorityScoreMin as number | undefined) || undefined,
+                                hasComputedTags: (filters.hasComputedTags as string[]) || [],
                               },
                             });
                           }}

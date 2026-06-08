@@ -25,6 +25,7 @@ type Props = {
   initialLeads: LeadRow[];
   leadAnswers: Record<string, LeadAnswer[]>;
   canBulkImport: boolean;
+  formsEnabled: boolean;
 };
 
 function toLeadDraft(lead: LeadRow): LeadDraftState {
@@ -41,7 +42,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
   };
 }
 
-export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }: Props) {
+export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled }: Props) {
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads);
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
@@ -54,8 +55,9 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [hotLeadsOnly, setHotLeadsOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name" | "hot">("hot");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name" | "hot" | "source">("hot");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -89,11 +91,13 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
     state: "",
     postalCode: "",
     ownerNotes: "",
+    sourceName: "manual",
     isCreating: false,
     error: null as string | null,
     success: false,
   });
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkImportStep, setBulkImportStep] = useState<'choose' | 'upload' | 'pull'>('choose');
   const [bulkImportDraft, setBulkImportDraft] = useState({
     file: null as File | null,
     createLeads: true,
@@ -109,6 +113,48 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
       skippedRows?: Array<{ row: number; reason: string; data?: string }>;
     } | null,
   });
+  const [attomPullDraft, setAttomPullDraft] = useState({
+    minScore: 70,
+    maxCount: 50,
+    zipcodes: '',
+    isPulling: false,
+    isLoadingZipcodes: false,
+    availableZipcodes: [] as string[],
+    error: null as string | null,
+    success: false,
+    result: null as { converted: number; leadIds: string[] } | null,
+  });
+
+  // Get unique sources for the filter dropdown (from existing leads)
+  const uniqueSources = useMemo(() => {
+    const sources = new Set<string>();
+    leads.forEach((lead) => {
+      if (lead.source_name) {
+        sources.add(lead.source_name);
+      }
+    });
+    return Array.from(sources).sort();
+  }, [leads]);
+
+  // State for all active sources from database
+  const [allActiveSources, setAllActiveSources] = useState<string[]>([]);
+
+  // Fetch all active sources on mount
+  useEffect(() => {
+    const fetchSources = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('sources')
+        .select('name')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (data) {
+        setAllActiveSources(data.map(s => s.name));
+      }
+    };
+    fetchSources();
+  }, []);
 
   const visibleLeads = useMemo(() => {
     let filtered = leads.filter((lead) => showDeleted || !lead.deleted_at);
@@ -133,6 +179,11 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
       filtered = filtered.filter((lead) => lead.status === statusFilter);
     }
 
+    // Apply source filter
+    if (sourceFilter !== "all") {
+      filtered = filtered.filter((lead) => lead.source_name === sourceFilter);
+    }
+
     // Apply hot leads filter
     if (hotLeadsOnly) {
       filtered = filtered.filter((lead) => lead.isHotLead === true);
@@ -150,6 +201,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       } else if (sortBy === "oldest") {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortBy === "source") {
+        return (a.source_name || "").localeCompare(b.source_name || "");
       } else {
         // name
         return (a.full_name || "").localeCompare(b.full_name || "");
@@ -157,7 +210,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
     });
 
     return filtered;
-  }, [leads, showDeleted, searchQuery, statusFilter, hotLeadsOnly, sortBy]);
+  }, [leads, showDeleted, searchQuery, statusFilter, sourceFilter, hotLeadsOnly, sortBy]);
 
   // Calculate pagination
   const totalPages = Math.max(1, Math.ceil(visibleLeads.length / itemsPerPage));
@@ -168,7 +221,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, hotLeadsOnly, sortBy, showDeleted]);
+  }, [searchQuery, statusFilter, sourceFilter, hotLeadsOnly, sortBy, showDeleted]);
 
   useEffect(() => {
     setCurrentPage((previous) => Math.min(previous, totalPages));
@@ -422,6 +475,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
   };
 
   const openCreateLeadModal = () => {
+    // Default to first available source or 'manual'
+    const defaultSource = allActiveSources.length > 0 ? allActiveSources[0] : "manual";
     setCreateLeadDraft({
       fullName: "",
       email: "",
@@ -431,6 +486,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
       state: "",
       postalCode: "",
       ownerNotes: "",
+      sourceName: defaultSource,
       isCreating: false,
       error: null,
       success: false,
@@ -466,6 +522,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
         state: createLeadDraft.state || null,
         postalCode: createLeadDraft.postalCode || null,
         ownerNotes: createLeadDraft.ownerNotes || null,
+        sourceName: createLeadDraft.sourceName,
       }),
     });
 
@@ -499,6 +556,13 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
   };
 
   const openBulkImportModal = () => {
+    setShowBulkImportModal(true);
+    setBulkImportStep('choose');
+  };
+
+  const closeBulkImportModal = () => {
+    setShowBulkImportModal(false);
+    setBulkImportStep('choose');
     setBulkImportDraft({
       file: null,
       createLeads: true,
@@ -507,11 +571,17 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
       success: false,
       result: null,
     });
-    setShowBulkImportModal(true);
-  };
-
-  const closeBulkImportModal = () => {
-    setShowBulkImportModal(false);
+    setAttomPullDraft({
+      minScore: 70,
+      maxCount: 50,
+      zipcodes: '',
+      isPulling: false,
+      isLoadingZipcodes: false,
+      availableZipcodes: [],
+      error: null,
+      success: false,
+      result: null,
+    });
   };
 
   const handleBulkImport = async () => {
@@ -545,6 +615,60 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
 
     const result = await response.json();
     setBulkImportDraft((prev) => ({ ...prev, isUploading: false, error: null, success: true, result }));
+    
+    // Reload page after 2 seconds on success
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  };
+
+  const loadAvailableZipcodes = async () => {
+    setAttomPullDraft((prev) => ({ ...prev, isLoadingZipcodes: true }));
+    
+    try {
+      const response = await fetch('/api/attom/zipcodes');
+      if (response.ok) {
+        const data = await response.json();
+        setAttomPullDraft((prev) => ({
+          ...prev,
+          availableZipcodes: data.zipcodes || [],
+          isLoadingZipcodes: false,
+        }));
+      } else {
+        setAttomPullDraft((prev) => ({ ...prev, isLoadingZipcodes: false }));
+      }
+    } catch (error) {
+      setAttomPullDraft((prev) => ({ ...prev, isLoadingZipcodes: false }));
+    }
+  };
+
+  const handleAttomPull = async () => {
+    setAttomPullDraft((prev) => ({ ...prev, isPulling: true, error: null, success: false }));
+
+    const response = await fetch("/api/attom/convert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        minScore: attomPullDraft.minScore,
+        maxCount: attomPullDraft.maxCount,
+        zipcodes: attomPullDraft.zipcodes ? attomPullDraft.zipcodes.split(',').map(z => z.trim()).filter(Boolean) : undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      setAttomPullDraft((prev) => ({
+        ...prev,
+        isPulling: false,
+        error: body?.error ?? "Could not pull leads from Attom. Please try again.",
+      }));
+      return;
+    }
+
+    const result = await response.json();
+    setAttomPullDraft((prev) => ({ ...prev, isPulling: false, error: null, success: true, result }));
     
     // Reload page after 2 seconds on success
     setTimeout(() => {
@@ -623,7 +747,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
       </div>
 
       <div className="rounded-[1.4rem] border border-black/6 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="sm:col-span-2">
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
@@ -662,17 +786,38 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
           <div>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                Filter by Source
+              </span>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+              >
+                <option value="all">All sources</option>
+                {uniqueSources.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
                 Sort by
               </span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "name" | "hot")}
+                onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "name" | "hot" | "source")}
                 className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
               >
                 <option value="hot">🔥 Hot Leads First</option>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
                 <option value="name">Name (A-Z)</option>
+                <option value="source">Source (A-Z)</option>
               </select>
             </label>
           </div>
@@ -695,7 +840,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
           </span>
         </div>
 
-        {(searchQuery || statusFilter !== "all" || hotLeadsOnly) && (
+        {(searchQuery || statusFilter !== "all" || sourceFilter !== "all" || hotLeadsOnly) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {searchQuery && (
               <button
@@ -717,6 +862,16 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
                 <span className="text-lg leading-none">×</span>
               </button>
             )}
+            {sourceFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setSourceFilter("all")}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)]"
+              >
+                Source: {sourceFilter}
+                <span className="text-lg leading-none">×</span>
+              </button>
+            )}
             {hotLeadsOnly && (
               <button
                 type="button"
@@ -732,6 +887,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
               onClick={() => {
                 setSearchQuery("");
                 setStatusFilter("all");
+                setSourceFilter("all");
                 setHotLeadsOnly(false);
               }}
               className="text-xs font-semibold text-[var(--color-muted)] underline underline-offset-2"
@@ -812,6 +968,15 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
                       <span className="text-[var(--color-muted)] text-xs">(No contact info)</span>
                     )}
                   </div>
+
+                  {lead.source_name && (
+                    <div className="mt-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)]">
+                        <span>📍</span>
+                        Source: {lead.source_name}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Display all answered questions */}
                   {leadAnswers[lead.id] && leadAnswers[lead.id].length > 0 && (
@@ -952,6 +1117,16 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
                             <span className="text-xl sm:text-base">📅</span>
                             <span>Schedule Appointment</span>
                           </button>
+                          {formsEnabled && (lead.status === 'under-contract' || lead.status === 'closed') && (
+                            <button
+                              type="button"
+                              onClick={() => window.location.href = `/admin/forms?leadId=${lead.id}`}
+                              className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-navy)] transition hover:bg-black/5 active:bg-black/10 flex items-center gap-3 min-h-[52px] border-t border-black/6"
+                            >
+                              <span className="text-xl sm:text-base">📄</span>
+                              <span>Create Purchase Agreement</span>
+                            </button>
+                          )}
                         </div>
                       </>
                     )}
@@ -1279,10 +1454,33 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
             </h3>
 
             <p className="mb-4 text-sm text-[var(--color-muted)]">
-              Source will be set to "manual". At least one contact method (phone or email) is required.
+              At least one contact method (phone or email) is required.
             </p>
 
             <div className="space-y-4">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                  Source
+                </span>
+                <select
+                  value={createLeadDraft.sourceName}
+                  onChange={(e) =>
+                    setCreateLeadDraft({ ...createLeadDraft, sourceName: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                >
+                  {allActiveSources.length > 0 ? (
+                    allActiveSources.map((source) => (
+                      <option key={source} value={source}>
+                        {source}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="manual">manual</option>
+                  )}
+                </select>
+              </label>
+
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
                   Full Name
@@ -1446,12 +1644,212 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[1.4rem] border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
             <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
-              Bulk Import Leads from CSV
+              {bulkImportStep === 'choose' ? 'Bulk Import Leads' : bulkImportStep === 'upload' ? 'Import from CSV' : 'Pull from Attom API'}
             </h3>
 
-            <p className="mb-4 text-sm text-[var(--color-muted)]">
-              Upload a CSV or Excel file from BatchLeads. The file should include columns like Lead Status, First Name, Last Name, Property Address, Email, Phone, etc.
-            </p>
+            {bulkImportStep === 'choose' && (
+              <>
+                <p className="mb-4 text-sm text-[var(--color-muted)]">
+                  Choose how you want to import leads:
+                </p>
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setBulkImportStep('upload')}
+                    className="w-full rounded-lg border-2 border-black/10 p-5 text-left transition hover:border-[var(--color-primary-gold)] hover:bg-[var(--color-surface-soft)]"
+                  >
+                    <div className="mb-2 text-2xl">📊</div>
+                    <h4 className="font-bold text-[var(--color-navy)]">Upload CSV / Excel File</h4>
+                    <p className="mt-1 text-sm text-[var(--color-muted)]">
+                      Import leads from a BatchLeads CSV or Excel file
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkImportStep('pull')}
+                    className="w-full rounded-lg border-2 border-black/10 p-5 text-left transition hover:border-[var(--color-primary-gold)] hover:bg-[var(--color-surface-soft)]"
+                  >
+                    <div className="mb-2 text-2xl">🏘️</div>
+                    <h4 className="font-bold text-[var(--color-navy)]">Pull New Data from Attom API</h4>
+                    <p className="mt-1 text-sm text-[var(--color-muted)]">
+                      Convert high-scoring properties from Attom database to leads
+                    </p>
+                  </button>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={closeBulkImportModal}
+                    className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+
+            {bulkImportStep === 'pull' && (
+              <>
+                <p className="mb-4 text-sm text-[var(--color-muted)]">
+                  Convert Attom properties to leads based on their scoring. Properties are scored based on factors like absentee ownership, equity percentage, and property age.
+                </p>
+
+                <div className="space-y-4">
+                  {attomPullDraft.availableZipcodes.length === 0 && !attomPullDraft.isLoadingZipcodes && (
+                    <button
+                      type="button"
+                      onClick={loadAvailableZipcodes}
+                      className="text-sm text-[var(--color-primary-gold)] hover:underline font-semibold"
+                    >
+                      → Show available zipcodes in database
+                    </button>
+                  )}
+                  {attomPullDraft.isLoadingZipcodes && (
+                    <p className="text-sm text-[var(--color-muted)]">Loading zipcodes...</p>
+                  )}
+                  {attomPullDraft.availableZipcodes.length > 0 && (
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
+                      <p className="font-semibold text-[var(--color-navy)] mb-2">Available zipcodes ({attomPullDraft.availableZipcodes.length}):</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {attomPullDraft.availableZipcodes.map((zip) => (
+                          <button
+                            key={zip}
+                            type="button"
+                            onClick={() => {
+                              const current = attomPullDraft.zipcodes.split(',').map(z => z.trim()).filter(Boolean);
+                              if (current.includes(zip)) {
+                                setAttomPullDraft({ 
+                                  ...attomPullDraft, 
+                                  zipcodes: current.filter(z => z !== zip).join(', ') 
+                                });
+                              } else {
+                                setAttomPullDraft({ 
+                                  ...attomPullDraft, 
+                                  zipcodes: [...current, zip].join(', ') 
+                                });
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
+                              attomPullDraft.zipcodes.split(',').map(z => z.trim()).includes(zip)
+                                ? 'bg-[var(--color-primary-gold)] text-[var(--color-navy)]'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:border-[var(--color-primary-gold)]'
+                            }`}
+                          >
+                            {zip}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <label className="block">
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                      Zipcodes (Optional)
+                    </span>
+                    <input
+                      type="text"
+                      value={attomPullDraft.zipcodes}
+                      onChange={(e) =>
+                        setAttomPullDraft({ ...attomPullDraft, zipcodes: e.target.value })
+                      }
+                      className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                      placeholder="90210, 90211, 90212"
+                    />
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      Filter by specific zipcodes from your imported properties. Leave blank to include all zipcodes.
+                    </p>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                      Minimum Score (0-100)
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={attomPullDraft.minScore}
+                      onChange={(e) =>
+                        setAttomPullDraft({ ...attomPullDraft, minScore: parseInt(e.target.value) || 0 })
+                      }
+                      className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                      placeholder="70"
+                    />
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      Only convert properties with a score of {attomPullDraft.minScore} or higher
+                    </p>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                      Maximum Count
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      value={attomPullDraft.maxCount}
+                      onChange={(e) =>
+                        setAttomPullDraft({ ...attomPullDraft, maxCount: parseInt(e.target.value) || 1 })
+                      }
+                      className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                      placeholder="50"
+                    />
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      Maximum number of properties to convert to leads
+                    </p>
+                  </label>
+
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
+                    <p className="font-semibold mb-1">What happens during pull:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Searches for properties not yet converted to leads</li>
+                      {attomPullDraft.zipcodes && <li>Filters by zipcodes: {attomPullDraft.zipcodes}</li>}
+                      <li>Filters by minimum score ({attomPullDraft.minScore}+)</li>
+                      <li>Converts up to {attomPullDraft.maxCount} highest-scoring properties</li>
+                      <li>Creates lead records with owner info and property details</li>
+                    </ul>
+                  </div>
+
+                  {attomPullDraft.error && (
+                    <p className="text-sm text-red-700">{attomPullDraft.error}</p>
+                  )}
+                  {attomPullDraft.success && attomPullDraft.result && (
+                    <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-700">
+                      <p className="font-semibold">✓ Pull successful!</p>
+                      <p className="mt-2 text-xs">
+                        Converted {attomPullDraft.result.converted} properties to leads
+                      </p>
+                      <p className="mt-1 text-xs">Reloading page...</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleAttomPull}
+                      disabled={attomPullDraft.isPulling || attomPullDraft.success}
+                      className="flex-1 rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {attomPullDraft.isPulling ? "Pulling..." : attomPullDraft.success ? "Pulled!" : "Pull Leads"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBulkImportStep('choose')}
+                      disabled={attomPullDraft.isPulling}
+                      className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {attomPullDraft.success ? "Close" : "Back"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {bulkImportStep === 'upload' && (
+              <>
+                <p className="mb-4 text-sm text-[var(--color-muted)]">
+                  Upload a CSV or Excel file from BatchLeads. The file should include columns like Lead Status, First Name, Last Name, Property Address, Email, Phone, etc.
+                </p>
 
             <div className="space-y-4">
               <label className="block">
@@ -1561,6 +1959,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport }
                 </button>
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
       )}

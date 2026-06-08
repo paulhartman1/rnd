@@ -260,11 +260,98 @@ type BatchLead = {
   property_city: string | null;
   property_state: string | null;
   property_zip: string | null;
+  apn: string | null;
   notes: string | null;
   property_type_detail: string | null;
   lead_status: string | null;
   foreclosure_status: string | null;
 };
+
+function calculatePriorityScore(mapped: any): number {
+  // Priority score based on:
+  // Spread × 0.4 + Equity × 0.3 + Distress signals × 0.3
+  
+  const spread = mapped.spread || 0;
+  const equity = mapped.equity_current_estimated_balance || 0;
+  
+  // Distress signals (0-100 scale)
+  let distressScore = 0;
+  
+  // Foreclosure = +40 points
+  if (mapped.foreclosure_status) distressScore += 40;
+  
+  // Vacant = +30 points
+  if (mapped.is_vacant === true) distressScore += 30;
+  
+  // High LTV (>85%) = +20 points
+  const ltv = mapped.ltv_current_estimated_combined || 0;
+  if (ltv > 85) distressScore += 20;
+  
+  // Self-managed absentee = +10 points (tired landlord)
+  if (mapped.self_managed === true && mapped.owner_occupied === false) distressScore += 10;
+  
+  // Normalize spread and equity to 0-100 scale (assuming max spread 100k, max equity 200k)
+  const normalizedSpread = Math.min(100, (spread / 100000) * 100);
+  const normalizedEquity = Math.min(100, (equity / 200000) * 100);
+  
+  const score = Math.round(
+    normalizedSpread * 0.4 + 
+    normalizedEquity * 0.3 + 
+    distressScore * 0.3
+  );
+  
+  return Math.max(0, Math.min(100, score)); // Clamp to 0-100
+}
+
+function computeTags(mapped: any): string[] {
+  const tags: string[] = [];
+  
+  const spread = mapped.spread || 0;
+  const equity = mapped.equity_current_estimated_balance || 0;
+  const ltv = mapped.ltv_current_estimated_combined || 0;
+  const estimatedValue = mapped.estimated_value || 0;
+  
+  // High profit potential
+  if (spread > 30000 && equity > 50000) tags.push('high-profit');
+  
+  // Distressed
+  if (mapped.foreclosure_status || mapped.is_vacant === true || ltv > 90) tags.push('distressed');
+  
+  // Foreclosure
+  if (mapped.foreclosure_status) tags.push('foreclosure');
+  
+  // Pre-foreclosure urgent
+  if (mapped.foreclosure_auction_date) {
+    const auctionDate = new Date(mapped.foreclosure_auction_date);
+    const daysUntil = Math.floor((auctionDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntil > 0 && daysUntil <= 60) tags.push('pre-foreclosure-urgent');
+  }
+  
+  // Absentee owner
+  if (mapped.owner_occupied === false) {
+    tags.push('absentee');
+    if (mapped.self_managed === true && estimatedValue > 200000) tags.push('absentee-high-value');
+  }
+  
+  // Vacant
+  if (mapped.is_vacant === true) tags.push('vacant');
+  
+  // Failed listing
+  if (mapped.mls_status) {
+    const mlsStatus = mapped.mls_status.toLowerCase();
+    if (mlsStatus.includes('expired') || mlsStatus.includes('withdrawn')) tags.push('failed-listing');
+  }
+  
+  // Likely older owner (long-term ownership proxy)
+  if (mapped.year_built && mapped.year_built < 1980) {
+    const lastSaleYear = mapped.last_sale_date ? new Date(mapped.last_sale_date).getFullYear() : null;
+    if (!lastSaleYear || lastSaleYear < 2000) {
+      if ((mapped.total_loan_balance || 0) < 10000) tags.push('older-owner-high-equity');
+    }
+  }
+  
+  return tags;
+}
 
 function mapBatchLeadToLead(batchLead: BatchLead, sourceId: string) {
   // Combine first and last name
@@ -536,7 +623,15 @@ export async function POST(request: Request) {
           continue;
         }
 
-        leadsToInsert.push(mapBatchLeadToLead(batchLead, batchSourceId));
+        const leadData = mapBatchLeadToLead(batchLead, batchSourceId);
+        const priorityScore = calculatePriorityScore(batchLead);
+        const tags = computeTags(batchLead);
+        
+        leadsToInsert.push({
+          ...leadData,
+          priority_score: priorityScore,
+          computed_tags: tags.length > 0 ? tags : null,
+        });
       }
 
       if (leadsToInsert.length > 0) {
@@ -585,6 +680,75 @@ export async function POST(request: Request) {
         }
 
         leadsCreated = insertedLeads?.length || 0;
+
+        // Auto-create property records for the inserted leads
+        if (insertedLeads && insertedLeads.length > 0) {
+          const propertiesToInsert = [];
+          let leadIndex = 0;
+          
+          // Debug: Log first batchLead to verify apn field
+          if (insertedBatchLeads.length > 0) {
+            console.log('Sample batchLead for property creation:', {
+              property_address: insertedBatchLeads[0].property_address,
+              apn: insertedBatchLeads[0].apn,
+              property_city: insertedBatchLeads[0].property_city,
+              property_state: insertedBatchLeads[0].property_state,
+              property_zip: insertedBatchLeads[0].property_zip,
+            });
+          }
+
+          for (const batchLead of insertedBatchLeads) {
+            // Skip if no contact method (same check as for lead creation)
+            if (!batchLead.email && !batchLead.phone_1) {
+              continue;
+            }
+
+            // Skip if was a duplicate
+            const dedupKey = `${(batchLead.first_name || '').toLowerCase()}|${(batchLead.last_name || '').toLowerCase()}|${(batchLead.property_address || '').toLowerCase()}`;
+            if (existingLeadsSet.has(dedupKey)) {
+              continue;
+            }
+
+            if (leadIndex < insertedLeads.length && batchLead.property_address) {
+              propertiesToInsert.push({
+                lead_id: insertedLeads[leadIndex].id,
+                street_address: batchLead.property_address,
+                city: batchLead.property_city || "",
+                state: batchLead.property_state || "",
+                postal_code: batchLead.property_zip || "",
+                apn: batchLead.apn,
+                property_type: batchLead.property_type_detail,
+                notes: null,
+              });
+              leadIndex++;
+            } else if (leadIndex < insertedLeads.length) {
+              // No property address, but still increment to stay in sync
+              leadIndex++;
+            }
+          }
+
+          if (propertiesToInsert.length > 0) {
+            console.log(`Creating ${propertiesToInsert.length} properties in batches`);
+            const PROPERTY_BATCH_SIZE = 500;
+
+            for (let i = 0; i < propertiesToInsert.length; i += PROPERTY_BATCH_SIZE) {
+              const propertyBatch = propertiesToInsert.slice(i, i + PROPERTY_BATCH_SIZE);
+              const propertyBatchNumber = Math.floor(i / PROPERTY_BATCH_SIZE) + 1;
+              const totalPropertyBatches = Math.ceil(propertiesToInsert.length / PROPERTY_BATCH_SIZE);
+
+              console.log(`Creating property batch ${propertyBatchNumber}/${totalPropertyBatches} (${propertyBatch.length} properties)`);
+
+              const { error: propertiesInsertError } = await supabase
+                .from("properties")
+                .insert(propertyBatch);
+
+              if (propertiesInsertError) {
+                console.error(`Property batch ${propertyBatchNumber} insert error:`, propertiesInsertError);
+                // Don't fail the import, just log the error
+              }
+            }
+          }
+        }
 
         // Create mappings - need to track which batchlead maps to which lead
         if (insertedLeads && insertedLeads.length > 0) {

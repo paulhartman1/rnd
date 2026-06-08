@@ -34,18 +34,20 @@ export default async function AdminSettingsPage() {
   const showPushNotifications = await isFeatureEnabled("pwa_push_notifications");
 
   // Fetch lightweight counts for each settings section
-  const [sourcesResult, phoneSettingsResult, appointmentTypesResult, questionsResult] =
+  const [sourcesResult, phoneSettingsResult, appointmentTypesResult, questionsResult, scoringConfigResult] =
     await Promise.all([
       queryClient.from("sources").select("id, is_active"),
       queryClient.from("phone_settings").select("is_forwarding_enabled").limit(1).maybeSingle(),
       queryClient.from("appointment_types").select("id, is_active"),
       queryClient.from("intake_questions").select("id, is_active").is("deleted_at", null),
+      queryClient.from("lead_scoring_config").select("config_name, is_active").eq("is_active", true).maybeSingle(),
     ]);
 
   const sources = sourcesResult.data ?? [];
   const appointmentTypes = appointmentTypesResult.data ?? [];
   const questions = questionsResult.data ?? [];
   const phoneSettings = phoneSettingsResult.data;
+  const activeScoringConfig = scoringConfigResult.data;
 
   const activeSources = sources.filter((s) => s.is_active).length;
   const activeAppointmentTypes = appointmentTypes.filter((t) => t.is_active).length;
@@ -79,6 +81,13 @@ export default async function AdminSettingsPage() {
       href: "/admin/questions",
       icon: "❓",
       stats: `${activeQuestions} active • ${questions.length} total`,
+    },
+    {
+      title: "Lead Scoring",
+      description: "Configure criteria and weights for lead prioritization",
+      href: "/admin/settings/lead-scoring",
+      icon: "⭐",
+      stats: activeScoringConfig ? `Active: ${activeScoringConfig.config_name}` : "No active config",
     },
   ];
 

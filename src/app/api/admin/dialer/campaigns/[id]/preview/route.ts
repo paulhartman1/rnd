@@ -7,7 +7,7 @@ type Params = {
   id: string;
 };
 
-export async function POST(
+export async function GET(
   _request: Request,
   { params }: { params: Promise<Params> }
 ) {
@@ -40,27 +40,24 @@ export async function POST(
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  // Build query based on lead_filters
+  // Build query based on lead_filters (same logic as start endpoint)
   const filters = campaign.lead_filters as Record<string, unknown>;
   let leads;
   let leadsError;
 
-  // Check if specific lead IDs are provided
   if (filters.leadIds && Array.isArray(filters.leadIds) && filters.leadIds.length > 0) {
-    // Use specific lead IDs
     const { data, error } = await adminClient
       .from("leads")
-      .select("id")
+      .select("id, priority_score, computed_tags")
       .in("id", filters.leadIds)
       .is("deleted_at", null);
     
     leads = data;
     leadsError = error;
   } else {
-    // Use filter-based query
     let query = adminClient
       .from("leads")
-      .select("id")
+      .select("id, priority_score, computed_tags")
       .is("deleted_at", null);
 
     if (filters.status && Array.isArray(filters.status)) {
@@ -71,45 +68,34 @@ export async function POST(
       query = query.eq("isHotLead", true);
     }
 
-    // Filter by source
     if (filters.sourceIds && Array.isArray(filters.sourceIds) && filters.sourceIds.length > 0) {
       query = query.in("source_id", filters.sourceIds);
     }
 
-    // Filter by assigned user
     if (filters.assignedUserIds && Array.isArray(filters.assignedUserIds) && filters.assignedUserIds.length > 0) {
       query = query.in("assigned_user_id", filters.assignedUserIds);
     }
 
-    // Filter for unassigned leads only
     if (filters.unassignedOnly === true) {
       query = query.is("assigned_user_id", null);
     }
 
-    // Filter by last contact date range
     if (filters.lastContactedDaysMin && typeof filters.lastContactedDaysMin === 'number') {
-      // Min days ago means we want leads contacted AT MOST that many days ago
-      // e.g., min=14 means last_contacted_at >= now() - 14 days
       query = query.gte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMin} days'`);
     }
 
     if (filters.lastContactedDaysMax && typeof filters.lastContactedDaysMax === 'number') {
-      // Max days ago means we want leads contacted AT LEAST that many days ago
-      // e.g., max=30 means last_contacted_at <= now() - 30 days
       query = query.lte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMax} days'`);
     }
 
-    // Filter by priority score
     if (filters.priorityScoreMin && typeof filters.priorityScoreMin === 'number') {
       query = query.gte("priority_score", filters.priorityScoreMin);
     }
 
-    // Filter by computed tags (lead must have ALL specified tags)
     if (filters.hasComputedTags && Array.isArray(filters.hasComputedTags) && filters.hasComputedTags.length > 0) {
       query = query.contains("computed_tags", filters.hasComputedTags);
     }
 
-    // Execute query to get matching leads
     const { data, error } = await query;
     leads = data;
     leadsError = error;
@@ -119,57 +105,39 @@ export async function POST(
     return NextResponse.json({ error: leadsError.message }, { status: 500 });
   }
 
-  if (!leads || leads.length === 0) {
-    return NextResponse.json({ error: "No leads match campaign filters" }, { status: 400 });
-  }
-
-  // Verify at least one active agent exists (for assignment on contact)
-  const { data: activeAgents, error: agentsError } = await adminClient
-    .from("dialer_agent_settings")
-    .select("user_id")
-    .eq("is_active", true)
-    .limit(1);
-
-  if (agentsError) {
-    return NextResponse.json({ error: agentsError.message }, { status: 500 });
-  }
-
-  if (!activeAgents || activeAgents.length === 0) {
+  if (!leads) {
     return NextResponse.json({ 
-      error: "No active agents available. Please activate at least one agent before starting campaign." 
-    }, { status: 400 });
+      count: 0,
+      avgPriorityScore: null,
+      maxPriorityScore: null,
+      minPriorityScore: null,
+      tagDistribution: {}
+    });
   }
 
-  // Create queue items with NULL assignment - leads will be assigned when agent makes first contact
-  const queueItems = leads.map((lead) => ({
-    campaign_id: id,
-    lead_id: lead.id,
-    status: "pending",
-    attempts: 0,
-    assigned_user_id: null,
-  }));
+  // Calculate statistics
+  const scores = leads.map(l => l.priority_score).filter((s): s is number => s !== null);
+  const avgPriorityScore = scores.length > 0 
+    ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+    : null;
+  const maxPriorityScore = scores.length > 0 ? Math.max(...scores) : null;
+  const minPriorityScore = scores.length > 0 ? Math.min(...scores) : null;
 
-  const { error: insertError } = await adminClient
-    .from("dialer_queue")
-    .upsert(queueItems, { onConflict: "campaign_id,lead_id", ignoreDuplicates: true });
+  // Count tag distribution
+  const tagCounts: Record<string, number> = {};
+  leads.forEach(lead => {
+    if (lead.computed_tags && Array.isArray(lead.computed_tags)) {
+      lead.computed_tags.forEach(tag => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    }
+  });
 
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
-  }
-
-  // Activate campaign
-  const { error: updateError } = await adminClient
-    .from("dialer_campaigns")
-    .update({ is_active: true })
-    .eq("id", id);
-
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ 
-    success: true, 
-    leads_queued: leads.length,
-    message: `Campaign started with ${leads.length} leads. Leads will be assigned to agents upon first contact.` 
+  return NextResponse.json({
+    count: leads.length,
+    avgPriorityScore,
+    maxPriorityScore,
+    minPriorityScore,
+    tagDistribution: tagCounts,
   });
 }

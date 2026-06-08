@@ -11,6 +11,7 @@ type ManualLeadPayload = {
   state?: string;
   postalCode?: string;
   ownerNotes?: string;
+  sourceName?: string;
 };
 
 export async function GET() {
@@ -74,16 +75,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // Get the 'manual' source ID
-  const { data: manualSource, error: sourceError } = await supabase
+  // Get the source ID based on the provided sourceName (defaults to 'manual')
+  const sourceName = body.sourceName || "manual";
+  const { data: source, error: sourceError } = await supabase
     .from("sources")
     .select("id")
-    .eq("name", "manual")
+    .eq("name", sourceName)
     .single();
 
-  if (sourceError || !manualSource) {
+  if (sourceError || !source) {
     return NextResponse.json(
-      { error: "Manual source not found. Please run migrations." },
+      { error: `Source '${sourceName}' not found. Please run migrations.` },
       { status: 500 }
     );
   }
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
       state: body.state?.trim() || null,
       postal_code: body.postalCode?.trim() || null,
       owner_notes: body.ownerNotes?.trim() || null,
-      source_id: manualSource.id,
+      source_id: source.id,
       sms_consent: false,
       status: "new",
       // All optional fields from form intake
@@ -121,6 +123,27 @@ export async function POST(request: Request) {
       { error: "Unable to create lead." },
       { status: 500 }
     );
+  }
+
+  // Auto-create property record if lead has address data
+  if (lead && lead.street_address) {
+    const { error: propertyError } = await supabase
+      .from("properties")
+      .insert({
+        lead_id: lead.id,
+        street_address: lead.street_address,
+        city: lead.city || "",
+        state: lead.state || "",
+        postal_code: lead.postal_code || "",
+        apn: null,
+        property_type: lead.property_type,
+        notes: null,
+      });
+
+    if (propertyError) {
+      console.error("Property creation error:", propertyError);
+      // Don't fail the lead creation, just log the error
+    }
   }
 
   return NextResponse.json({ success: true, lead });
