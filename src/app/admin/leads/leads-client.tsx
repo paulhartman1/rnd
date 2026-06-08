@@ -19,6 +19,10 @@ type LeadDraftState = {
   callMessage: string | null;
   showContactMenu: boolean;
   showQuestions: boolean;
+  showContactInfo: boolean;
+  showPropertyDetails: boolean;
+  showFinancial: boolean;
+  showForeclosure: boolean;
 };
 
 type Props = {
@@ -39,6 +43,10 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
     callMessage: null,
     showContactMenu: false,
     showQuestions: false,
+    showContactInfo: true,
+    showPropertyDetails: true,
+    showFinancial: false,
+    showForeclosure: false,
   };
 }
 
@@ -933,40 +941,11 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                           </span>
                         )}
                       </div>
-                      {(lead.street_address || lead.city || lead.state || lead.postal_code) && (
-                        <p className="mt-1 text-sm text-[var(--color-muted)]">
-                          {[lead.street_address, lead.city, lead.state, lead.postal_code].filter(Boolean).join(", ")}
-                        </p>
-                      )}
                     </div>
                     {isDeleted && (
                       <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-700">
                         Deleted
                       </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    {lead.email && (
-                      <a 
-                        href={`mailto:${lead.email}`}
-                        className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
-                      >
-                        <span>✉️</span>
-                        {lead.email}
-                      </a>
-                    )}
-                    {lead.phone && (
-                      <a 
-                        href={`tel:${lead.phone.replace(/\D/g, '')}`}
-                        className="inline-flex items-center gap-1.5 text-[var(--color-primary-gold)] hover:underline"
-                      >
-                        <span>📞</span>
-                        {lead.phone}
-                      </a>
-                    )}
-                    {!lead.email && !lead.phone && (
-                      <span className="text-[var(--color-muted)] text-xs">(No contact info)</span>
                     )}
                   </div>
 
@@ -976,6 +955,310 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                         <span>📍</span>
                         Source: {lead.source_name}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Property Information */}
+                  {lead.properties && lead.properties.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {lead.properties.slice(0, 1).map((property, idx) => (
+                        <div key={property.id} className="space-y-3">
+                          {/* Contact Section */}
+                          <div className="rounded-xl border border-black/10 bg-white">
+                            <button
+                              type="button"
+                              onClick={() => updateDraft(lead.id, { showContactInfo: !draft.showContactInfo })}
+                              className="w-full border-b border-black/10 bg-[var(--color-surface-soft)] px-4 py-3 text-left transition hover:bg-black/5 flex items-center justify-between"
+                            >
+                              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                                Contact Information
+                              </h3>
+                              <span className="text-xs text-[var(--color-accent)]">
+                                {draft.showContactInfo ? '▲' : '▼'}
+                              </span>
+                            </button>
+                            {draft.showContactInfo && (
+                            <div className="grid gap-3 p-4 text-sm">
+                              {lead.email && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Email</span>
+                                  <a href={`mailto:${lead.email}`} className="mt-1 block font-medium text-[var(--color-primary-gold)] hover:underline">
+                                    {lead.email}
+                                  </a>
+                                </div>
+                              )}
+                              {property.email2 && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Email 2</span>
+                                  <a href={`mailto:${property.email2}`} className="mt-1 block font-medium text-[var(--color-primary-gold)] hover:underline">
+                                    {property.email2}
+                                  </a>
+                                </div>
+                              )}
+                              {lead.phone && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Phone</span>
+                                  <a href={`tel:${lead.phone.replace(/\D/g, '')}`} className="mt-1 block font-medium text-[var(--color-primary-gold)] hover:underline">
+                                    {lead.phone}
+                                  </a>
+                                </div>
+                              )}
+                              {property.owner2_first_name && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Owner 2</span>
+                                  <p className="mt-1 font-medium">
+                                    {property.owner2_first_name} {property.owner2_last_name}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            )}
+                          </div>
+
+                          {/* Property Details Section */}
+                          <div className="rounded-xl border border-black/10 bg-white">
+                            <button
+                              type="button"
+                              onClick={() => updateDraft(lead.id, { showPropertyDetails: !draft.showPropertyDetails })}
+                              className="w-full border-b border-black/10 bg-[var(--color-surface-soft)] px-4 py-3 text-left transition hover:bg-black/5 flex items-center justify-between"
+                            >
+                              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                                Property Details
+                              </h3>
+                              <span className="text-xs text-[var(--color-accent)]">
+                                {draft.showPropertyDetails ? '▲' : '▼'}
+                              </span>
+                            </button>
+                            {draft.showPropertyDetails && (
+                            <div className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+                              <div>
+                                <span className="text-xs font-semibold text-[var(--color-muted)]">Address</span>
+                                <p className="mt-1 font-medium">{property.street_address}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs font-semibold text-[var(--color-muted)]">City</span>
+                                <p className="mt-1 font-medium">{property.city}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs font-semibold text-[var(--color-muted)]">State</span>
+                                <p className="mt-1 font-medium">{property.state}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs font-semibold text-[var(--color-muted)]">Zip</span>
+                                <p className="mt-1 font-medium">{property.postal_code}</p>
+                              </div>
+                              {property.county && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">County</span>
+                                  <p className="mt-1 font-medium">{property.county}</p>
+                                </div>
+                              )}
+                              {property.apn && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">APN</span>
+                                  <p className="mt-1 font-medium">{property.apn}</p>
+                                </div>
+                              )}
+                              {property.parcel_count !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Parcel Count</span>
+                                  <p className="mt-1 font-medium">{property.parcel_count}</p>
+                                </div>
+                              )}
+                              {property.property_type_detail && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Property Type</span>
+                                  <p className="mt-1 font-medium">{property.property_type_detail}</p>
+                                </div>
+                              )}
+                              {property.bedroom_count !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Bedrooms</span>
+                                  <p className="mt-1 font-medium">{property.bedroom_count}</p>
+                                </div>
+                              )}
+                              {property.bathroom_count !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Bathrooms</span>
+                                  <p className="mt-1 font-medium">{property.bathroom_count}</p>
+                                </div>
+                              )}
+                              {property.total_building_area_sqft && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Building Sq Ft</span>
+                                  <p className="mt-1 font-medium">{property.total_building_area_sqft.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.lot_size_sqft && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Lot Sq Ft</span>
+                                  <p className="mt-1 font-medium">{property.lot_size_sqft.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.year_built && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Year Built</span>
+                                  <p className="mt-1 font-medium">{property.year_built}</p>
+                                </div>
+                              )}
+                              {property.zoning_code && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Zoning</span>
+                                  <p className="mt-1 font-medium">{property.zoning_code}</p>
+                                </div>
+                              )}
+                              {property.owner_occupied !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Owner Occupied</span>
+                                  <p className="mt-1 font-medium">{property.owner_occupied ? 'Yes' : 'No'}</p>
+                                </div>
+                              )}
+                              {property.is_vacant !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Vacant</span>
+                                  <p className="mt-1 font-medium">{property.is_vacant ? 'Yes' : 'No'}</p>
+                                </div>
+                              )}
+                              {property.self_managed !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Self Managed</span>
+                                  <p className="mt-1 font-medium">{property.self_managed ? 'Yes' : 'No'}</p>
+                                </div>
+                              )}
+                              {property.opt_out !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Opt-Out</span>
+                                  <p className="mt-1 font-medium">{property.opt_out ? 'Yes' : 'No'}</p>
+                                </div>
+                              )}
+                            </div>
+                            )}
+                          </div>
+
+                          {/* Financial Section */}
+                          <div className="rounded-xl border border-black/10 bg-white">
+                            <button
+                              type="button"
+                              onClick={() => updateDraft(lead.id, { showFinancial: !draft.showFinancial })}
+                              className="w-full border-b border-black/10 bg-[var(--color-surface-soft)] px-4 py-3 text-left transition hover:bg-black/5 flex items-center justify-between"
+                            >
+                              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                                Financial Information
+                              </h3>
+                              <span className="text-xs text-[var(--color-accent)]">
+                                {draft.showFinancial ? '▲' : '▼'}
+                              </span>
+                            </button>
+                            {draft.showFinancial && (
+                            <div className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+                              {property.total_assessed_value && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Assessed Value</span>
+                                  <p className="mt-1 font-medium">${property.total_assessed_value.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.estimated_value && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Estimated Value</span>
+                                  <p className="mt-1 font-medium">${property.estimated_value.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.last_sale_date && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Last Sale Date</span>
+                                  <p className="mt-1 font-medium">{new Date(property.last_sale_date).toLocaleDateString()}</p>
+                                </div>
+                              )}
+                              {property.last_sale_price && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Last Sale Price</span>
+                                  <p className="mt-1 font-medium">${property.last_sale_price.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.total_loan_balance && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Loan Balance</span>
+                                  <p className="mt-1 font-medium">${property.total_loan_balance.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.equity_current_estimated_balance && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Equity</span>
+                                  <p className="mt-1 font-medium">${property.equity_current_estimated_balance.toLocaleString()}</p>
+                                </div>
+                              )}
+                              {property.ltv_current_estimated_combined !== null && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">LTV %</span>
+                                  <p className="mt-1 font-medium">{property.ltv_current_estimated_combined}%</p>
+                                </div>
+                              )}
+                              {property.mls_status && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">MLS Status</span>
+                                  <p className="mt-1 font-medium">{property.mls_status}</p>
+                                </div>
+                              )}
+                            </div>
+                            )}
+                          </div>
+
+                          {/* Foreclosure Section - Only show if has foreclosure data */}
+                          {(property.foreclosure_status || property.foreclosure_document_type || property.foreclosure_auction_date || property.foreclosure_loan_default_date) && (
+                            <div className="rounded-xl border border-red-200 bg-red-50">
+                              <button
+                                type="button"
+                                onClick={() => updateDraft(lead.id, { showForeclosure: !draft.showForeclosure })}
+                                className="w-full border-b border-red-200 bg-red-100 px-4 py-3 text-left transition hover:bg-red-200 flex items-center justify-between"
+                              >
+                                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-red-900">
+                                  ⚠️ Foreclosure Information
+                                </h3>
+                                <span className="text-xs text-red-900">
+                                  {draft.showForeclosure ? '▲' : '▼'}
+                                </span>
+                              </button>
+                              {draft.showForeclosure && (
+                              <div className="grid gap-3 p-4 text-sm sm:grid-cols-2">
+                                {property.foreclosure_status && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-red-700">Status</span>
+                                    <p className="mt-1 font-medium text-red-900">{property.foreclosure_status}</p>
+                                  </div>
+                                )}
+                                {property.foreclosure_document_type && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-red-700">Document Type</span>
+                                    <p className="mt-1 font-medium text-red-900">{property.foreclosure_document_type}</p>
+                                  </div>
+                                )}
+                                {property.foreclosure_auction_date && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-red-700">Auction Date</span>
+                                    <p className="mt-1 font-medium text-red-900">{new Date(property.foreclosure_auction_date).toLocaleDateString()}</p>
+                                  </div>
+                                )}
+                                {property.foreclosure_loan_default_date && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-red-700">Default Date</span>
+                                    <p className="mt-1 font-medium text-red-900">{new Date(property.foreclosure_loan_default_date).toLocaleDateString()}</p>
+                                  </div>
+                                )}
+                              </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {/* Show "View More Properties" if there are additional properties */}
+                      {lead.properties.length > 1 && (
+                        <div className="rounded-lg border border-black/10 bg-[var(--color-accent)]/5 px-4 py-3 text-center">
+                          <p className="text-sm font-semibold text-[var(--color-accent)]">
+                            + {lead.properties.length - 1} more {lead.properties.length - 1 === 1 ? 'property' : 'properties'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
