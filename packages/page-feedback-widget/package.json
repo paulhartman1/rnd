@@ -1,0 +1,26 @@
+{
+  "name": "@rushndush/page-feedback-widget",
+  "version": "0.1.0",
+  "description": "Drop-in page feedback widget with click-to-pin comments for authenticated web apps",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/page-feedback-widget.umd.js",
+  "module": "./dist/page-feedback-widget.esm.js",
+  "exports": {
+    ".": {
+      "import": "./dist/page-feedback-widget.esm.js",
+      "default": "./dist/page-feedback-widget.umd.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "feedback",
+    "comments",
+    "widget",
+    "review",
+    "annotation"
+  ]
+}
