@@ -18,13 +18,23 @@ function CreatePasswordForm() {
   useEffect(() => {
     async function checkSession() {
       const supabase = createClient();
+      
+      // Check if there's a hash fragment with auth tokens
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get("type");
+      
+      // If this is an invite type, wait a moment for Supabase to process the hash
+      if (type === "invite") {
+        // Give Supabase client time to process the hash fragment and create session
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
         setHasSession(true);
       } else {
-        // No session means they didn't come through the proper invite flow
-        router.push("/auth/error");
+        setErrorMessage("Unable to establish session. The invite link may have expired.");
       }
       
       setIsLoading(false);
