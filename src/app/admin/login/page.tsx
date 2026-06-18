@@ -66,7 +66,15 @@ export default function AdminLoginPage() {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-[var(--color-muted)]">Password</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-[var(--color-muted)]">Password</span>
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs text-[var(--color-muted)] hover:text-[var(--color-navy)] transition"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               autoComplete="current-password"

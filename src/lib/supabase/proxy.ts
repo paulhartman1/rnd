@@ -29,7 +29,11 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (request.nextUrl.pathname.startsWith('/auth')) {
+    console.log(`[Proxy] ${request.nextUrl.pathname} - User:`, user ? user.email : 'none', error ? `Error: ${error.message}` : '');
+  }
 
   return response;
 }

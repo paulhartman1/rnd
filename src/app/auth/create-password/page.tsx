@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 
 function CreatePasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -16,32 +17,129 @@ function CreatePasswordForm() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function checkSession() {
-      const supabase = createClient();
-      
-      // Check if there's a hash fragment with auth tokens
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get("type");
-      
-      // If this is an invite type, wait a moment for Supabase to process the hash
-      if (type === "invite") {
-        // Give Supabase client time to process the hash fragment and create session
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    const supabase = createClient();
+    let timeoutId: NodeJS.Timeout;
+    let isProcessing = false;
+    
+    async function handleImplicitFlow() {
+      // Check for hash fragment (implicit flow: #access_token=...&type=invite)
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+        
+        if (accessToken && type === 'invite' && !isProcessing) {
+          isProcessing = true;
+          console.log('[Create Password] Processing implicit flow invite token');
+          
+          try {
+            // Set the session using the tokens from the hash
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+            
+            if (error) {
+              console.error('[Create Password] Session setup error:', error);
+              setErrorMessage(`Failed to establish session: ${error.message}`);
+              setIsLoading(false);
+              return;
+            }
+            
+            if (data.session) {
+              console.log('[Create Password] Session established from implicit flow');
+              setHasSession(true);
+              setIsLoading(false);
+              if (timeoutId) clearTimeout(timeoutId);
+              
+              // Clean up the hash from the URL
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          } catch (err) {
+            console.error('[Create Password] Unexpected error:', err);
+            setErrorMessage('An unexpected error occurred. Please try again.');
+            setIsLoading(false);
+          }
+          return;
+        }
       }
       
-      const { data: { session } } = await supabase.auth.getSession();
+      // Check for token_hash and type in query params (PKCE flow)
+      const tokenHash = searchParams.get('token_hash');
+      const type = searchParams.get('type');
+      
+      if (tokenHash && type === 'invite' && !isProcessing) {
+        isProcessing = true;
+        console.log('[Create Password] Processing PKCE invite token');
+        
+        try {
+          // Verify the OTP token
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: 'invite',
+          });
+          
+          if (error) {
+            console.error('[Create Password] Token verification error:', error);
+            setErrorMessage(`Failed to verify invite: ${error.message}`);
+            setIsLoading(false);
+            return;
+          }
+          
+          if (data.session) {
+            console.log('[Create Password] Session established from PKCE token');
+            setHasSession(true);
+            setIsLoading(false);
+            if (timeoutId) clearTimeout(timeoutId);
+          }
+        } catch (err) {
+          console.error('[Create Password] Unexpected error:', err);
+          setErrorMessage('An unexpected error occurred. Please try again.');
+          setIsLoading(false);
+        }
+      }
+    }
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Create Password] Auth state change:', event, !!session);
       
       if (session) {
         setHasSession(true);
-      } else {
-        setErrorMessage("Unable to establish session. The invite link may have expired.");
+        setIsLoading(false);
+        if (timeoutId) clearTimeout(timeoutId);
       }
-      
-      setIsLoading(false);
-    }
+      // Don't show error on SIGNED_OUT - it happens intentionally after password creation
+    });
     
-    checkSession();
-  }, [router]);
+    // Check for existing session or handle invite token
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        console.log('[Create Password] Existing session found');
+        setHasSession(true);
+        setIsLoading(false);
+      } else {
+        // Try to handle implicit flow or PKCE flow
+        handleImplicitFlow().then(() => {
+          // If still no session after handling tokens, set timeout
+          supabase.auth.getSession().then(({ data: { session: newSession } }) => {
+            if (!newSession) {
+              timeoutId = setTimeout(() => {
+                setErrorMessage("Unable to establish session. The invite link may have expired.");
+                setIsLoading(false);
+              }, 5000);
+            }
+          });
+        });
+      }
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [searchParams]); // Depend on searchParams
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
