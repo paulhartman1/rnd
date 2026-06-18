@@ -12,48 +12,26 @@ function CreatePasswordForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isValidToken, setIsValidToken] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function checkSession() {
       const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      // Get hash params from URL
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get("type");
-      
-      console.log("Hash Params:", {
-        type,
-        allParams: Object.fromEntries(hashParams.entries()),
-        fullHash: window.location.hash
-      });
-      
-      // Check if this is an invite link
-      if (type === "invite") {
-        // Wait for Supabase to exchange the token for a session
-        // This happens automatically via the hash fragment
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log("Session check:", {
-          hasSession: !!session,
-          error: error?.message
-        });
-        
-        if (session) {
-          setIsValidToken(true);
-        } else {
-          setErrorMessage("Failed to establish session. The invite link may have expired.");
-        }
+      if (session) {
+        setHasSession(true);
       } else {
-        setErrorMessage("Invalid or missing invite link. Please check your email and try again.");
+        // No session means they didn't come through the proper invite flow
+        router.push("/auth/error");
       }
       
       setIsLoading(false);
     }
     
     checkSession();
-  }, []);
+  }, [router]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,34 +84,11 @@ function CreatePasswordForm() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !hasSession) {
     return (
       <main className="min-h-screen bg-[var(--color-surface)] px-4 py-14 text-[var(--color-ink)] sm:px-6 lg:px-8">
         <div className="mx-auto max-w-md rounded-[1.8rem] border border-black/6 bg-white p-7 shadow-[0_16px_45px_rgba(15,23,42,0.08)] sm:p-9">
           <p className="text-center text-[var(--color-muted)]">Loading...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (!isValidToken) {
-    return (
-      <main className="min-h-screen bg-[var(--color-surface)] px-4 py-14 text-[var(--color-ink)] sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-md rounded-[1.8rem] border border-black/6 bg-white p-7 shadow-[0_16px_45px_rgba(15,23,42,0.08)] sm:p-9">
-          <h1 className="text-3xl font-black tracking-tight text-[var(--color-navy)]">
-            Invalid Invite Link
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--color-muted)]">
-            The invite link is invalid or has expired. Please contact your administrator for a new invitation.
-          </p>
-          <div className="mt-6">
-            <Link
-              href="/admin/login"
-              className="text-sm font-semibold text-[var(--color-muted)] underline decoration-[var(--color-muted)] underline-offset-4"
-            >
-              Go to login page
-            </Link>
-          </div>
         </div>
       </main>
     );
