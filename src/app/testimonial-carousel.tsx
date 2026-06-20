@@ -42,12 +42,17 @@ export default function TestimonialCarousel() {
   useEffect(() => {
     if (isPaused || testimonials.length === 0) return;
 
+    // Calculate duration based on word count: 1 second per 3 words
+    const currentTestimonial = testimonials[currentIndex];
+    const wordCount = currentTestimonial.quote.split(/\s+/).length;
+    const duration = Math.max(3000, Math.ceil(wordCount / 3) * 1000); // Minimum 3 seconds
+
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % testimonials.length);
-    }, 3000);
+    }, duration);
 
     return () => clearInterval(interval);
-  }, [isPaused, testimonials.length]);
+  }, [isPaused, testimonials, currentIndex]);
 
   const goToSlide = (index: number) => {
     setCurrentIndex(index);
