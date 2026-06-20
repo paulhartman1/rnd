@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { SessionTracker } from "@/components/SessionTracker";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
@@ -60,6 +61,10 @@ export default function RootLayout({
     >
       <GoogleAnalytics />
       <body className="min-h-full flex flex-col">
+        <Script
+          src="https://www.loveondev.com/review-widget/widget.js"
+          strategy="afterInteractive"
+        />
         <SessionTracker />
         {children}
       </body>
