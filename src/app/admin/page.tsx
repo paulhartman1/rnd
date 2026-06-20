@@ -106,6 +106,13 @@ export default async function AdminDashboardPage() {
       stats: `${unreadVoicemails} unread messages`,
     },
     {
+      title: "Blog",
+      description: "Create and manage blog posts and articles",
+      href: "/admin/blog",
+      icon: "📝",
+      stats: "Content marketing",
+    },
+    {
       title: "Settings",
       description: "Manage lead sources, phone, appointments, and questions",
       href: "/admin/settings",
