@@ -1532,22 +1532,22 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                 {/* Mini Map Preview */}
                 {lead.properties && lead.properties.length > 0 && lead.properties[0].latitude && lead.properties[0].longitude && (
                   <div className="mt-4 overflow-hidden rounded-lg border border-black/10">
-                    <LeadsMap
-                      properties={[{
-                        ...lead.properties[0],
-                        lead: {
-                          id: lead.id,
-                          full_name: lead.full_name,
-                          email: lead.email,
-                          phone: lead.phone,
-                          status: lead.status,
-                          priority_score: lead.priority_score,
-                        }
-                      }]}
-                      onPropertyClick={() => {}}
-                      zoom={15}
-                      height="200px"
-                    />
+                      <LeadsMap
+                        properties={[{
+                          ...lead.properties[0],
+                          lead: {
+                            id: lead.id,
+                            full_name: lead.full_name || '',
+                            email: lead.email,
+                            phone: lead.phone,
+                            status: lead.status,
+                            priority_score: lead.priority_score,
+                          }
+                        }]}
+                        onPropertyClick={() => {}}
+                        zoom={15}
+                        height="200px"
+                      />
                   </div>
                 )}
               </div>
