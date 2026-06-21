@@ -33,8 +33,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface Property {
   id: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   street_address: string;
   city: string;
   state: string;
@@ -47,6 +47,7 @@ interface Property {
     status: string;
     priority_score: number | null;
   } | null;
+  [key: string]: any; // Allow additional PropertyRow fields
 }
 
 interface LeadsMapProps {
@@ -62,9 +63,10 @@ function FitBounds({ properties }: { properties: Property[] }) {
   const map = useMap();
 
   useEffect(() => {
-    if (properties.length > 0) {
+    const validProps = properties.filter(p => p.latitude !== null && p.longitude !== null);
+    if (validProps.length > 0) {
       const bounds = L.latLngBounds(
-        properties.map(p => [p.latitude, p.longitude] as [number, number])
+        validProps.map(p => [p.latitude!, p.longitude!] as [number, number])
       );
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
@@ -148,7 +150,7 @@ export default function LeadsMap({
         spiderfyOnMaxZoom={true}
         showCoverageOnHover={false}
       >
-        {properties.map((property) => {
+        {properties.filter(p => p.latitude !== null && p.longitude !== null).map((property) => {
           const status = property.lead?.status || 'new';
           const color = STATUS_COLORS[status] || STATUS_COLORS['new'];
           const icon = createColoredIcon(color);
@@ -156,7 +158,7 @@ export default function LeadsMap({
           return (
             <Marker
               key={property.id}
-              position={[property.latitude, property.longitude]}
+              position={[property.latitude!, property.longitude!]}
               icon={icon}
               eventHandlers={{
                 click: () => {

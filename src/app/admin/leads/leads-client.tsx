@@ -1541,7 +1541,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                             email: lead.email,
                             phone: lead.phone,
                             status: lead.status,
-                            priority_score: lead.priority_score,
+                            priority_score: null,
                           }
                         }]}
                         onPropertyClick={() => {}}
