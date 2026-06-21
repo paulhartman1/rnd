@@ -127,7 +127,7 @@ export async function POST(request: Request) {
 
   // Auto-create property record if lead has address data
   if (lead && lead.street_address) {
-    const { error: propertyError } = await supabase
+    const { data: property, error: propertyError } = await supabase
       .from("properties")
       .insert({
         lead_id: lead.id,
@@ -138,11 +138,39 @@ export async function POST(request: Request) {
         apn: null,
         property_type: lead.property_type,
         notes: null,
-      });
+      })
+      .select()
+      .single();
 
     if (propertyError) {
       console.error("Property creation error:", propertyError);
       // Don't fail the lead creation, just log the error
+    } else if (property) {
+      // Geocode the property immediately (imported from geocoding lib)
+      const { geocodeAddress } = await import("@/lib/geocoding");
+      const geocodeResult = await geocodeAddress(
+        property.street_address,
+        property.city || "",
+        property.state || "",
+        property.postal_code || ""
+      );
+
+      if ('latitude' in geocodeResult) {
+        // Update property with geocoding results
+        await supabase
+          .from("properties")
+          .update({
+            latitude: geocodeResult.latitude,
+            longitude: geocodeResult.longitude,
+            geocoded_at: new Date().toISOString(),
+            geocode_source: geocodeResult.source,
+          })
+          .eq('id', property.id);
+        
+        console.log(`Geocoded property ${property.id}: ${geocodeResult.displayName}`);
+      } else {
+        console.log(`Failed to geocode property ${property.id}: ${geocodeResult.error}`);
+      }
     }
   }
 

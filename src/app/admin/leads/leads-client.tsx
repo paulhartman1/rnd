@@ -177,12 +177,12 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
 
   // Fetch geocoded properties for map view
   useEffect(() => {
-    if (viewMode === 'map' && geocodedProperties.length === 0) {
+    if (viewMode === 'map') {
       const fetchGeocodedProperties = async () => {
         setIsLoadingMap(true);
         const supabase = createClient();
         
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('properties')
           .select(`
             id,
@@ -203,15 +203,21 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
             )
           `)
           .not('latitude', 'is', null)
-          .not('longitude', 'is', null);
+          .not('longitude', 'is', null)
+          .is('leads.deleted_at', null);
         
+        if (error) {
+          console.error('Error fetching geocoded properties:', error);
+        }
+        
+        console.log('Fetched geocoded properties:', data?.length || 0);
         setGeocodedProperties(data || []);
         setIsLoadingMap(false);
       };
       
       fetchGeocodedProperties();
     }
-  }, [viewMode, geocodedProperties.length]);
+  }, [viewMode]);
 
   const visibleLeads = useMemo(() => {
     let filtered = leads.filter((lead) => showDeleted || !lead.deleted_at);
