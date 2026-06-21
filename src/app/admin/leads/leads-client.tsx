@@ -8,6 +8,13 @@ import {
 } from "@/lib/appointments";
 import { createClient } from "@/lib/supabase/client";
 import type { LeadAnswer, LeadWithProperties } from "./page";
+import dynamic from 'next/dynamic';
+
+// Dynamically import map to avoid SSR issues with Leaflet
+const LeadsMap = dynamic(
+  () => import('./components/LeadsMap'),
+  { ssr: false, loading: () => <div className="flex h-full items-center justify-center">Loading map...</div> }
+);
 
 type LeadDraftState = {
   status: LeadStatus;
@@ -68,6 +75,10 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name" | "hot" | "source">("hot");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [geocodedProperties, setGeocodedProperties] = useState<any[]>([]);
+  const [isLoadingMap, setIsLoadingMap] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
   const [appointmentDraft, setAppointmentDraft] = useState({
@@ -163,6 +174,65 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     };
     fetchSources();
   }, []);
+
+  // Fetch geocoded properties for map view
+  useEffect(() => {
+    if (viewMode === 'map') {
+      const fetchGeocodedProperties = async () => {
+        setIsLoadingMap(true);
+        const supabase = createClient();
+        
+        const { data, error } = await supabase
+          .from('properties')
+          .select(`
+            id,
+            latitude,
+            longitude,
+            street_address,
+            city,
+            state,
+            postal_code,
+            lead_id,
+            leads(
+              id,
+              full_name,
+              email,
+              phone,
+              status,
+              priority_score,
+              deleted_at
+            )
+          `)
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null);
+        
+        if (error) {
+          console.error('Error fetching geocoded properties:', error);
+        }
+        
+        // Filter out properties with deleted leads
+        console.log('Sample property data:', data?.[0]);
+        const filtered = (data || []).filter(p => {
+          const lead = Array.isArray(p.leads) ? p.leads[0] : p.leads;
+          if (!lead) {
+            console.log('Property has no lead:', p.id);
+            return false;
+          }
+          const isDeleted = !!lead.deleted_at;
+          if (isDeleted) {
+            console.log('Lead is deleted:', lead.id, lead.deleted_at);
+          }
+          return !isDeleted;
+        });
+        
+        console.log('Fetched geocoded properties:', filtered.length, 'out of', data?.length || 0);
+        setGeocodedProperties(filtered);
+        setIsLoadingMap(false);
+      };
+      
+      fetchGeocodedProperties();
+    }
+  }, [viewMode]);
 
   const visibleLeads = useMemo(() => {
     let filtered = leads.filter((lead) => showDeleted || !lead.deleted_at);
@@ -688,7 +758,66 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Mobile-first View Toggle */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* View Mode Tabs - Mobile First */}
+        <div className="inline-flex w-full sm:w-auto rounded-lg border border-black/10 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`flex-1 sm:flex-initial rounded-md px-4 py-2 text-sm font-semibold transition ${
+              viewMode === 'list'
+                ? 'bg-[var(--color-primary-gold)] text-[var(--color-navy)]'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-navy)]'
+            }`}
+          >
+            📋 List
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('map')}
+            className={`flex-1 sm:flex-initial rounded-md px-4 py-2 text-sm font-semibold transition ${
+              viewMode === 'map'
+                ? 'bg-[var(--color-primary-gold)] text-[var(--color-navy)]'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-navy)]'
+            }`}
+          >
+            🗺️ Map
+          </button>
+        </div>
+
+        {/* Action Buttons - Stack on mobile */}
+        <div className="flex flex-wrap gap-2">
+          {canBulkImport && (
+            <button
+              type="button"
+              onClick={openBulkImportModal}
+              className="flex-1 sm:flex-initial rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
+            >
+              <span className="hidden sm:inline">📊 Bulk Import</span>
+              <span className="sm:hidden">📊 Import</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={openCreateLeadModal}
+            className="flex-1 sm:flex-initial rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
+          >
+            <span className="hidden sm:inline">+ Create Lead</span>
+            <span className="sm:hidden">+ Lead</span>
+          </button>
+          <button
+            type="button"
+            onClick={signOut}
+            disabled={isSigningOut}
+            className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isSigningOut ? "..." : "Sign out"}
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'list' && (
         <div className="flex flex-wrap items-center gap-3">
           <label className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-navy)]">
             <input
@@ -727,34 +856,10 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
             </label>
           </div>
         </div>
-        <div className="flex gap-2">
-          {canBulkImport && (
-            <button
-              type="button"
-              onClick={openBulkImportModal}
-              className="rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
-            >
-              📊 Bulk Import
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={openCreateLeadModal}
-            className="rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
-          >
-            + Create Lead
-          </button>
-          <button
-            type="button"
-            onClick={signOut}
-            disabled={isSigningOut}
-            className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            {isSigningOut ? "Signing out..." : "Sign out"}
-          </button>
-        </div>
-      </div>
+      )}
 
+      {viewMode === 'list' ? (
+        <>
       <div className="rounded-[1.4rem] border border-black/6 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="sm:col-span-2">
@@ -1342,8 +1447,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                   <p className="text-sm text-emerald-700">{draft.callMessage}</p>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2">
-                  <button
+                <div className="flex flex-wrap gap-2">                  <button
                     type="button"
                     onClick={() => saveLead(lead.id)}
                     disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
@@ -1424,6 +1528,28 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                     {isDeleted ? "Deleted" : draft.isRemoving ? "Deleting..." : "Delete Lead"}
                   </button>
                 </div>
+
+                {/* Mini Map Preview */}
+                {lead.properties && lead.properties.length > 0 && lead.properties[0].latitude && lead.properties[0].longitude && (
+                  <div className="mt-4 overflow-hidden rounded-lg border border-black/10">
+                      <LeadsMap
+                        properties={[{
+                          ...lead.properties[0],
+                          lead: {
+                            id: lead.id,
+                            full_name: lead.full_name || '',
+                            email: lead.email,
+                            phone: lead.phone,
+                            status: lead.status,
+                            priority_score: null,
+                          }
+                        }]}
+                        onPropertyClick={() => {}}
+                        zoom={15}
+                        height="200px"
+                      />
+                  </div>
+                )}
               </div>
             </div>
           </article>
@@ -2247,6 +2373,95 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
             )}
           </div>
         </div>
+      )}
+        </>
+      ) : (
+        <>
+          {/* Map View */}
+          <div className="rounded-[1.4rem] border border-black/6 bg-white overflow-hidden shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
+            <div className="h-[calc(100vh-280px)] min-h-[500px]">
+              {isLoadingMap ? (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <div className="mb-2 text-lg font-semibold text-gray-700">Loading map...</div>
+                    <div className="text-sm text-gray-500">Fetching geocoded properties</div>
+                  </div>
+                </div>
+              ) : (
+                <LeadsMap
+                  properties={geocodedProperties.map(p => ({
+                    ...p,
+                    lead: p.leads
+                  }))}
+                  onPropertyClick={(propertyId, leadId) => {
+                    setViewMode('list');
+                    if (leadId) {
+                      console.log('Navigate to lead:', leadId);
+                    }
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Map Stats */}
+            <div className="border-t border-black/6 bg-[var(--color-surface-soft)] px-4 py-3">
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                <div>
+                  <span className="font-semibold text-[var(--color-navy)]">{geocodedProperties.length}</span>
+                  <span className="ml-1 text-[var(--color-muted)]">geocoded properties</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-[var(--color-navy)]">{leads.length}</span>
+                  <span className="ml-1 text-[var(--color-muted)]">total leads</span>
+                </div>
+                {geocodedProperties.length < leads.length && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsGeocoding(true);
+                      try {
+                        const response = await fetch('/api/admin/properties/geocode', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ limit: 50 }),
+                        });
+                        if (response.ok) {
+                          const result = await response.json();
+                          console.log('Geocoding result:', result);
+                          // Reload to show new geocoded properties
+                          window.location.reload();
+                        } else {
+                          const error = await response.json();
+                          console.error('Geocoding failed:', error);
+                          alert(`Geocoding failed: ${error.error || 'Unknown error'}`);
+                          setIsGeocoding(false);
+                        }
+                      } catch (error) {
+                        console.error('Geocoding error:', error);
+                        alert('Geocoding failed. Please try again.');
+                        setIsGeocoding(false);
+                      }
+                    }}
+                    disabled={isGeocoding}
+                    className="ml-auto rounded-lg bg-[var(--color-primary-gold)] px-3 py-1.5 text-xs font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isGeocoding ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Geocoding...
+                      </>
+                    ) : (
+                      'Geocode More Properties'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </section>
   );

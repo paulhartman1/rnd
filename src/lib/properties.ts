@@ -66,6 +66,12 @@ export type PropertyRow = {
   // Notes
   notes: string | null;
   
+  // Geocoding
+  latitude: number | null;
+  longitude: number | null;
+  geocoded_at: string | null;
+  geocode_source: string | null;
+  
   // Timestamps
   created_at: string;
   updated_at: string;
