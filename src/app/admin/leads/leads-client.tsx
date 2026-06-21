@@ -193,25 +193,28 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
             state,
             postal_code,
             lead_id,
-            leads!inner(
+            leads(
               id,
               full_name,
               email,
               phone,
               status,
-              priority_score
+              priority_score,
+              deleted_at
             )
           `)
           .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
-          .is('leads.deleted_at', null);
+          .not('longitude', 'is', null);
         
         if (error) {
           console.error('Error fetching geocoded properties:', error);
         }
         
-        console.log('Fetched geocoded properties:', data?.length || 0);
-        setGeocodedProperties(data || []);
+        // Filter out properties with deleted leads
+        const filtered = (data || []).filter(p => p.leads && !p.leads.deleted_at);
+        
+        console.log('Fetched geocoded properties:', filtered.length, 'out of', data?.length || 0);
+        setGeocodedProperties(filtered);
         setIsLoadingMap(false);
       };
       
