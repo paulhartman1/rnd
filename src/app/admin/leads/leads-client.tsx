@@ -1447,30 +1447,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                   <p className="text-sm text-emerald-700">{draft.callMessage}</p>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2">
-                  {/* Mini Map Preview */}
-                  {lead.properties && lead.properties.length > 0 && lead.properties[0].latitude && lead.properties[0].longitude && (
-                    <div className="mb-4 overflow-hidden rounded-lg border border-black/10">
-                      <LeadsMap
-                        properties={[{
-                          ...lead.properties[0],
-                          lead: {
-                            id: lead.id,
-                            full_name: lead.full_name,
-                            email: lead.email,
-                            phone: lead.phone,
-                            status: lead.status,
-                            priority_score: lead.priority_score,
-                          }
-                        }]}
-                        onPropertyClick={() => {}}
-                        zoom={15}
-                        height="200px"
-                      />
-                    </div>
-                  )}
-
-                  <button
+                <div className="flex flex-wrap gap-2">                  <button
                     type="button"
                     onClick={() => saveLead(lead.id)}
                     disabled={isDeleted || draft.isSaving || draft.isCalling || draft.isRemoving}
@@ -1551,6 +1528,28 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                     {isDeleted ? "Deleted" : draft.isRemoving ? "Deleting..." : "Delete Lead"}
                   </button>
                 </div>
+
+                {/* Mini Map Preview */}
+                {lead.properties && lead.properties.length > 0 && lead.properties[0].latitude && lead.properties[0].longitude && (
+                  <div className="mt-4 overflow-hidden rounded-lg border border-black/10">
+                    <LeadsMap
+                      properties={[{
+                        ...lead.properties[0],
+                        lead: {
+                          id: lead.id,
+                          full_name: lead.full_name,
+                          email: lead.email,
+                          phone: lead.phone,
+                          status: lead.status,
+                          priority_score: lead.priority_score,
+                        }
+                      }]}
+                      onPropertyClick={() => {}}
+                      zoom={15}
+                      height="200px"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </article>
