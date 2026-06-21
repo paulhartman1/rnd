@@ -211,7 +211,10 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
         }
         
         // Filter out properties with deleted leads
-        const filtered = (data || []).filter(p => p.leads && !p.leads.deleted_at);
+        const filtered = (data || []).filter(p => {
+          const lead = Array.isArray(p.leads) ? p.leads[0] : p.leads;
+          return lead && !lead.deleted_at;
+        });
         
         console.log('Fetched geocoded properties:', filtered.length, 'out of', data?.length || 0);
         setGeocodedProperties(filtered);
