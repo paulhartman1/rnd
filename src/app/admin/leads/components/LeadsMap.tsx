@@ -54,6 +54,7 @@ interface LeadsMapProps {
   onPropertyClick?: (propertyId: string, leadId?: string) => void;
   center?: [number, number];
   zoom?: number;
+  height?: string;
 }
 
 // Component to fit map bounds to markers
@@ -94,7 +95,8 @@ export default function LeadsMap({
   properties, 
   onPropertyClick,
   center = [39.8283, -98.5795], // Geographic center of USA
-  zoom = 4 
+  zoom = 4,
+  height = '100%'
 }: LeadsMapProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -130,7 +132,7 @@ export default function LeadsMap({
     <MapContainer
       center={center}
       zoom={zoom}
-      style={{ height: '100%', width: '100%' }}
+      style={{ height, width: '100%' }}
       className="z-0"
     >
       <TileLayer
