@@ -837,6 +837,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
       )}
 
       {viewMode === 'list' ? (
+        <>
       <div className="rounded-[1.4rem] border border-black/6 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="sm:col-span-2">
@@ -2330,6 +2331,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
           </div>
         </div>
       )}
+        </>
       ) : (
         <>
           {/* Map View */}

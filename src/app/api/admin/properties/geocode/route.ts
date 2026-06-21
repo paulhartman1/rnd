@@ -29,6 +29,13 @@ import { geocodeAddresses } from "@/lib/geocoding";
 export async function POST(request: NextRequest) {
   try {
     const supabase = createAdminClient();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Failed to create Supabase client' },
+        { status: 500 }
+      );
+    }
+    
     const body = await request.json().catch(() => ({}));
     
     const { propertyIds, limit = 100 } = body;
@@ -152,6 +159,12 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const supabase = createAdminClient();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Failed to create Supabase client' },
+        { status: 500 }
+      );
+    }
 
     // Get total properties
     const { count: totalProperties } = await supabase
