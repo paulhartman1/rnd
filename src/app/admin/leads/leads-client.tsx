@@ -78,6 +78,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [geocodedProperties, setGeocodedProperties] = useState<any[]>([]);
   const [isLoadingMap, setIsLoadingMap] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
   const [appointmentDraft, setAppointmentDraft] = useState({
@@ -2375,18 +2376,44 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                   <button
                     type="button"
                     onClick={async () => {
-                      const response = await fetch('/api/admin/properties/geocode', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ limit: 50 }),
-                      });
-                      if (response.ok) {
-                        window.location.reload();
+                      setIsGeocoding(true);
+                      try {
+                        const response = await fetch('/api/admin/properties/geocode', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ limit: 50 }),
+                        });
+                        if (response.ok) {
+                          const result = await response.json();
+                          console.log('Geocoding result:', result);
+                          // Reload to show new geocoded properties
+                          window.location.reload();
+                        } else {
+                          const error = await response.json();
+                          console.error('Geocoding failed:', error);
+                          alert(`Geocoding failed: ${error.error || 'Unknown error'}`);
+                          setIsGeocoding(false);
+                        }
+                      } catch (error) {
+                        console.error('Geocoding error:', error);
+                        alert('Geocoding failed. Please try again.');
+                        setIsGeocoding(false);
                       }
                     }}
-                    className="ml-auto rounded-lg bg-[var(--color-primary-gold)] px-3 py-1.5 text-xs font-bold text-[var(--color-navy)] transition hover:brightness-95"
+                    disabled={isGeocoding}
+                    className="ml-auto rounded-lg bg-[var(--color-primary-gold)] px-3 py-1.5 text-xs font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
                   >
-                    Geocode More Properties
+                    {isGeocoding ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Geocoding...
+                      </>
+                    ) : (
+                      'Geocode More Properties'
+                    )}
                   </button>
                 )}
               </div>

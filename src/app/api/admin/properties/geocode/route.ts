@@ -96,24 +96,22 @@ export async function POST(request: NextRequest) {
     }));
 
     if (updates.length > 0) {
-      // Batch update all properties at once
-      const { error: updateError } = await supabase
-        .from('properties')
-        .upsert(updates, { onConflict: 'id' });
+      // Update each property individually since we're only updating specific columns
+      for (const update of updates) {
+        const { error: updateError } = await supabase
+          .from('properties')
+          .update({
+            latitude: update.latitude,
+            longitude: update.longitude,
+            geocoded_at: update.geocoded_at,
+            geocode_source: update.geocode_source,
+          })
+          .eq('id', update.id);
 
-      if (updateError) {
-        console.error('Error updating properties:', updateError);
-        return NextResponse.json(
-          { 
-            error: 'Failed to update properties with coordinates',
-            details: updateError.message,
-            partialResults: {
-              geocoded: results.length,
-              errors: errors.length,
-            }
-          },
-          { status: 500 }
-        );
+        if (updateError) {
+          console.error(`Error updating property ${update.id}:`, updateError);
+          // Continue with other updates even if one fails
+        }
       }
     }
 
