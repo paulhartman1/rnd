@@ -211,9 +211,18 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
         }
         
         // Filter out properties with deleted leads
+        console.log('Sample property data:', data?.[0]);
         const filtered = (data || []).filter(p => {
           const lead = Array.isArray(p.leads) ? p.leads[0] : p.leads;
-          return lead && !lead.deleted_at;
+          if (!lead) {
+            console.log('Property has no lead:', p.id);
+            return false;
+          }
+          const isDeleted = !!lead.deleted_at;
+          if (isDeleted) {
+            console.log('Lead is deleted:', lead.id, lead.deleted_at);
+          }
+          return !isDeleted;
         });
         
         console.log('Fetched geocoded properties:', filtered.length, 'out of', data?.length || 0);
