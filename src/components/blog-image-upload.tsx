@@ -190,8 +190,10 @@ export default function BlogImageUpload({
       if (insertError) throw insertError;
 
       setUploadStatus({ status: 'success', message: 'Uploaded!' });
+      console.log('Upload complete! Image URL:', insertedImage.url);
 
       if (onUploadComplete && insertedImage) {
+        console.log('Calling onUploadComplete with:', insertedImage.url);
         onUploadComplete({
           id: insertedImage.id,
           url: insertedImage.url,

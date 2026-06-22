@@ -76,6 +76,7 @@ export default function BlogPostForm({ post }: BlogPostFormProps) {
         meta_description: formData.meta_description || null,
         tags: tagsArray,
       };
+      console.log('Submitting blog post with featured_image_url:', formData.featured_image_url);
 
       const url = post
         ? `/api/admin/blog/${post.id}`
@@ -228,6 +229,7 @@ export default function BlogPostForm({ post }: BlogPostFormProps) {
           blogPostId={post?.id}
           currentImageUrl={formData.featured_image_url}
           onUploadComplete={(result) => {
+            console.log('Setting featured_image_url to:', result.url);
             setFormData((prev) => ({
               ...prev,
               featured_image_url: result.url
