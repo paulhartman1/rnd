@@ -25,6 +25,35 @@ describe("parseLeadPayload", () => {
           email: "john@example.com",
           phone: "555-1234",
           sms_consent: true,
+          owner_notes: null,
+        });
+      }
+    });
+
+    it("should parse a REI Lead Pros payload with combined address, negotiability, blank email, and notes", () => {
+      const result = parseLeadPayload({
+        ...validIntakeAnswers,
+        acceptableOffer: "",
+        negotiability: "Yes",
+        streetAddress: "",
+        address: "123 Main St, Springfield, IL 62701",
+        city: "",
+        state: "",
+        postalCode: "",
+        email: "",
+        notes: "Prospect wants a fast close.",
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toMatchObject({
+          acceptable_offer: "Yes",
+          street_address: "123 Main St, Springfield, IL 62701",
+          city: null,
+          state: null,
+          postal_code: null,
+          email: null,
+          owner_notes: "Prospect wants a fast close.",
         });
       }
     });
@@ -115,12 +144,11 @@ describe("parseLeadPayload", () => {
       }
     });
 
-    it("should return error for missing email", () => {
+    it("should allow missing email when phone is provided", () => {
       const result = parseLeadPayload(invalidIntakeAnswers.missingEmail);
-
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.error).toBe("A valid email is required.");
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.email).toBe(null);
       }
     });
 
@@ -167,7 +195,7 @@ describe("parseLeadPayload", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toBe("streetAddress is required.");
+        expect(result.error).toBe("streetAddress or address is required.");
       }
     });
 

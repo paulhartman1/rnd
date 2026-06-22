@@ -115,7 +115,7 @@ X-API-Key: <your_api_key>
 - Lead status is automatically set to "new"
 - All timestamps are automatically generated
 - The `questionHistory` field is optional but recommended for tracking the intake flow
-- If `LEADS_API_KEY` is not set in environment variables, the endpoint will accept requests without authentication (for backward compatibility with existing frontend)
+- The production server must define `REI_LEAD_PROS_API_KEY`; requests without a matching `X-API-Key` header are rejected
 
 ---
 

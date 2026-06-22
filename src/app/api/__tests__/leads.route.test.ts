@@ -14,10 +14,62 @@ vi.mock("@/lib/supabase/server", () => ({
 
 describe("POST /api/leads", () => {
   let mockSupabase: ReturnType<typeof createMockSupabaseClient>;
+  const apiKey = "test-rei-lead-pros-key";
 
   beforeEach(() => {
     mockSupabase = createMockSupabaseClient();
     vi.clearAllMocks();
+    process.env.REI_LEAD_PROS_API_KEY = apiKey;
+  });
+
+  it("should return 401 when API key is missing", async () => {
+    const request = new Request("http://localhost:3000/api/leads", {
+      method: "POST",
+      body: JSON.stringify(validIntakeAnswers),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized. Invalid or missing API key.");
+  });
+
+  it("should return 401 when API key is invalid", async () => {
+    const request = new Request("http://localhost:3000/api/leads", {
+      method: "POST",
+      body: JSON.stringify(validIntakeAnswers),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": "wrong-key",
+      },
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized. Invalid or missing API key.");
+  });
+
+  it("should return 401 when server API key is not configured", async () => {
+    delete process.env.REI_LEAD_PROS_API_KEY;
+
+    const request = new Request("http://localhost:3000/api/leads", {
+      method: "POST",
+      body: JSON.stringify(validIntakeAnswers),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data.error).toBe("Unauthorized. Invalid or missing API key.");
   });
 
   it("should create a lead with valid payload and return 201", async () => {
@@ -32,7 +84,10 @@ describe("POST /api/leads", () => {
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
       body: JSON.stringify(validIntakeAnswers),
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
     });
 
     const response = await POST(request);
@@ -57,23 +112,27 @@ describe("POST /api/leads", () => {
       email: "john@example.com",
       phone: "555-1234",
       sms_consent: true,
+      owner_notes: null,
     });
   });
 
   it("should return 400 for missing required fields", async () => {
-    const invalidPayload = { ...validIntakeAnswers, email: "" };
+    const invalidPayload = { ...validIntakeAnswers, fullName: "" };
 
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
       body: JSON.stringify(invalidPayload),
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
     });
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe("A valid email is required.");
+    expect(data.error).toBe("fullName is required.");
   });
 
   it("should return 400 for invalid email format", async () => {
@@ -82,7 +141,10 @@ describe("POST /api/leads", () => {
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
       body: JSON.stringify(invalidPayload),
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
     });
 
     const response = await POST(request);
@@ -98,7 +160,10 @@ describe("POST /api/leads", () => {
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
       body: JSON.stringify(invalidPayload),
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
     });
 
     const response = await POST(request);
@@ -125,7 +190,10 @@ describe("POST /api/leads", () => {
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
       body: JSON.stringify(validIntakeAnswers),
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
     });
 
     const response = await POST(request);
@@ -171,7 +239,10 @@ describe("POST /api/leads", () => {
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
       body: "{ invalid json",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": apiKey,
+      },
     });
 
     const response = await POST(request);

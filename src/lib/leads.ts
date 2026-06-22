@@ -17,7 +17,9 @@ export type IntakeAnswers = {
   closeTimeline: string;
   sellReason: string;
   acceptableOffer: string;
+  negotiability?: string;
   streetAddress: string;
+  address?: string;
   city: string;
   state: string;
   postalCode: string;
@@ -25,6 +27,7 @@ export type IntakeAnswers = {
   email: string;
   phone: string;
   smsConsent: boolean;
+  notes?: string;
 };
 
 export type LeadInsert = {
@@ -43,6 +46,7 @@ export type LeadInsert = {
   email: string | null;
   phone: string | null;
   sms_consent: boolean;
+  owner_notes?: string | null;
 };
 
 export type LeadRow = LeadInsert & {
@@ -68,6 +72,18 @@ function requiredTrimmedString(value: unknown, fieldLabel: string): ParseResult<
 
   return { ok: true, data: value.trim() };
 }
+function optionalTrimmedString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function firstOptionalTrimmedString(...values: unknown[]): string | null {
+  for (const value of values) {
+    const trimmed = optionalTrimmedString(value);
+    if (trimmed) return trimmed;
+  }
+
+  return null;
+}
 
 function yesNoToBoolean(value: unknown, fieldLabel: string): ParseResult<boolean> {
   if (value === "Yes") {
@@ -85,7 +101,7 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
     return { ok: false, error: "Invalid request body." };
   }
 
-  const body = payload as Partial<IntakeAnswers>;
+  const body = payload as Partial<IntakeAnswers> & Record<string, unknown>;
   const listedWithAgent = yesNoToBoolean(body.listedWithAgent, "listedWithAgent");
   if (!listedWithAgent.ok) return listedWithAgent;
 
@@ -114,26 +130,49 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
   const sellReason = requiredTrimmedString(body.sellReason, "sellReason");
   if (!sellReason.ok) return sellReason;
 
-  const acceptableOffer = requiredTrimmedString(body.acceptableOffer, "acceptableOffer");
-  if (!acceptableOffer.ok) return acceptableOffer;
+  const acceptableOfferValue = firstOptionalTrimmedString(
+    body.acceptableOffer,
+    body.negotiability,
+    body.Negotiability,
+  );
+  if (!acceptableOfferValue) {
+    return { ok: false, error: "acceptableOffer or negotiability is required." };
+  }
 
-  const streetAddress = requiredTrimmedString(body.streetAddress, "streetAddress");
-  if (!streetAddress.ok) return streetAddress;
+  const combinedAddress = firstOptionalTrimmedString(body.address, body.Address);
+  const streetAddressValue = firstOptionalTrimmedString(body.streetAddress, combinedAddress);
+  if (!streetAddressValue) {
+    return { ok: false, error: "streetAddress or address is required." };
+  }
 
-  const city = requiredTrimmedString(body.city, "city");
-  if (!city.ok) return city;
+  let cityValue: string | null = null;
+  let stateValue: string | null = null;
+  let postalCodeValue: string | null = null;
 
-  const state = requiredTrimmedString(body.state, "state");
-  if (!state.ok) return state;
+  if (combinedAddress) {
+    cityValue = optionalTrimmedString(body.city);
+    stateValue = optionalTrimmedString(body.state);
+    postalCodeValue = optionalTrimmedString(body.postalCode);
+  } else {
+    const city = requiredTrimmedString(body.city, "city");
+    if (!city.ok) return city;
 
-  const postalCode = requiredTrimmedString(body.postalCode, "postalCode");
-  if (!postalCode.ok) return postalCode;
+    const state = requiredTrimmedString(body.state, "state");
+    if (!state.ok) return state;
+
+    const postalCode = requiredTrimmedString(body.postalCode, "postalCode");
+    if (!postalCode.ok) return postalCode;
+
+    cityValue = city.data;
+    stateValue = state.data;
+    postalCodeValue = postalCode.data;
+  }
 
   const fullName = requiredTrimmedString(body.fullName, "fullName");
   if (!fullName.ok) return fullName;
 
-  const email = requiredTrimmedString(body.email, "email");
-  if (!email.ok || !/\S+@\S+\.\S+/.test(email.data)) {
+  const emailValue = optionalTrimmedString(body.email);
+  if (emailValue && !/\S+@\S+\.\S+/.test(emailValue)) {
     return { ok: false, error: "A valid email is required." };
   }
 
@@ -153,15 +192,16 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
       repairs_needed: repairsNeededValue,
       close_timeline: closeTimeline.data,
       sell_reason: sellReason.data,
-      acceptable_offer: acceptableOffer.data,
-      street_address: streetAddress.data,
-      city: city.data,
-      state: state.data,
-      postal_code: postalCode.data,
+      acceptable_offer: acceptableOfferValue,
+      street_address: streetAddressValue,
+      city: cityValue,
+      state: stateValue,
+      postal_code: postalCodeValue,
       full_name: fullName.data,
-      email: email.data,
+      email: emailValue,
       phone: phone.data,
       sms_consent: true,
+      owner_notes: firstOptionalTrimmedString(body.notes, body.Notes),
     },
   };
 }
