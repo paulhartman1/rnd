@@ -295,6 +295,7 @@ export default function BlogImageUpload({
             )}
 
             <button
+              type="button"
               onClick={removeFile}
               className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
               disabled={uploading}
@@ -337,6 +338,7 @@ export default function BlogImageUpload({
 
               {file.valid && uploadStatus?.status !== 'success' && (
                 <button
+                  type="button"
                   onClick={uploadToSupabase}
                   disabled={uploading}
                   className="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
