@@ -20,11 +20,38 @@ export async function POST(request: Request) {
       );
     }
     const payload = await request.json();
+    
+    // Log the incoming request for debugging
+    console.log('[/api/leads] Incoming request:', {
+      timestamp: new Date().toISOString(),
+      headers: {
+        'content-type': request.headers.get('content-type'),
+        'user-agent': request.headers.get('user-agent'),
+        'x-forwarded-for': request.headers.get('x-forwarded-for'),
+      },
+      body: JSON.stringify(payload, null, 2),
+    });
+    
     const parsedLead = parseLeadPayload(payload);
 
     if (!parsedLead.ok) {
+      console.error('[/api/leads] Validation error:', parsedLead.error);
       return NextResponse.json({ error: parsedLead.error }, { status: 400 });
     }
+    
+    // Log the parsed lead data
+    console.log('[/api/leads] Parsed lead data:', {
+      full_name: parsedLead.data.full_name,
+      phone: parsedLead.data.phone,
+      email: parsedLead.data.email,
+      address: {
+        street: parsedLead.data.street_address,
+        city: parsedLead.data.city,
+        state: parsedLead.data.state,
+        zip: parsedLead.data.postal_code,
+      },
+      acceptable_offer: parsedLead.data.acceptable_offer,
+    });
 
     const adminClient = createAdminClient();
     const supabase = adminClient ?? (await createClient());
