@@ -137,37 +137,6 @@ export default async function BlogPage({ searchParams }: PageProps) {
             <p className="text-xl text-gray-600 mt-3">
               Expert insights, tips, and updates to help you navigate the real estate market
             </p>
-            
-            {/* Tag Filter */}
-            {allTags.length > 0 && (
-              <div className="mt-6">
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href="/blog"
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      !tag
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                  >
-                    All Posts
-                  </Link>
-                  {allTags.map((t) => (
-                    <Link
-                      key={t}
-                      href={`/blog?tag=${encodeURIComponent(t)}`}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                        tag === t
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                    >
-                      {t}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </header>
 
