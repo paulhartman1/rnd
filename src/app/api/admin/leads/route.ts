@@ -2,69 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendNewLeadNotifications } from "@/lib/notifications";
-
-/**
- * Parse a single address string into components, working backward from zip
- * Handles formats like:
- * - "123 Main St, Denver, CO 80202"
- * - "456 Oak Avenue, Boulder, CO, 80301"
- * - "789 Pine Street Denver CO 80202"
- * - "123 Main St Denver CO 80202-1234"
- */
-function parseAddress(address: string): {
-  street: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-} {
-  // Remove extra whitespace, commas, and normalize
-  let remaining = address.trim().replace(/\s+/g, ' ').replace(/,/g, ' ').replace(/\s+/g, ' ');
-  
-  // Extract ZIP from the end: last 5 digits, or 5-4 format
-  let zip: string | null = null;
-  
-  // Check for 5-digit zip at the end
-  const fiveDigitMatch = remaining.match(/(\d{5})\s*$/);
-  if (fiveDigitMatch) {
-    zip = fiveDigitMatch[1];
-    remaining = remaining.substring(0, remaining.length - fiveDigitMatch[0].length).trim();
-    
-    // Check if there's a -4 digit extension before the 5 digits
-    const extMatch = remaining.match(/-?(\d{4})\s*$/);
-    if (extMatch) {
-      zip = `${extMatch[1]}-${zip}`;
-      remaining = remaining.substring(0, remaining.length - extMatch[0].length).trim();
-    }
-  } else {
-    // Check for xxxxx-xxxx format
-    const extendedMatch = remaining.match(/(\d{5}-\d{4})\s*$/);
-    if (extendedMatch) {
-      zip = extendedMatch[1];
-      remaining = remaining.substring(0, remaining.length - extendedMatch[0].length).trim();
-    }
-  }
-  
-  // Extract state from the end: 2 uppercase letters
-  let state: string | null = null;
-  const stateMatch = remaining.match(/\b([A-Z]{2})\s*$/);
-  if (stateMatch) {
-    state = stateMatch[1];
-    remaining = remaining.substring(0, remaining.length - stateMatch[0].length).trim();
-  }
-  
-  // Extract city from the end: everything up to the last space (one word)
-  let city: string | null = null;
-  const lastSpaceIndex = remaining.lastIndexOf(' ');
-  if (lastSpaceIndex !== -1) {
-    city = remaining.substring(lastSpaceIndex + 1).trim();
-    remaining = remaining.substring(0, lastSpaceIndex).trim();
-  }
-  
-  // Everything remaining is the street address
-  const street = remaining || null;
-  
-  return { street, city, state, zip };
-}
+import { parseAddress } from "@/lib/leads";
 
 type ManualLeadPayload = {
   fullName?: string;
