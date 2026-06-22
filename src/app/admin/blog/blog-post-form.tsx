@@ -33,6 +33,7 @@ export default function BlogPostForm({ post }: BlogPostFormProps) {
     tags: post?.tags?.join(", ") || "",
   });
   const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleChange = (
@@ -235,7 +236,13 @@ export default function BlogPostForm({ post }: BlogPostFormProps) {
               featured_image_url: result.url
             }));
           }}
+          onUploadingChange={setImageUploading}
         />
+        {imageUploading && (
+          <p className="text-sm text-blue-600 mt-2">
+            ⏳ Image is uploading... Please wait before saving.
+          </p>
+        )}
       </div>
 
       {/* Meta Description */}
@@ -289,10 +296,10 @@ export default function BlogPostForm({ post }: BlogPostFormProps) {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || imageUploading}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Saving..." : post ? "Update Post" : "Create Post"}
+            {loading ? "Saving..." : imageUploading ? "Uploading image..." : post ? "Update Post" : "Create Post"}
           </button>
           <button
             type="button"

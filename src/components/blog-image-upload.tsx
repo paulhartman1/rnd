@@ -32,6 +32,7 @@ interface BlogImageUploadProps {
   blogPostId?: string;
   currentImageUrl?: string | null;
   onUploadComplete?: (result: UploadResult) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
   maxSizeMB?: number;
 }
 
@@ -39,6 +40,7 @@ export default function BlogImageUpload({
   blogPostId,
   currentImageUrl,
   onUploadComplete,
+  onUploadingChange,
   maxSizeMB = 5
 }: BlogImageUploadProps) {
   const [file, setFile] = useState<FileObject | null>(null);
@@ -149,6 +151,7 @@ export default function BlogImageUpload({
     }
 
     setUploading(true);
+    onUploadingChange?.(true);
     setUploadStatus({ status: 'uploading', message: 'Uploading...' });
 
     try {
@@ -215,6 +218,7 @@ export default function BlogImageUpload({
       });
     } finally {
       setUploading(false);
+      onUploadingChange?.(false);
     }
   };
 
