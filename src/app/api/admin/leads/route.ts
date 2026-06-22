@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { sendNewLeadNotifications } from "@/lib/notifications";
 
 /**
  * Parse a single address string into components, working backward from zip
@@ -262,6 +263,22 @@ export async function POST(request: Request) {
       }
     }
   }
+
+  // Send notifications (SMS + Email) - don't wait for them to complete
+  sendNewLeadNotifications({
+    leadId: lead.id,
+    fullName: lead.full_name,
+    city: lead.city,
+    state: lead.state,
+    phone: lead.phone,
+    propertyType: lead.property_type,
+    streetAddress: lead.street_address,
+    repairsNeeded: lead.repairs_needed,
+    closeTimeline: lead.close_timeline,
+  }).catch((err) => {
+    // Log error but don't fail the request
+    console.error("Notification error:", err);
+  });
 
   return NextResponse.json({ success: true, lead }, { status: 201 });
 }
