@@ -192,7 +192,7 @@ export default function BlogImageUpload({
 
       if (insertError) throw insertError;
 
-      setUploadStatus({ status: 'success', message: 'Uploaded!' });
+      setUploadStatus({ status: 'success', message: 'Uploaded! You can now save your post.' });
       console.log('Upload complete! Image URL:', insertedImage.url);
 
       if (onUploadComplete && insertedImage) {
@@ -205,11 +205,6 @@ export default function BlogImageUpload({
           fileSize: insertedImage.file_size
         });
       }
-
-      // Clear the file after successful upload
-      setTimeout(() => {
-        removeFile();
-      }, 2000);
 
     } catch (error) {
       setUploadStatus({
