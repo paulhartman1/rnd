@@ -8,9 +8,12 @@ export async function POST(request: Request) {
   try {
     // Verify API key for external integrations
     const apiKey = request.headers.get("x-api-key");
-    const validApiKey = process.env.REI_LEAD_PROS_API_KEY;
+    const validApiKeys = [
+      process.env.REI_LEAD_PROS_API_KEY,
+      process.env.TEST_API_KEY,
+    ].filter(Boolean);
 
-    if (!validApiKey || apiKey !== validApiKey) {
+    if (!apiKey || !validApiKeys.includes(apiKey)) {
       return NextResponse.json(
         { error: "Unauthorized. Invalid or missing API key." },
         { status: 401 }
