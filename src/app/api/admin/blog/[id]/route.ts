@@ -69,6 +69,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // If featured_image_url is provided, update blog_images to link to this post
+    if (featured_image_url && data?.id) {
+      await supabase
+        .from("blog_images")
+        .update({ blog_post_id: data.id })
+        .eq("url", featured_image_url)
+        .is("blog_post_id", null);
+    }
+
     return NextResponse.json({ success: true, post: data });
   } catch (error) {
     console.error("Error in PUT /api/admin/blog/[id]:", error);

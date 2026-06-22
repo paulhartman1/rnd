@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import BlogImageUpload from "@/components/blog-image-upload";
 
 interface BlogPostFormProps {
   post?: {
@@ -221,18 +222,17 @@ export default function BlogPostForm({ post }: BlogPostFormProps) {
         />
       </div>
 
-      {/* Featured Image URL */}
+      {/* Featured Image Upload */}
       <div>
-        <label htmlFor="featured_image_url" className="block text-sm font-medium text-gray-700 mb-1">
-          Featured Image URL
-        </label>
-        <input
-          type="url"
-          id="featured_image_url"
-          name="featured_image_url"
-          value={formData.featured_image_url}
-          onChange={handleChange}
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+        <BlogImageUpload
+          blogPostId={post?.id}
+          currentImageUrl={formData.featured_image_url}
+          onUploadComplete={(result) => {
+            setFormData((prev) => ({
+              ...prev,
+              featured_image_url: result.url
+            }));
+          }}
         />
       </div>
 
