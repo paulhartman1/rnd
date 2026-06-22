@@ -10,23 +10,23 @@ export const leadStatuses = [
 export type LeadStatus = (typeof leadStatuses)[number];
 
 export type IntakeAnswers = {
-  listedWithAgent: string;
-  propertyType: string;
+  listedWithAgent?: string;
+  propertyType?: string;
   ownsLand?: string;
   repairsNeeded?: string;
-  closeTimeline: string;
-  sellReason: string;
-  acceptableOffer: string;
+  closeTimeline?: string;
+  sellReason?: string;
+  acceptableOffer?: string;
   negotiability?: string;
-  streetAddress: string;
+  streetAddress?: string;
   address?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  smsConsent: boolean;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  smsConsent?: boolean;
   notes?: string;
 };
 
@@ -65,13 +65,6 @@ type ParseResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-function requiredTrimmedString(value: unknown, fieldLabel: string): ParseResult<string> {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return { ok: false, error: `${fieldLabel} is required.` };
-  }
-
-  return { ok: true, data: value.trim() };
-}
 function optionalTrimmedString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -85,11 +78,14 @@ function firstOptionalTrimmedString(...values: unknown[]): string | null {
   return null;
 }
 
-function yesNoToBoolean(value: unknown, fieldLabel: string): ParseResult<boolean> {
-  if (value === "Yes") {
+function optionalYesNoToBoolean(value: unknown, fieldLabel: string): ParseResult<boolean | null> {
+  const trimmed = optionalTrimmedString(value);
+  if (!trimmed) return { ok: true, data: null };
+
+  if (trimmed === "Yes") {
     return { ok: true, data: true };
   }
-  if (value === "No") {
+  if (trimmed === "No") {
     return { ok: true, data: false };
   }
 
@@ -102,105 +98,51 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
   }
 
   const body = payload as Partial<IntakeAnswers> & Record<string, unknown>;
-  const listedWithAgent = yesNoToBoolean(body.listedWithAgent, "listedWithAgent");
+
+  const listedWithAgent = optionalYesNoToBoolean(body.listedWithAgent, "listedWithAgent");
   if (!listedWithAgent.ok) return listedWithAgent;
 
-  const propertyType = requiredTrimmedString(body.propertyType, "propertyType");
-  if (!propertyType.ok) return propertyType;
+  const ownsLand = optionalYesNoToBoolean(body.ownsLand, "ownsLand");
+  if (!ownsLand.ok) return ownsLand;
 
-  // ownsLand is optional - only validate if provided
-  let ownsLandValue: boolean | null = null;
-  if (body.ownsLand !== undefined && body.ownsLand !== null) {
-    const ownsLand = yesNoToBoolean(body.ownsLand, "ownsLand");
-    if (!ownsLand.ok) return ownsLand;
-    ownsLandValue = ownsLand.data;
-  }
-
-  // repairsNeeded is optional - only validate if provided
-  let repairsNeededValue: string | null = null;
-  if (body.repairsNeeded !== undefined && body.repairsNeeded !== null && body.repairsNeeded.trim() !== "") {
-    const repairsNeeded = requiredTrimmedString(body.repairsNeeded, "repairsNeeded");
-    if (!repairsNeeded.ok) return repairsNeeded;
-    repairsNeededValue = repairsNeeded.data;
-  }
-
-  const closeTimeline = requiredTrimmedString(body.closeTimeline, "closeTimeline");
-  if (!closeTimeline.ok) return closeTimeline;
-
-  const sellReason = requiredTrimmedString(body.sellReason, "sellReason");
-  if (!sellReason.ok) return sellReason;
-
-  const acceptableOfferValue = firstOptionalTrimmedString(
-    body.acceptableOffer,
-    body.negotiability,
-    body.Negotiability,
-  );
-  if (!acceptableOfferValue) {
-    return { ok: false, error: "acceptableOffer or negotiability is required." };
-  }
-
-  const combinedAddress = firstOptionalTrimmedString(body.address, body.Address);
-  const streetAddressValue = firstOptionalTrimmedString(body.streetAddress, combinedAddress);
-  if (!streetAddressValue) {
-    return { ok: false, error: "streetAddress or address is required." };
-  }
-
-  let cityValue: string | null = null;
-  let stateValue: string | null = null;
-  let postalCodeValue: string | null = null;
-
-  if (combinedAddress) {
-    cityValue = optionalTrimmedString(body.city);
-    stateValue = optionalTrimmedString(body.state);
-    postalCodeValue = optionalTrimmedString(body.postalCode);
-  } else {
-    const city = requiredTrimmedString(body.city, "city");
-    if (!city.ok) return city;
-
-    const state = requiredTrimmedString(body.state, "state");
-    if (!state.ok) return state;
-
-    const postalCode = requiredTrimmedString(body.postalCode, "postalCode");
-    if (!postalCode.ok) return postalCode;
-
-    cityValue = city.data;
-    stateValue = state.data;
-    postalCodeValue = postalCode.data;
-  }
-
-  const fullName = requiredTrimmedString(body.fullName, "fullName");
-  if (!fullName.ok) return fullName;
-
-  const emailValue = optionalTrimmedString(body.email);
+  const emailValue = firstOptionalTrimmedString(body.email, body.Email);
   if (emailValue && !/\S+@\S+\.\S+/.test(emailValue)) {
     return { ok: false, error: "A valid email is required." };
-  }
-
-  const phone = requiredTrimmedString(body.phone, "phone");
-  if (!phone.ok) return phone;
-
-  if (body.smsConsent !== true) {
-    return { ok: false, error: "SMS consent is required." };
   }
 
   return {
     ok: true,
     data: {
       listed_with_agent: listedWithAgent.data,
-      property_type: propertyType.data,
-      owns_land: ownsLandValue,
-      repairs_needed: repairsNeededValue,
-      close_timeline: closeTimeline.data,
-      sell_reason: sellReason.data,
-      acceptable_offer: acceptableOfferValue,
-      street_address: streetAddressValue,
-      city: cityValue,
-      state: stateValue,
-      postal_code: postalCodeValue,
-      full_name: fullName.data,
+      property_type: firstOptionalTrimmedString(body.propertyType, body.PropertyType, body["Property Type"]),
+      owns_land: ownsLand.data,
+      repairs_needed: firstOptionalTrimmedString(body.repairsNeeded, body.RepairsNeeded, body["Repairs Needed"]),
+      close_timeline: firstOptionalTrimmedString(body.closeTimeline, body.CloseTimeline, body["Close Timeline"]),
+      sell_reason: firstOptionalTrimmedString(body.sellReason, body.SellReason, body["Sell Reason"]),
+      acceptable_offer: firstOptionalTrimmedString(
+        body.acceptableOffer,
+        body.AcceptableOffer,
+        body["Acceptable Offer"],
+        body.negotiability,
+        body.Negotiability,
+      ),
+      street_address: firstOptionalTrimmedString(body.streetAddress, body.StreetAddress, body["Street Address"], body.address, body.Address),
+      city: firstOptionalTrimmedString(body.city, body.City),
+      state: firstOptionalTrimmedString(body.state, body.State),
+      postal_code: firstOptionalTrimmedString(
+        body.postalCode,
+        body.PostalCode,
+        body["Postal Code"],
+        body.zipCode,
+        body.ZipCode,
+        body.zip,
+        body.Zip,
+        body["Zip Code"],
+      ),
+      full_name: firstOptionalTrimmedString(body.fullName, body.FullName, body["Full Name"], body.name, body.Name),
       email: emailValue,
-      phone: phone.data,
-      sms_consent: true,
+      phone: firstOptionalTrimmedString(body.phone, body.Phone),
+      sms_consent: body.smsConsent === true,
       owner_notes: firstOptionalTrimmedString(body.notes, body.Notes),
     },
   };

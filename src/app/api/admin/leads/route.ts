@@ -125,16 +125,16 @@ export async function POST(request: Request) {
     );
   }
 
-  // Auto-create property record if lead has address data
-  if (lead && lead.street_address) {
+  // Auto-create property record only if lead has complete address data
+  if (lead && lead.street_address && lead.city && lead.state && lead.postal_code) {
     const { data: property, error: propertyError } = await supabase
       .from("properties")
       .insert({
         lead_id: lead.id,
         street_address: lead.street_address,
-        city: lead.city || "",
-        state: lead.state || "",
-        postal_code: lead.postal_code || "",
+        city: lead.city,
+        state: lead.state,
+        postal_code: lead.postal_code,
         apn: null,
         property_type: lead.property_type,
         notes: null,

@@ -112,18 +112,18 @@ export default function GetCashOfferPage() {
 
     if (currentQuestion.question_type === "address") {
       return (
-        answers.streetAddress.trim().length > 0 &&
-        answers.city.trim().length > 0 &&
-        answers.state.trim().length > 0 &&
-        answers.postalCode.trim().length > 0
+        (answers.streetAddress?.trim().length ?? 0) > 0 &&
+        (answers.city?.trim().length ?? 0) > 0 &&
+        (answers.state?.trim().length ?? 0) > 0 &&
+        (answers.postalCode?.trim().length ?? 0) > 0
       );
     }
 
     if (currentQuestion.question_type === "contact") {
-      const emailValid = isValidEmail(answers.email);
-      const phoneValid = isValidPhone(answers.phone);
+      const emailValid = isValidEmail(answers.email ?? "");
+      const phoneValid = isValidPhone(answers.phone ?? "");
       return (
-        answers.fullName.trim().length > 0 &&
+        (answers.fullName?.trim().length ?? 0) > 0 &&
         emailValid &&
         phoneValid &&
         answers.smsConsent
@@ -271,7 +271,7 @@ export default function GetCashOfferPage() {
               Request received
             </p>
             <h1 className="mt-3 text-3xl font-black tracking-tight text-[var(--color-navy)] sm:text-4xl">
-              Thanks, {answers.fullName.split(" ")[0] || "there"}! We've got your information.
+              Thanks, {answers.fullName?.split(" ")[0] || "there"}! We've got your information.
             </h1>
             <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
               We're reviewing your property details right now. Expect to hear from us within 24 hours with your cash offer.
@@ -292,7 +292,7 @@ export default function GetCashOfferPage() {
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Link
-                  href={`/appointments?name=${encodeURIComponent(answers.fullName)}&email=${encodeURIComponent(answers.email)}&phone=${encodeURIComponent(answers.phone)}&address=${encodeURIComponent(answers.streetAddress)}&city=${encodeURIComponent(answers.city)}&state=${encodeURIComponent(answers.state)}&zip=${encodeURIComponent(answers.postalCode)}`}
+                  href={`/appointments?name=${encodeURIComponent(answers.fullName ?? "")}&email=${encodeURIComponent(answers.email ?? "")}&phone=${encodeURIComponent(answers.phone ?? "")}&address=${encodeURIComponent(answers.streetAddress ?? "")}&city=${encodeURIComponent(answers.city ?? "")}&state=${encodeURIComponent(answers.state ?? "")}&zip=${encodeURIComponent(answers.postalCode ?? "")}`}
                   className="inline-flex items-center justify-center rounded-lg bg-[var(--color-primary-gold)] px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
                 >
                   Schedule Appointment
