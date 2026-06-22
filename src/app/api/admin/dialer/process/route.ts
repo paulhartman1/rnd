@@ -135,7 +135,9 @@ export async function POST() {
       `)
       .in("campaign_id", activeCampaignIds)
       .eq("status", "pending")
-      .eq("assigned_user_id", user.id)
+      // Pull leads assigned to this agent OR not yet assigned to anyone.
+      // NOTE: .or() is NULL-aware here; a plain .neq/.eq filter excludes NULL rows.
+      .or(`assigned_user_id.eq.${user.id},assigned_user_id.is.null`)
       .order("created_at", { ascending: true })
       .limit(availableSlots);
 
