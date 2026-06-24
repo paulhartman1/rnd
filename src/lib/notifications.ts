@@ -188,8 +188,11 @@ export async function sendLeadEmailNotification(
 export async function sendLeadPushNotification(
   leadData: LeadNotificationData,
 ): Promise<boolean> {
+  console.log('[sendLeadPushNotification] Starting push notification process for lead:', leadData.leadId);
+  
   // Check if feature is enabled
   const featureEnabled = await isFeatureEnabled("pwa_push_notifications");
+  console.log('[sendLeadPushNotification] Feature flag check result:', featureEnabled);
   if (!featureEnabled) {
     console.log("Push notifications skipped: Feature not enabled");
     return false;
@@ -203,10 +206,13 @@ export async function sendLeadPushNotification(
     console.log("Push notifications skipped: VAPID keys not configured");
     return false;
   }
+  
+  console.log('[sendLeadPushNotification] VAPID keys configured successfully');
 
   try {
     // Configure web-push with VAPID keys
     webpush.setVapidDetails(vapidEmail, vapidPublicKey, vapidPrivateKey);
+    console.log('[sendLeadPushNotification] web-push configured with VAPID details');
 
     // Get all active push subscriptions from database
     const adminClient = createAdminClient();
@@ -214,11 +220,17 @@ export async function sendLeadPushNotification(
       console.error("Push notification failed: Admin client not available");
       return false;
     }
+    console.log('[sendLeadPushNotification] Admin client created successfully');
 
     const { data: subscriptions, error } = await adminClient
       .from("push_subscriptions")
       .select("*")
       .eq("is_active", true);
+
+    console.log('[sendLeadPushNotification] Subscription query result:', {
+      count: subscriptions?.length || 0,
+      error: error?.message || null
+    });
 
     if (error || !subscriptions || subscriptions.length === 0) {
       console.log("No active push subscriptions found");
