@@ -96,6 +96,27 @@ export async function POST(request: Request) {
       return NextResponse.json(responsePayload, { status: 500 });
     }
 
+    // Create property record for the lead if address data exists
+    if (parsedLead.data.street_address) {
+      const { error: propertyError } = await supabase
+        .from("properties")
+        .insert({
+          lead_id: data.id,
+          street_address: parsedLead.data.street_address,
+          city: parsedLead.data.city,
+          state: parsedLead.data.state,
+          postal_code: parsedLead.data.postal_code,
+          property_type: parsedLead.data.property_type,
+          notes: "Created automatically from API lead",
+        });
+
+      if (propertyError) {
+        console.error("Failed to create property for lead:", propertyError);
+        // Don't fail the request if property creation fails
+        // The lead was created successfully, which is the primary goal
+      }
+    }
+
     // Store question answers if provided
     if (questionHistory && Array.isArray(questionHistory) && questionHistory.length > 0) {
       const leadAnswers = questionHistory.map((item) => ({
