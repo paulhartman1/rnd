@@ -19,6 +19,10 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    // Determine source based on API key
+    const isREILeadPros = apiKey === process.env.REI_LEAD_PROS_API_KEY;
+    
     const payload = await request.json();
     
     // Log the incoming request for debugging
@@ -55,9 +59,27 @@ export async function POST(request: Request) {
 
     const adminClient = createAdminClient();
     const supabase = adminClient ?? (await createClient());
+
+    // Look up source_id if REI Lead Pros
+    let sourceId: string | undefined;
+    if (isREILeadPros) {
+      const { data: sourceData } = await supabase
+        .from("sources")
+        .select("id")
+        .eq("name", "REI Lead Pros")
+        .single();
+      
+      if (sourceData?.id) {
+        sourceId = sourceData.id;
+      }
+    }
+
     const { data, error } = await supabase
       .from("leads")
-      .insert(parsedLead.data)
+      .insert({
+        ...parsedLead.data,
+        ...(sourceId && { source_id: sourceId }),
+      })
       .select("id")
       .single();
 
