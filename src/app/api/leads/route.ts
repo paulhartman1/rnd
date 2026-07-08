@@ -158,21 +158,34 @@ export async function POST(request: Request) {
       }
     }
 
-    // Send notifications (SMS + Email) - don't wait for them to complete
-    sendNewLeadNotifications({
-      leadId: data.id,
-      fullName: parsedLead.data.full_name,
-      city: parsedLead.data.city,
-      state: parsedLead.data.state,
-      phone: parsedLead.data.phone,
-      propertyType: parsedLead.data.property_type,
-      streetAddress: parsedLead.data.street_address,
-      repairsNeeded: parsedLead.data.repairs_needed,
-      closeTimeline: parsedLead.data.close_timeline,
-    }).catch((err) => {
+    const notificationTimeoutMs = 5000;
+    const notificationResult = await Promise.race([
+      sendNewLeadNotifications({
+        leadId: data.id,
+        fullName: parsedLead.data.full_name,
+        city: parsedLead.data.city,
+        state: parsedLead.data.state,
+        phone: parsedLead.data.phone,
+        propertyType: parsedLead.data.property_type,
+        streetAddress: parsedLead.data.street_address,
+        repairsNeeded: parsedLead.data.repairs_needed,
+        closeTimeline: parsedLead.data.close_timeline,
+      }).then(() => "completed" as const),
+      new Promise<"timed-out">((resolve) =>
+        setTimeout(() => resolve("timed-out"), notificationTimeoutMs)
+      ),
+    ]).catch((err) => {
       // Log error but don't fail the request
       console.error("Notification error:", err);
+      return "failed" as const;
     });
+
+    if (notificationResult === "timed-out") {
+      console.warn("Notification sending timed out", {
+        leadId: data.id,
+        timeoutMs: notificationTimeoutMs,
+      });
+    }
 
     return NextResponse.json({ id: data.id }, { status: 201 });
   } catch (error) {
