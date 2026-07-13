@@ -47,16 +47,32 @@ export function parseAddress(address: string): {
     remaining = remaining.substring(0, remaining.length - stateMatch[0].length).trim();
   }
   
-  // Extract city from the end: everything up to the last space (one word)
+  // Extract city: everything between the street and state
+  // City can be multiple words (e.g., "Colorado Springs", "New York")
   let city: string | null = null;
-  const lastSpaceIndex = remaining.lastIndexOf(' ');
-  if (lastSpaceIndex !== -1) {
-    city = remaining.substring(lastSpaceIndex + 1).trim();
-    remaining = remaining.substring(0, lastSpaceIndex).trim();
-  }
+  let street: string | null = null;
   
-  // Everything remaining is the street address
-  const street = remaining || null;
+  // Try to find a pattern: street address (typically starts with number and has Street/Dr/Ave/Rd etc)
+  // After state is removed, we have: "4191 Bays Water Dr Colorado Springs"
+  // Strategy: Look for common street suffixes to identify where street ends
+  const streetSuffixes = /\b(St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Ct|Court|Way|Pl|Place|Cir|Circle)\b/i;
+  const streetMatch = remaining.match(streetSuffixes);
+  
+  if (streetMatch && streetMatch.index !== undefined) {
+    // Find the end of the street suffix word
+    const suffixEnd = streetMatch.index + streetMatch[0].length;
+    street = remaining.substring(0, suffixEnd).trim();
+    city = remaining.substring(suffixEnd).trim() || null;
+  } else {
+    // Fallback: assume last word is city (single word)
+    const lastSpaceIndex = remaining.lastIndexOf(' ');
+    if (lastSpaceIndex !== -1) {
+      street = remaining.substring(0, lastSpaceIndex).trim();
+      city = remaining.substring(lastSpaceIndex + 1).trim();
+    } else {
+      street = remaining || null;
+    }
+  }
   
   return { street, city, state, zip };
 }

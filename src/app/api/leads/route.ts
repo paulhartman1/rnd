@@ -118,8 +118,9 @@ export async function POST(request: Request) {
       return NextResponse.json(responsePayload, { status: 500 });
     }
 
-    // Create property record for the lead if address data exists
-    if (parsedLead.data.street_address) {
+    // Create property record for the lead if required address data exists
+    // Properties table requires: street_address, city, state, postal_code (NOT NULL constraints)
+    if (parsedLead.data.street_address && parsedLead.data.city && parsedLead.data.state && parsedLead.data.postal_code) {
       const { error: propertyError } = await supabase
         .from("properties")
         .insert({
@@ -137,6 +138,18 @@ export async function POST(request: Request) {
         // Don't fail the request if property creation fails
         // The lead was created successfully, which is the primary goal
       }
+    } else if (parsedLead.data.street_address) {
+      console.warn('[/api/leads] Skipping property creation - incomplete address', {
+        leadId: data.id,
+        has_street: !!parsedLead.data.street_address,
+        has_city: !!parsedLead.data.city,
+        has_state: !!parsedLead.data.state,
+        has_postal: !!parsedLead.data.postal_code,
+        street: parsedLead.data.street_address,
+        city: parsedLead.data.city,
+        state: parsedLead.data.state,
+        postal: parsedLead.data.postal_code,
+      });
     }
 
     // Store question answers if provided

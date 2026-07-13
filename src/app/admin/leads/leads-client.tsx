@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { leadStatuses, type LeadRow, type LeadStatus } from "@/lib/leads";
 import {
   appointmentStatuses,
@@ -59,6 +60,8 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
 }
 
 export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled, quickDialEnabled }: Props) {
+  console.log('[LeadsClient] quickDialEnabled prop:', quickDialEnabled);
+  const router = useRouter();
   const [leads, setLeads] = useState<LeadWithProperties[]>(initialLeads);
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
@@ -792,7 +795,12 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
           {quickDialEnabled && (
             <button
               type="button"
-              onClick={() => window.location.href = '/admin/dial'}
+              onClick={() => {
+                console.log('[Quick Dial] Button clicked!');
+                console.log('[Quick Dial] quickDialEnabled:', quickDialEnabled);
+                console.log('[Quick Dial] Navigating to /admin/dial...');
+                router.push('/admin/dial');
+              }}
               className="flex-1 sm:flex-initial rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
             >
               <span className="hidden sm:inline">📞 Quick Dial</span>

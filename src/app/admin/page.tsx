@@ -68,6 +68,7 @@ export default async function AdminDashboardPage() {
   // Check feature flags (available to all admins if enabled)
   const showSocialMediaIntegration = await isFeatureEnabled("social_media_integration");
   const showAutodialer = await isFeatureEnabled("autodialer", user.email);
+  const showQuickDial = await isFeatureEnabled("quick_dial");
 
   const actionItems = [
     { count: pendingRequests.length, label: "Pending Appointment Requests", href: "/admin/appointments", urgent: pendingRequests.length > 0 },
@@ -151,6 +152,17 @@ export default async function AdminDashboardPage() {
       href: "/admin/dialer",
       icon: "📞",
       stats: "Campaign management",
+    });
+  }
+
+  // Add Quick Dial if feature flag is enabled
+  if (showQuickDial) {
+    adminTools.push({
+      title: "Quick Dial",
+      description: "Phone keypad for calling any number via Twilio",
+      href: "/admin/dial",
+      icon: "📞",
+      stats: "Fast calling",
     });
   }
 
