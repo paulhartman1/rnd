@@ -112,6 +112,9 @@ export default async function AdminLeadsPage() {
   
   // Check if forms feature is enabled
   const formsEnabled = await isFeatureEnabled('forms', user.email || undefined);
+  
+  // Check if quick dial is enabled
+  const quickDialEnabled = await isFeatureEnabled('quick_dial');
 
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
@@ -137,7 +140,7 @@ export default async function AdminLeadsPage() {
             <p className="mt-1 text-xs opacity-75">Check console for details or run the properties migration in Supabase SQL Editor</p>
           </div>
         ) : (
-          <LeadsClient initialLeads={leads} leadAnswers={answersByLeadId} canBulkImport={canBulkImport} formsEnabled={formsEnabled} />
+          <LeadsClient initialLeads={leads} leadAnswers={answersByLeadId} canBulkImport={canBulkImport} formsEnabled={formsEnabled} quickDialEnabled={quickDialEnabled} />
         )}
       </div>
     </main>

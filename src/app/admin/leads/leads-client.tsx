@@ -37,6 +37,7 @@ type Props = {
   leadAnswers: Record<string, LeadAnswer[]>;
   canBulkImport: boolean;
   formsEnabled: boolean;
+  quickDialEnabled: boolean;
 };
 
 function toLeadDraft(lead: LeadRow): LeadDraftState {
@@ -57,7 +58,7 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
   };
 }
 
-export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled }: Props) {
+export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled, quickDialEnabled }: Props) {
   const [leads, setLeads] = useState<LeadWithProperties[]>(initialLeads);
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
@@ -788,6 +789,16 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
 
         {/* Action Buttons - Stack on mobile */}
         <div className="flex flex-wrap gap-2">
+          {quickDialEnabled && (
+            <button
+              type="button"
+              onClick={() => window.location.href = '/admin/dial'}
+              className="flex-1 sm:flex-initial rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
+            >
+              <span className="hidden sm:inline">📞 Quick Dial</span>
+              <span className="sm:hidden">📞 Dial</span>
+            </button>
+          )}
           {canBulkImport && (
             <button
               type="button"

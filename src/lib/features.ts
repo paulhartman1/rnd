@@ -6,6 +6,9 @@ export const features = {
   attom: {
     enabled: process.env.FEATURE_ATTOM_ENABLED === 'true',
   },
+  quickDial: {
+    enabled: process.env.FEATURE_QUICK_DIAL_ENABLED === 'true',
+  },
 } as const;
 
 export function isFeatureEnabled(feature: keyof typeof features): boolean {
