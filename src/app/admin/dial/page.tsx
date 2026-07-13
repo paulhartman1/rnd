@@ -6,9 +6,16 @@ import DialClient from "./dial-client";
 export default async function DialPage() {
   const quickDialEnabled = await isFeatureEnabled("quick_dial");
   
-  if (!quickDialEnabled) {
-    redirect("/admin/leads");
-  }
+  console.log('[DialPage] Feature flag check:', {
+    quickDialEnabled,
+    timestamp: new Date().toISOString(),
+  });
+  
+  // Temporarily bypassed for debugging
+  // if (!quickDialEnabled) {
+  //   console.log('[DialPage] Feature disabled, redirecting to /admin/leads');
+  //   redirect("/admin/leads");
+  // }
 
   const supabase = await createClient();
   const {
