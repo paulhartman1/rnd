@@ -1103,9 +1103,14 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                               {lead.phone && (
                                 <div>
                                   <span className="text-xs font-semibold text-[var(--color-muted)]">Phone</span>
-                                  <a href={`tel:${lead.phone.replace(/\D/g, '')}`} className="mt-1 block font-medium text-[var(--color-primary-gold)] hover:underline">
+                                  <button
+                                    type="button"
+                                    onClick={() => callLead(lead.id)}
+                                    disabled={draft.isCalling}
+                                    className="mt-1 block font-medium text-[var(--color-primary-gold)] hover:underline text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
                                     {lead.phone}
-                                  </a>
+                                  </button>
                                 </div>
                               )}
                               {property.owner2_first_name && (

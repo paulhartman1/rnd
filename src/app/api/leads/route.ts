@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         'user-agent': request.headers.get('user-agent'),
         'x-forwarded-for': request.headers.get('x-forwarded-for'),
       },
-      body: JSON.stringify(payload, null, 2),
+      body: payload,
     });
     
     const parsedLead = parseLeadPayload(payload);

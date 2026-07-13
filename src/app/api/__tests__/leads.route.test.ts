@@ -205,7 +205,11 @@ describe("POST /api/leads", () => {
 
   it("should handle JWT authentication errors with specific message in production", async () => {
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: "production",
+      writable: true,
+      configurable: true,
+    });
 
     const { createAdminClient } = await import("@/lib/supabase/admin");
     vi.mocked(createAdminClient).mockReturnValue(mockSupabase as any);
@@ -232,7 +236,11 @@ describe("POST /api/leads", () => {
     expect(response.status).toBe(500);
     expect(data.error).toContain("authentication");
 
-    process.env.NODE_ENV = originalEnv;
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: originalEnv,
+      writable: true,
+      configurable: true,
+    });
   });
 
   it("should handle malformed JSON request body", async () => {
