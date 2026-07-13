@@ -169,9 +169,6 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
   if (!ownsLand.ok) return ownsLand;
 
   const emailValue = firstOptionalTrimmedString(body.email, body.Email);
-  if (emailValue && !/\S+@\S+\.\S+/.test(emailValue)) {
-    return { ok: false, error: "Invalid email format." };
-  }
 
   return {
     ok: true,
