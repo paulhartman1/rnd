@@ -1,11 +1,5 @@
-/**
- * Parse a single address string into components, working backward from zip
- * Handles formats like:
- * - "123 Main St, Denver, CO 80202"
- * - "456 Oak Avenue, Boulder, CO, 80301"
- * - "789 Pine Street Denver CO 80202"
- * - "123 Main St Denver CO 80202-1234"
- */
+import * as validation from "./validation";
+
 export function parseAddress(address: string): {
   street: string | null;
   city: string | null;
@@ -13,67 +7,42 @@ export function parseAddress(address: string): {
   zip: string | null;
 } {
   // Remove extra whitespace, commas, and normalize
-  let remaining = address.trim().replace(/\s+/g, ' ').replace(/,/g, ' ').replace(/\s+/g, ' ');
-  
+  let remaining = address.trim();
+
   // Extract ZIP from the end: last 5 digits, or 5-4 format
   let zip: string | null = null;
-  
-  // Check for 5-digit zip at the end
-  const fiveDigitMatch = remaining.match(/(\d{5})\s*$/);
-  if (fiveDigitMatch) {
-    zip = fiveDigitMatch[1];
-    remaining = remaining.substring(0, remaining.length - fiveDigitMatch[0].length).trim();
-    
-    // Check if there's a -4 digit extension before the 5 digits
-    const extMatch = remaining.match(/-?(\d{4})\s*$/);
-    if (extMatch) {
-      zip = `${extMatch[1]}-${zip}`;
-      remaining = remaining.substring(0, remaining.length - extMatch[0].length).trim();
-    }
+
+  // Check for xxxxx-xxxx format first
+  const extendedMatch = remaining.match(/(\d{5}-\d{4})\s*$/);
+  if (extendedMatch) {
+    zip = extendedMatch[1];
+    remaining = remaining.substring(0, remaining.length - extendedMatch[0].length).trim();
   } else {
-    // Check for xxxxx-xxxx format
-    const extendedMatch = remaining.match(/(\d{5}-\d{4})\s*$/);
-    if (extendedMatch) {
-      zip = extendedMatch[1];
-      remaining = remaining.substring(0, remaining.length - extendedMatch[0].length).trim();
+    // Check for 5-digit zip at the end
+    const fiveDigitMatch = remaining.match(/(\d{5})\s*$/);
+    if (fiveDigitMatch) {
+      zip = fiveDigitMatch[1];
+      remaining = remaining.substring(0, remaining.length - fiveDigitMatch[0].length).trim();
     }
   }
-  
-  // Extract state from the end: 2 uppercase letters
+
+  // rely on comma placement to split the remaining string into parts
+  const parts = remaining.split(',').map(part => part.trim()).filter(part => part.length > 0);
+
   let state: string | null = null;
-  const stateMatch = remaining.match(/\b([A-Z]{2})\s*$/);
-  if (stateMatch) {
-    state = stateMatch[1];
-    remaining = remaining.substring(0, remaining.length - stateMatch[0].length).trim();
-  }
-  
-  // Extract city: everything between the street and state
-  // City can be multiple words (e.g., "Colorado Springs", "New York")
   let city: string | null = null;
   let street: string | null = null;
-  
-  // Try to find a pattern: street address (typically starts with number and has Street/Dr/Ave/Rd etc)
-  // After state is removed, we have: "4191 Bays Water Dr Colorado Springs"
-  // Strategy: Look for common street suffixes to identify where street ends
-  const streetSuffixes = /\b(St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Ct|Court|Way|Pl|Place|Cir|Circle)\b/i;
-  const streetMatch = remaining.match(streetSuffixes);
-  
-  if (streetMatch && streetMatch.index !== undefined) {
-    // Find the end of the street suffix word
-    const suffixEnd = streetMatch.index + streetMatch[0].length;
-    street = remaining.substring(0, suffixEnd).trim();
-    city = remaining.substring(suffixEnd).trim() || null;
-  } else {
-    // Fallback: assume last word is city (single word)
-    const lastSpaceIndex = remaining.lastIndexOf(' ');
-    if (lastSpaceIndex !== -1) {
-      street = remaining.substring(0, lastSpaceIndex).trim();
-      city = remaining.substring(lastSpaceIndex + 1).trim();
-    } else {
-      street = remaining || null;
-    }
+
+  if (parts.length >= 2) {
+    // Assume last part is state, second last is city, rest is street
+    state = parts[parts.length - 1];
+    city = parts[parts.length - 2];
+    street = parts.slice(0, parts.length - 2).join(', ');
+  } else if (parts.length === 1) {
+    // If only one part remains, treat it as street
+    street = parts[0];
   }
-  
+
   return { street, city, state, zip };
 }
 
@@ -184,7 +153,56 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
   const ownsLand = optionalYesNoToBoolean(body.ownsLand, "ownsLand");
   if (!ownsLand.ok) return ownsLand;
 
-  const emailValue = firstOptionalTrimmedString(body.email, body.Email);
+  if(!body.address && (!body.streetAddress || body.streetAddress?.trim() === "")) {
+    return { ok: false, error: "Invalid address format." };
+  }
+
+  if(body.streetAddress && !body.city) {
+    body.address = body.streetAddress;
+    body.streetAddress = undefined;
+  }
+
+
+  const email = firstOptionalTrimmedString(body.email, body.Email);
+  const emailValue = validation.isValidEmail(email ?? "") ? email : null;
+  let streetAddress = firstOptionalTrimmedString(body.streetAddress, body.StreetAddress, body["Street Address"]);
+  const address = firstOptionalTrimmedString(body.address, body.Address);
+  let city = firstOptionalTrimmedString(body.city, body.City);
+  let state = firstOptionalTrimmedString(body.state, body.State);
+  let postalCode = firstOptionalTrimmedString(
+    body.postalCode,
+    body.PostalCode,
+    body["Postal Code"],
+    body.zipCode,
+    body.ZipCode,
+    body.zip,
+    body.Zip,
+    body["Zip Code"],
+  );
+
+  if (address && (city || state || postalCode)) {
+    return { ok: false, error: "If 'address' is provided, 'city', 'state', and 'postalCode' should not be provided." };
+  }
+
+  if (address) {
+    console.log("Parsing address:", address);
+    const parsed = parseAddress(address);
+    if (!parsed.street || !parsed.city || !parsed.state || !parsed.zip) {
+      return { ok: false, error: "Invalid address format." };
+    }
+    if (!streetAddress && !address) {
+      return { ok: false, error: "streetAddress or address is required." };
+    }
+    streetAddress = parsed.street;
+    city = parsed.city;
+    state = parsed.state;
+    postalCode = parsed.zip;
+  }
+
+  const fullName = firstOptionalTrimmedString(body.fullName, body.FullName, body["Full Name"], body.name, body.Name);
+  if(!fullName) {
+    return { ok: false, error: "fullName is required." };
+  }
 
   return {
     ok: true,
@@ -202,42 +220,11 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
         body.negotiability,
         body.Negotiability,
       ),
-      ...(() => {
-        // Handle address: prefer individual fields, fall back to parsing single address field
-        let streetAddress = firstOptionalTrimmedString(body.streetAddress, body.StreetAddress, body["Street Address"]);
-        let city = firstOptionalTrimmedString(body.city, body.City);
-        let state = firstOptionalTrimmedString(body.state, body.State);
-        let postalCode = firstOptionalTrimmedString(
-          body.postalCode,
-          body.PostalCode,
-          body["Postal Code"],
-          body.zipCode,
-          body.ZipCode,
-          body.zip,
-          body.Zip,
-          body["Zip Code"],
-        );
-        
-        // If no individual fields but we have a single address, parse it
-        if (!streetAddress && !city && !state && !postalCode) {
-          const singleAddress = firstOptionalTrimmedString(body.address, body.Address);
-          if (singleAddress) {
-            const parsed = parseAddress(singleAddress);
-            streetAddress = parsed.street;
-            city = parsed.city;
-            state = parsed.state;
-            postalCode = parsed.zip;
-          }
-        }
-        
-        return {
-          street_address: streetAddress,
-          city,
-          state,
-          postal_code: postalCode,
-        };
-      })(),
-      full_name: firstOptionalTrimmedString(body.fullName, body.FullName, body["Full Name"], body.name, body.Name),
+      street_address: streetAddress,
+      city,
+      state,
+      postal_code: postalCode,
+      full_name: fullName,
       email: emailValue,
       phone: firstOptionalTrimmedString(body.phone, body.Phone),
       sms_consent: body.smsConsent === true,
