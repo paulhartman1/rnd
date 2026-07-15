@@ -147,6 +147,14 @@ export default function AdminNav() {
               }`}>hot leads</span>
             </Link>
             <Link
+              href="/admin/properties"
+              className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 transition-all hover:bg-gray-100"
+              title="View properties"
+            >
+              <span className="text-sm font-semibold text-gray-700">🏘️</span>
+              <span className="hidden text-xs text-gray-600 lg:inline">properties</span>
+            </Link>
+            <Link
               href="/admin/voicemails"
               className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
                 unreadVoicemails > 0
@@ -291,6 +299,13 @@ export default function AdminNav() {
                   <span className={`text-sm font-semibold ${
                     hotLeads > 0 ? "text-orange-700" : "text-green-700"
                   }`}>🔥 {hotLeads} hot lead{hotLeads !== 1 ? 's' : ''}</span>
+                </Link>
+                <Link
+                  href="/admin/properties"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-lg bg-gray-50 px-3 py-2 transition-all hover:bg-gray-100"
+                >
+                  <span className="text-sm font-semibold text-gray-700">🏘️ Properties</span>
                 </Link>
                 <Link
                   href="/admin/voicemails"

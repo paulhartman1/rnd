@@ -54,6 +54,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const shouldLoadReviewWidget =
+    process.env.NODE_ENV === "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_REVIEW_WIDGET === "true";
   return (
     <html
       lang="en"
@@ -61,10 +64,12 @@ export default function RootLayout({
     >
       <GoogleAnalytics />
       <body className="min-h-full flex flex-col">
-        <Script
-          src="https://www.loveondev.com/review-widget/widget.js"
-          strategy="afterInteractive"
-        />
+        {shouldLoadReviewWidget ? (
+          <Script
+            src="https://www.loveondev.com/review-widget/widget.js"
+            strategy="afterInteractive"
+          />
+        ) : null}
         <SessionTracker />
         {children}
       </body>

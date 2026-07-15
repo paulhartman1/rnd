@@ -71,6 +71,25 @@ export type PropertyRow = {
   longitude: number | null;
   geocoded_at: string | null;
   geocode_source: string | null;
+
+  // Novation calculator
+  as_is_market_value: number | null;
+  percent_of_market_value: number | null;
+  realtor_fee_percent: number | null;
+  double_close_fee_percent: number | null;
+  closing_attorney_fee: number | null;
+  title_insurance: number | null;
+  efile_fee: number | null;
+  recording_fee: number | null;
+  transfer_tax: number | null;
+  flat_fee_listing: number | null;
+  photographer_fee: number | null;
+  other_expenses: number | null;
+  repair_costs: number | null;
+  interest_costs: number | null;
+  months_held: number | null;
+  desired_profit_access: number | null;
+  desired_profit_no_access: number | null;
   
   // Timestamps
   created_at: string;
