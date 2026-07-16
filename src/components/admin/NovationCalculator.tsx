@@ -118,9 +118,6 @@ export default function NovationCalculator({
         <h2 className="text-xl font-black text-[var(--color-navy)]">
           Novation Calculator
         </h2>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          LeadSharks MAO Formula
-        </p>
       </div>
 
       {/* Results Section */}
