@@ -152,9 +152,10 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[1.4rem] border border-black/6 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
+      {/* Sticky View Toggle - Mobile First */}
+      <div className="sticky top-0 z-30 rounded-[1.4rem] border border-black/6 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
                 Total Properties
@@ -172,12 +173,12 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
             </div>
           </div>
           
-          {/* View Toggle */}
+          {/* View Toggle - Touch Friendly */}
           <div className="flex gap-1 rounded-lg border border-black/10 bg-[var(--color-surface-soft)] p-1">
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`rounded-md px-4 py-2 text-sm font-bold transition ${
+              className={`min-h-[44px] rounded-md px-4 py-2 text-sm font-bold transition sm:px-6 ${
                 viewMode === 'list'
                   ? 'bg-white text-[var(--color-navy)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-navy)]'
@@ -188,7 +189,7 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
             <button
               type="button"
               onClick={() => setViewMode('map')}
-              className={`rounded-md px-4 py-2 text-sm font-bold transition ${
+              className={`min-h-[44px] rounded-md px-4 py-2 text-sm font-bold transition sm:px-6 ${
                 viewMode === 'map'
                   ? 'bg-white text-[var(--color-navy)] shadow-sm'
                   : 'text-[var(--color-muted)] hover:text-[var(--color-navy)]'
@@ -200,82 +201,161 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
         </div>
       </div>
 
-      {/* List View */}
+      {/* List View - Mobile Card Layout / Desktop Table */}
       {viewMode === 'list' && (
-        <div className="overflow-hidden rounded-[1.4rem] border border-black/6 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b border-black/10 bg-[var(--color-surface-soft)]">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Address</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Seller</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Est. ARV</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Rec. Offer</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Est. Profit</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Deal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/6">
-                {properties.map((property) => {
-                  const metrics = calculateMetrics(property);
-                  const isDeal = metrics.estProfit > 0 && metrics.recOffer > 0;
-                  
-                  return (
-                    <tr
-                      key={property.id}
-                      onClick={() => handlePropertyClick(property.id)}
-                      className="cursor-pointer transition hover:bg-[var(--color-surface-soft)]"
-                    >
-                      <td className="px-4 py-3 text-sm">
-                        <div className="font-semibold text-[var(--color-navy)]">
-                          {property.street_address}
-                        </div>
-                        <div className="text-xs text-[var(--color-muted)]">
-                          {property.city}, {property.state} {property.postal_code}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[var(--color-navy)]">
-                        {property.lead?.full_name || 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex rounded-full bg-[var(--color-accent)]/10 px-2 py-1 text-xs font-semibold text-[var(--color-accent)]">
-                          {property.lead?.status || 'Unknown'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-navy)]">
-                        ${metrics.estARV.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-navy)]">
-                        ${metrics.recOffer.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-navy)]">
-                        ${metrics.estProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {isDeal ? (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500">
-                            −
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <>
+          {/* Mobile Card Layout */}
+          <div className="space-y-3 md:hidden">
+            {properties.map((property) => {
+              const metrics = calculateMetrics(property);
+              const isDeal = metrics.estProfit > 0 && metrics.recOffer > 0;
+              
+              return (
+                <div
+                  key={property.id}
+                  onClick={() => handlePropertyClick(property.id)}
+                  className="cursor-pointer rounded-[1.4rem] border border-black/6 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.08)] transition active:scale-[0.98]"
+                >
+                  {/* Header with Address and Deal Badge */}
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-[var(--color-navy)]">
+                        {property.street_address}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+                        {property.city}, {property.state} {property.postal_code}
+                      </p>
+                    </div>
+                    {isDeal ? (
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-500">
+                        −
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Seller and Status */}
+                  <div className="mb-3 flex items-center gap-2 text-sm">
+                    <span className="font-semibold text-[var(--color-navy)]">
+                      {property.lead?.full_name || 'N/A'}
+                    </span>
+                    <span className="text-[var(--color-muted)]">•</span>
+                    <span className="inline-flex rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]">
+                      {property.lead?.status || 'Unknown'}
+                    </span>
+                  </div>
+
+                  {/* Metrics Grid */}
+                  <div className="grid grid-cols-3 gap-3 border-t border-black/10 pt-3">
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                        ARV
+                      </span>
+                      <p className="mt-1 text-base font-bold text-[var(--color-navy)]">
+                        ${(metrics.estARV / 1000).toFixed(0)}k
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                        Offer
+                      </span>
+                      <p className="mt-1 text-base font-bold text-[var(--color-navy)]">
+                        ${(metrics.recOffer / 1000).toFixed(0)}k
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                        Profit
+                      </span>
+                      <p className="mt-1 text-base font-bold text-emerald-600">
+                        ${(metrics.estProfit / 1000).toFixed(0)}k
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+
+          {/* Desktop Table Layout */}
+          <div className="hidden overflow-hidden rounded-[1.4rem] border border-black/6 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.08)] md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b border-black/10 bg-[var(--color-surface-soft)]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Address</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Seller</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Est. ARV</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Rec. Offer</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Est. Profit</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Deal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/6">
+                  {properties.map((property) => {
+                    const metrics = calculateMetrics(property);
+                    const isDeal = metrics.estProfit > 0 && metrics.recOffer > 0;
+                    
+                    return (
+                      <tr
+                        key={property.id}
+                        onClick={() => handlePropertyClick(property.id)}
+                        className="cursor-pointer transition hover:bg-[var(--color-surface-soft)]"
+                      >
+                        <td className="px-4 py-3 text-sm">
+                          <div className="font-semibold text-[var(--color-navy)]">
+                            {property.street_address}
+                          </div>
+                          <div className="text-xs text-[var(--color-muted)]">
+                            {property.city}, {property.state} {property.postal_code}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-[var(--color-navy)]">
+                          {property.lead?.full_name || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className="inline-flex rounded-full bg-[var(--color-accent)]/10 px-2 py-1 text-xs font-semibold text-[var(--color-accent)]">
+                            {property.lead?.status || 'Unknown'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-navy)]">
+                          ${metrics.estARV.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-navy)]">
+                          ${metrics.recOffer.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--color-navy)]">
+                          ${metrics.estProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {isDeal ? (
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
+                              ✓
+                            </span>
+                          ) : (
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500">
+                              −
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
-      {/* Map View */}
+      {/* Map View - Full Screen on Mobile */}
       {viewMode === 'map' && (
         <div className="overflow-hidden rounded-[1.4rem] border border-black/6 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
-          <div className="h-[65vh] sm:h-[700px]">
+          <div className="h-[calc(100vh-200px)] sm:h-[700px]">
             <PropertiesMap properties={properties} onPropertyClick={handlePropertyClick} />
           </div>
         </div>
