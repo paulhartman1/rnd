@@ -1121,6 +1121,17 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                                   </p>
                                 </div>
                               )}
+                              {property.street_address && (
+                                <div>
+                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Property Address</span>
+                                  <p className="mt-1 font-medium">
+                                    {property.street_address}
+                                    {property.city && `, ${property.city}`}
+                                    {property.state && `, ${property.state}`}
+                                    {property.postal_code && ` ${property.postal_code}`}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             )}
                           </div>
