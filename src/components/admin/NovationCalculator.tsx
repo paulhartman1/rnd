@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface NovationCalculatorProps {
   initialValues?: Partial<NovationFormData>;
+  defaults?: Partial<NovationFormData>;
   onSave?: (values: NovationFormData) => Promise<void>;
 }
 
@@ -58,12 +59,22 @@ const DEFAULT_VALUES: NovationFormData = {
 
 export default function NovationCalculator({
   initialValues,
+  defaults,
   onSave,
 }: NovationCalculatorProps) {
-  const [formData, setFormData] = useState<NovationFormData>({
+  const defaultValues: NovationFormData = {
     ...DEFAULT_VALUES,
+    ...defaults,
+  };
+
+  const initialFormData: NovationFormData = {
+    ...defaultValues,
     ...initialValues,
-  });
+  };
+
+  const [formData, setFormData] = useState<NovationFormData>(initialFormData);
+  const [history, setHistory] = useState<NovationFormData[]>([initialFormData]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -90,9 +101,56 @@ export default function NovationCalculator({
   const noAccessMAO = salePrice - totalCosts - formData.desired_profit_no_access - formData.interest_costs;
 
   const handleInputChange = (field: keyof NovationFormData, value: number) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    
+    // Add to history, truncating any future states
+    setHistory((prev) => [...prev.slice(0, historyIndex + 1), newFormData]);
+    setHistoryIndex((prev) => prev + 1);
+    
     setSaveSuccess(false);
   };
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setFormData(history[newIndex]);
+      setSaveSuccess(false);
+    }
+  }, [historyIndex, history]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setFormData(history[newIndex]);
+      setSaveSuccess(false);
+    }
+  }, [historyIndex, history]);
+
+  const handleResetToDefaults = () => {
+    setFormData(defaultValues);
+    setHistory([defaultValues]);
+    setHistoryIndex(0);
+    setSaveSuccess(false);
+  };
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.shiftKey && e.key === 'z'))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -111,13 +169,47 @@ export default function NovationCalculator({
     }
   };
 
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Undo/Redo Controls */}
       <div className="border-b border-black/10 pb-4">
-        <h2 className="text-xl font-black text-[var(--color-navy)]">
-          Novation Calculator
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black text-[var(--color-navy)]">
+            Novation Calculator
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+              className="rounded-lg border border-black/10 px-3 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← Undo
+            </button>
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Shift+Z)"
+              className="rounded-lg border border-black/10 px-3 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Redo →
+            </button>
+            <div className="h-6 w-px bg-black/10" />
+            <button
+              type="button"
+              onClick={handleResetToDefaults}
+              title="Reset to defaults"
+              className="rounded-lg border border-black/10 px-3 py-2 text-sm font-bold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)]/5"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Results Section */}

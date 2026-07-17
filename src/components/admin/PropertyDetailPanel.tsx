@@ -37,32 +37,40 @@ interface PropertyDetailPanelProps {
   property: PropertyDetailRow | null;
   onClose: () => void;
   onSave?: (propertyId: string, calculatorData: NovationFormData) => Promise<void>;
+  calculatorDefaults?: Partial<NovationFormData>;
 }
 
-export default function PropertyDetailPanel({ property, onClose, onSave }: PropertyDetailPanelProps) {
+export default function PropertyDetailPanel({ property, onClose, onSave, calculatorDefaults }: PropertyDetailPanelProps) {
   if (!property) {
     return null;
   }
 
-  const initialValues: Partial<NovationFormData> = {
-    as_is_market_value: property.as_is_market_value ?? property.estimated_value ?? 0,
-    percent_of_market_value: property.percent_of_market_value ?? 95,
-    realtor_fee_percent: property.realtor_fee_percent ?? 3,
-    double_close_fee_percent: property.double_close_fee_percent ?? 0.75,
-    closing_attorney_fee: property.closing_attorney_fee ?? 0,
-    title_insurance: property.title_insurance ?? 0,
-    efile_fee: property.efile_fee ?? 0,
-    recording_fee: property.recording_fee ?? 0,
-    transfer_tax: property.transfer_tax ?? 0,
-    flat_fee_listing: property.flat_fee_listing ?? 0,
-    photographer_fee: property.photographer_fee ?? 0,
-    other_expenses: property.other_expenses ?? 0,
-    repair_costs: property.repair_costs ?? 0,
-    interest_costs: property.interest_costs ?? 0,
-    months_held: property.months_held ?? 0,
-    desired_profit_access: property.desired_profit_access ?? 30000,
-    desired_profit_no_access: property.desired_profit_no_access ?? 35000,
-  };
+  // Build initial values from property data, using null coalescing to preserve undefined
+  // This allows the calculator to fall back to defaults properly
+  const initialValues: Partial<NovationFormData> = {};
+  
+  if (property.as_is_market_value !== null) {
+    initialValues.as_is_market_value = property.as_is_market_value;
+  } else if (property.estimated_value !== null) {
+    initialValues.as_is_market_value = property.estimated_value;
+  }
+  
+  if (property.percent_of_market_value !== null) initialValues.percent_of_market_value = property.percent_of_market_value;
+  if (property.realtor_fee_percent !== null) initialValues.realtor_fee_percent = property.realtor_fee_percent;
+  if (property.double_close_fee_percent !== null) initialValues.double_close_fee_percent = property.double_close_fee_percent;
+  if (property.closing_attorney_fee !== null) initialValues.closing_attorney_fee = property.closing_attorney_fee;
+  if (property.title_insurance !== null) initialValues.title_insurance = property.title_insurance;
+  if (property.efile_fee !== null) initialValues.efile_fee = property.efile_fee;
+  if (property.recording_fee !== null) initialValues.recording_fee = property.recording_fee;
+  if (property.transfer_tax !== null) initialValues.transfer_tax = property.transfer_tax;
+  if (property.flat_fee_listing !== null) initialValues.flat_fee_listing = property.flat_fee_listing;
+  if (property.photographer_fee !== null) initialValues.photographer_fee = property.photographer_fee;
+  if (property.other_expenses !== null) initialValues.other_expenses = property.other_expenses;
+  if (property.repair_costs !== null) initialValues.repair_costs = property.repair_costs;
+  if (property.interest_costs !== null) initialValues.interest_costs = property.interest_costs;
+  if (property.months_held !== null) initialValues.months_held = property.months_held;
+  if (property.desired_profit_access !== null) initialValues.desired_profit_access = property.desired_profit_access;
+  if (property.desired_profit_no_access !== null) initialValues.desired_profit_no_access = property.desired_profit_no_access;
 
   return (
     <>
@@ -136,6 +144,7 @@ export default function PropertyDetailPanel({ property, onClose, onSave }: Prope
           <section>
             <NovationCalculator
               initialValues={initialValues}
+              defaults={calculatorDefaults}
               onSave={onSave ? async (values) => onSave(property.id, values) : undefined}
             />
           </section>
