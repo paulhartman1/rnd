@@ -34,20 +34,28 @@ export default async function AdminSettingsPage() {
   const showPushNotifications = await isFeatureEnabled("pwa_push_notifications");
 
   // Fetch lightweight counts for each settings section
-  const [sourcesResult, phoneSettingsResult, appointmentTypesResult, questionsResult, scoringConfigResult] =
-    await Promise.all([
-      queryClient.from("sources").select("id, is_active"),
-      queryClient.from("phone_settings").select("is_forwarding_enabled").limit(1).maybeSingle(),
-      queryClient.from("appointment_types").select("id, is_active"),
-      queryClient.from("intake_questions").select("id, is_active").is("deleted_at", null),
-      queryClient.from("lead_scoring_config").select("config_name, is_active").eq("is_active", true).maybeSingle(),
-    ]);
+  const [
+    sourcesResult,
+    phoneSettingsResult,
+    appointmentTypesResult,
+    questionsResult,
+    scoringConfigResult,
+    calculatorDefaultsResult,
+  ] = await Promise.all([
+    queryClient.from("sources").select("id, is_active"),
+    queryClient.from("phone_settings").select("is_forwarding_enabled").limit(1).maybeSingle(),
+    queryClient.from("appointment_types").select("id, is_active"),
+    queryClient.from("intake_questions").select("id, is_active").is("deleted_at", null),
+    queryClient.from("lead_scoring_config").select("config_name, is_active").eq("is_active", true).maybeSingle(),
+    queryClient.from("calculator_defaults").select("percent_of_market_value, desired_profit_access").limit(1).maybeSingle(),
+  ]);
 
   const sources = sourcesResult.data ?? [];
   const appointmentTypes = appointmentTypesResult.data ?? [];
   const questions = questionsResult.data ?? [];
   const phoneSettings = phoneSettingsResult.data;
   const activeScoringConfig = scoringConfigResult.data;
+  const calculatorDefaults = calculatorDefaultsResult.data;
 
   const activeSources = sources.filter((s) => s.is_active).length;
   const activeAppointmentTypes = appointmentTypes.filter((t) => t.is_active).length;
@@ -88,6 +96,15 @@ export default async function AdminSettingsPage() {
       href: "/admin/settings/lead-scoring",
       icon: "⭐",
       stats: activeScoringConfig ? `Active: ${activeScoringConfig.config_name}` : "No active config",
+    },
+    {
+      title: "Calculator Defaults",
+      description: "Set default values for property analysis calculator",
+      href: "/admin/settings/calculator-defaults",
+      icon: "🧮",
+      stats: calculatorDefaults
+        ? `${calculatorDefaults.percent_of_market_value}% market • $${calculatorDefaults.desired_profit_access.toLocaleString()} profit`
+        : "No defaults set",
     },
   ];
 
