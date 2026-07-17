@@ -54,6 +54,10 @@ type PropertyWithLead = {
   months_held: number | null;
   desired_profit_access: number | null;
   desired_profit_no_access: number | null;
+  profit_type: 'fixed' | 'percentage' | null;
+  profit_percentage: number | null;
+  formula_mode: 'simple' | 'detailed' | null;
+  arv_percentage: number | null;
   last_sale_date: string | null;
   last_sale_price: number | null;
   lead_id: string;
@@ -113,7 +117,16 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
   // Calculate property metrics for list view
   const calculateMetrics = (property: PropertyWithLead) => {
     const asIsMarketValue = property.as_is_market_value ?? property.estimated_value ?? 0;
-    const percentOfMarketValue = property.percent_of_market_value ?? 95;
+    const profitType = property.profit_type ?? 'fixed';
+    const profitPercentage = property.profit_percentage ?? 15;
+    const desiredProfitAccess = property.desired_profit_access ?? 30000;
+    
+    // Calculate profit based on type
+    const estimatedProfit = profitType === 'percentage' 
+      ? asIsMarketValue * (profitPercentage / 100)
+      : desiredProfitAccess;
+
+    const percentOfMarketValue = property.arv_percentage ?? property.percent_of_market_value ?? 85;
     const realtorFeePercent = property.realtor_fee_percent ?? 3;
     const doubleCloseFeePercent = property.double_close_fee_percent ?? 0.75;
     const closingAttorneyFee = property.closing_attorney_fee ?? 500;
@@ -125,7 +138,6 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
     const photographerFee = property.photographer_fee ?? 150;
     const otherExpenses = property.other_expenses ?? 0;
     const repairCosts = property.repair_costs ?? 0;
-    const desiredProfitAccess = property.desired_profit_access ?? 30000;
 
     const salePrice = asIsMarketValue * (percentOfMarketValue / 100);
     const realtorFee = salePrice * (realtorFeePercent / 100);
@@ -140,8 +152,7 @@ export default function PropertiesClient({ initialProperties }: PropertiesClient
       photographerFee +
       otherExpenses;
     const totalCosts = realtorFee + doubleCloseFee + fixedCosts + repairCosts;
-    const accessMAO = salePrice - totalCosts - desiredProfitAccess;
-    const estimatedProfit = salePrice - totalCosts - accessMAO;
+    const accessMAO = salePrice - totalCosts - estimatedProfit;
 
     return {
       estARV: asIsMarketValue,
