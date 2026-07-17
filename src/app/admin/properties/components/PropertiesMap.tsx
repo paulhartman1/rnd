@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -60,19 +60,27 @@ interface PropertiesMapProps {
   height?: string;
 }
 
-// Component to fit map bounds to markers
-function FitBounds({ properties }: { properties: Property[] }) {
+// Component to fit map bounds to markers or user location
+function FitBounds({ properties, userLocation }: { properties: Property[]; userLocation: [number, number] | null }) {
   const map = useMap();
 
   useEffect(() => {
     const validProps = properties.filter(p => p.latitude !== null && p.longitude !== null);
+    
+    // On mobile, if user location is available, center on user with nearby properties
+    if (userLocation && window.innerWidth < 768) {
+      map.setView(userLocation, 12);
+      return;
+    }
+    
+    // Otherwise fit to property bounds
     if (validProps.length > 0) {
       const bounds = L.latLngBounds(
         validProps.map(p => [p.latitude!, p.longitude!] as [number, number])
       );
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
-  }, [properties, map]);
+  }, [properties, map, userLocation]);
 
   return null;
 }
@@ -102,6 +110,32 @@ export default function PropertiesMap({
   zoom = 4,
   height = '100%'
 }: PropertiesMapProps) {
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Get user's current location on mount (especially for mobile)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return;
+    
+    // Only request location on mobile to save battery and respect privacy
+    const isMobile = window.innerWidth < 768;
+    if (!isMobile) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation([position.coords.latitude, position.coords.longitude]);
+      },
+      (error) => {
+        console.warn('Location access denied or unavailable:', error.message);
+        setLocationError(error.message);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 300000, // Cache for 5 minutes
+      }
+    );
+  }, []);
 
   if (properties.length === 0) {
     return (
@@ -128,7 +162,7 @@ export default function PropertiesMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       
-      <FitBounds properties={properties} />
+      <FitBounds properties={properties} userLocation={userLocation} />
 
       <MarkerClusterGroup
         chunkedLoading

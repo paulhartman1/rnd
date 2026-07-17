@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import NovationCalculator, { type NovationFormData } from '@/components/admin/NovationCalculator';
 
 type PropertyDetailRow = {
@@ -41,9 +42,47 @@ interface PropertyDetailPanelProps {
 }
 
 export default function PropertyDetailPanel({ property, onClose, onSave, calculatorDefaults }: PropertyDetailPanelProps) {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchOffset, setTouchOffset] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   if (!property) {
     return null;
   }
+
+  // Handle swipe-to-dismiss on mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    
+    const currentTouch = e.touches[0].clientY;
+    const diff = currentTouch - touchStart;
+    
+    // Only allow downward swipe
+    if (diff > 0) {
+      setTouchOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchOffset > 100) {
+      // Threshold for dismissing
+      onClose();
+    }
+    setTouchStart(null);
+    setTouchOffset(0);
+  };
+
+  // Prevent body scroll when panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   // Build initial values from property data, using null coalescing to preserve undefined
   // This allows the calculator to fall back to defaults properly
@@ -74,27 +113,55 @@ export default function PropertyDetailPanel({ property, onClose, onSave, calcula
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 top-0 z-50 h-screen overflow-y-auto bg-white shadow-2xl md:inset-y-0 md:left-auto md:w-full md:max-w-2xl">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 z-40 bg-black/30 transition-opacity" 
+        onClick={onClose}
+        style={{ opacity: touchOffset > 0 ? Math.max(0, 1 - touchOffset / 300) : 1 }}
+      />
+      
+      {/* Panel - Bottom Sheet on Mobile, Side Panel on Desktop */}
+      <div
+        ref={panelRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="fixed z-50 h-[90vh] overflow-y-auto bg-white shadow-2xl transition-transform md:inset-y-0 md:right-0 md:h-screen md:w-full md:max-w-2xl"
+        style={{
+          bottom: 0,
+          left: 0,
+          right: 0,
+          borderTopLeftRadius: '1.4rem',
+          borderTopRightRadius: '1.4rem',
+          transform: `translateY(${touchOffset}px)`,
+        }}
+      >
+        {/* Swipe Handle - Mobile Only */}
+        <div className="flex justify-center py-2 md:hidden">
+          <div className="h-1.5 w-12 rounded-full bg-black/20" />
+        </div>
+
+        {/* Header */}
         <div className="sticky top-0 z-10 border-b border-black/10 bg-white px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-black text-[var(--color-navy)] sm:text-xl">Property Details</h2>
-              <p className="mt-1 text-xs text-[var(--color-muted)] sm:text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-lg font-black text-[var(--color-navy)] sm:text-xl">Property Details</h2>
+              <p className="mt-1 truncate text-xs text-[var(--color-muted)] sm:text-sm">
                 {property.street_address}, {property.city}, {property.state} {property.postal_code}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-black/12 px-3 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 min-h-[44px]"
+              className="min-h-[44px] shrink-0 rounded-lg border border-black/12 px-3 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 active:bg-black/10"
             >
               Close
             </button>
           </div>
         </div>
 
-        <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
+        {/* Content */}
+        <div className="space-y-5 p-4 pb-8 sm:space-y-6 sm:p-6">
           <section>
             <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
               Property Information
