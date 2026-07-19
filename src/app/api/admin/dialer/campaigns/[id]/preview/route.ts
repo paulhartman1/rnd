@@ -81,11 +81,28 @@ export async function GET(
     }
 
     if (filters.lastContactedDaysMin && typeof filters.lastContactedDaysMin === 'number') {
-      query = query.gte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMin} days'`);
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - filters.lastContactedDaysMin);
+      query = query.gte("last_contacted_at", minDate.toISOString());
     }
 
     if (filters.lastContactedDaysMax && typeof filters.lastContactedDaysMax === 'number') {
-      query = query.lte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMax} days'`);
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() - filters.lastContactedDaysMax);
+      query = query.lte("last_contacted_at", maxDate.toISOString());
+    }
+
+    // Filter by creation date range (same logic as start route)
+    if (filters.createdDaysMin && typeof filters.createdDaysMin === 'number') {
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - filters.createdDaysMin);
+      query = query.lte("created_at", minDate.toISOString());
+    }
+
+    if (filters.createdDaysMax && typeof filters.createdDaysMax === 'number') {
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() - filters.createdDaysMax);
+      query = query.gte("created_at", maxDate.toISOString());
     }
 
     if (filters.priorityScoreMin && typeof filters.priorityScoreMin === 'number') {

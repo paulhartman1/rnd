@@ -88,28 +88,38 @@ export async function POST(
 
     // Filter by last contact date range
     if (filters.lastContactedDaysMin && typeof filters.lastContactedDaysMin === 'number') {
-      // Min days ago means we want leads contacted AT MOST that many days ago
-      // e.g., min=14 means last_contacted_at >= now() - 14 days
-      query = query.gte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMin} days'`);
+      // Min days ago means oldest date in range
+      // e.g., min=14 means last_contacted_at >= now() - 14 days (contacted within last 14 days)
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - filters.lastContactedDaysMin);
+      query = query.gte("last_contacted_at", minDate.toISOString());
     }
 
     if (filters.lastContactedDaysMax && typeof filters.lastContactedDaysMax === 'number') {
-      // Max days ago means we want leads contacted AT LEAST that many days ago
-      // e.g., max=30 means last_contacted_at <= now() - 30 days
-      query = query.lte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMax} days'`);
+      // Max days ago means most recent date in range
+      // e.g., max=7 means last_contacted_at <= now() - 7 days (contacted at least 7 days ago)
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() - filters.lastContactedDaysMax);
+      query = query.lte("last_contacted_at", maxDate.toISOString());
     }
 
     // Filter by creation date range
+    // When user says min=1, max=2, they mean "created between 1 and 2 days ago"
+    // So min is the MORE RECENT bound (smaller days ago), max is the OLDER bound (larger days ago)
     if (filters.createdDaysMin && typeof filters.createdDaysMin === 'number') {
-      // Min days ago means we want leads created AT MOST that many days ago
-      // e.g., min=7 means created_at >= now() - 7 days
-      query = query.gte("created_at", `now() - interval '${filters.createdDaysMin} days'`);
+      // Min days = most recent boundary (e.g., min=1 means NOT created in last 1 day)
+      // created_at <= now() - min days
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - filters.createdDaysMin);
+      query = query.lte("created_at", minDate.toISOString());
     }
 
     if (filters.createdDaysMax && typeof filters.createdDaysMax === 'number') {
-      // Max days ago means we want leads created AT LEAST that many days ago
-      // e.g., max=30 means created_at <= now() - 30 days
-      query = query.lte("created_at", `now() - interval '${filters.createdDaysMax} days'`);
+      // Max days = oldest boundary (e.g., max=2 means NOT older than 2 days)
+      // created_at >= now() - max days
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() - filters.createdDaysMax);
+      query = query.gte("created_at", maxDate.toISOString());
     }
 
     // Filter by priority score
