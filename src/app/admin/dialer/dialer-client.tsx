@@ -33,6 +33,8 @@ type LeadFilters = {
   unassignedOnly: boolean;
   lastContactedDaysMin: number | null;
   lastContactedDaysMax: number | null;
+  createdDaysMin: number | null;
+  createdDaysMax: number | null;
   leadIds: string[];
   priorityScoreMin?: number;
   hasComputedTags?: string[];
@@ -183,6 +185,8 @@ export default function DialerClient() {
       unassignedOnly: false,
       lastContactedDaysMin: null as number | null,
       lastContactedDaysMax: null as number | null,
+      createdDaysMin: null as number | null,
+      createdDaysMax: null as number | null,
       leadIds: [] as string[],
       priorityScoreMin: undefined as number | undefined,
       hasComputedTags: [] as string[]
@@ -201,6 +205,8 @@ export default function DialerClient() {
       unassignedOnly: false,
       lastContactedDaysMin: null as number | null,
       lastContactedDaysMax: null as number | null,
+      createdDaysMin: null as number | null,
+      createdDaysMax: null as number | null,
       leadIds: [] as string[],
       priorityScoreMin: undefined as number | undefined,
       hasComputedTags: [] as string[]
@@ -543,6 +549,8 @@ export default function DialerClient() {
         unassignedOnly: template.filters.unassignedOnly || false,
         lastContactedDaysMin: template.filters.lastContactedDaysMin || null,
         lastContactedDaysMax: template.filters.lastContactedDaysMax || null,
+        createdDaysMin: template.filters.createdDaysMin || null,
+        createdDaysMax: template.filters.createdDaysMax || null,
         leadIds: template.filters.leadIds || [],
         priorityScoreMin: template.filters.priorityScoreMin,
         hasComputedTags: template.filters.hasComputedTags || [],
@@ -572,6 +580,8 @@ export default function DialerClient() {
           unassignedOnly: false,
           lastContactedDaysMin: null,
           lastContactedDaysMax: null,
+          createdDaysMin: null,
+          createdDaysMax: null,
           leadIds: [] as string[],
           priorityScoreMin: undefined,
           hasComputedTags: []
@@ -626,6 +636,8 @@ export default function DialerClient() {
           unassignedOnly: false,
           lastContactedDaysMin: null,
           lastContactedDaysMax: null,
+          createdDaysMin: null,
+          createdDaysMax: null,
           leadIds: [],
           priorityScoreMin: undefined,
           hasComputedTags: []
@@ -1381,6 +1393,52 @@ export default function DialerClient() {
                   </p>
                 </div>
 
+                {/* Creation Date Range */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Creation Date Range (days ago)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-600">Min (created within)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g., 7"
+                        value={newCampaign.lead_filters.createdDaysMin ?? ""}
+                        onChange={(e) => setNewCampaign({
+                          ...newCampaign,
+                          lead_filters: { 
+                            ...newCampaign.lead_filters, 
+                            createdDaysMin: e.target.value ? parseInt(e.target.value) : null
+                          }
+                        })}
+                        className="w-full px-3 py-2 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Max (created before)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g., 30"
+                        value={newCampaign.lead_filters.createdDaysMax ?? ""}
+                        onChange={(e) => setNewCampaign({
+                          ...newCampaign,
+                          lead_filters: { 
+                            ...newCampaign.lead_filters, 
+                            createdDaysMax: e.target.value ? parseInt(e.target.value) : null
+                          }
+                        })}
+                        className="w-full px-3 py-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Example: min=7, max=30 finds leads created 1-4 weeks ago
+                  </p>
+                </div>
+
                 {/* Lead Selection */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -1546,6 +1604,8 @@ export default function DialerClient() {
                                 unassignedOnly: (filters.unassignedOnly as boolean) || false,
                                 lastContactedDaysMin: (filters.lastContactedDaysMin as number | null) || null,
                                 lastContactedDaysMax: (filters.lastContactedDaysMax as number | null) || null,
+                                createdDaysMin: (filters.createdDaysMin as number | null) || null,
+                                createdDaysMax: (filters.createdDaysMax as number | null) || null,
                                 leadIds: (filters.leadIds as string[]) || [],
                                 priorityScoreMin: (filters.priorityScoreMin as number | undefined) || undefined,
                                 hasComputedTags: (filters.hasComputedTags as string[]) || [],

@@ -134,10 +134,19 @@ export default function PhoneSelector({
                         Call
                       </button>
                     )}
-                    {phone.is_dnc && (
-                      <div className="rounded bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-                        DNC
-                      </div>
+                    {phone.is_dnc && !isCallActive && !disabled && (
+                      <button
+                        onClick={() => {
+                          if (confirm(
+                            `⚠️ DNC WARNING\n\nThis number is marked as Do Not Call.\n\nCalling this number may violate federal regulations.\n\nAre you absolutely sure you want to proceed?`
+                          )) {
+                            onCallPhone(phone);
+                          }
+                        }}
+                        className="rounded bg-yellow-600 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-700"
+                      >
+                        Override DNC
+                      </button>
                     )}
                   </div>
                 </div>

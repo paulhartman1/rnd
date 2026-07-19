@@ -99,6 +99,19 @@ export async function POST(
       query = query.lte("last_contacted_at", `now() - interval '${filters.lastContactedDaysMax} days'`);
     }
 
+    // Filter by creation date range
+    if (filters.createdDaysMin && typeof filters.createdDaysMin === 'number') {
+      // Min days ago means we want leads created AT MOST that many days ago
+      // e.g., min=7 means created_at >= now() - 7 days
+      query = query.gte("created_at", `now() - interval '${filters.createdDaysMin} days'`);
+    }
+
+    if (filters.createdDaysMax && typeof filters.createdDaysMax === 'number') {
+      // Max days ago means we want leads created AT LEAST that many days ago
+      // e.g., max=30 means created_at <= now() - 30 days
+      query = query.lte("created_at", `now() - interval '${filters.createdDaysMax} days'`);
+    }
+
     // Filter by priority score
     if (filters.priorityScoreMin && typeof filters.priorityScoreMin === 'number') {
       query = query.gte("priority_score", filters.priorityScoreMin);
