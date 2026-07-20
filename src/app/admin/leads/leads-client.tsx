@@ -64,6 +64,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   
   // Initialize Twilio Voice SDK
   const { makeCall, hangup, callStatus, isConnected, isMuted, toggleMute } = useTwilioVoice({
+    debug: true, // Enable debug logging
     onCallDisconnected: () => {
       // Reload to update call attempt counts
       setTimeout(() => window.location.reload(), 1000);
