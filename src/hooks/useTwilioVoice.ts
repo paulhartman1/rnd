@@ -133,21 +133,26 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
           connectParams.queueItemId = params.queueItemId;
         }
 
+        console.log('[TwilioVoice] Calling device.connect with params:', connectParams);
         const call = await device.connect({ params: connectParams });
+        console.log('[TwilioVoice] Call object created:', call);
         setCurrentCall(call);
 
         call.on("accept", () => {
+          console.log('[TwilioVoice] Event: accept (ringing)');
           log("Call accepted (ringing)");
           setCallStatus("ringing");
         });
 
         call.on("connect", () => {
+          console.log('[TwilioVoice] Event: connect');
           log("Call connected");
           setCallStatus("connected");
           if (onCallConnected) onCallConnected(call);
         });
 
         call.on("disconnect", () => {
+          console.log('[TwilioVoice] Event: disconnect');
           log("Call disconnected");
           setCallStatus("disconnected");
           setCurrentCall(null);
@@ -156,9 +161,26 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
         });
 
         call.on("error", (error) => {
+          console.log('[TwilioVoice] Event: error', error);
           log("Call error:", error);
           setCallStatus("error");
           if (onError) onError(error);
+        });
+
+        call.on("cancel", () => {
+          console.log('[TwilioVoice] Event: cancel');
+        });
+
+        call.on("reject", () => {
+          console.log('[TwilioVoice] Event: reject');
+        });
+
+        call.on("reconnecting", (error) => {
+          console.log('[TwilioVoice] Event: reconnecting', error);
+        });
+
+        call.on("reconnected", () => {
+          console.log('[TwilioVoice] Event: reconnected');
         });
 
         return call;
