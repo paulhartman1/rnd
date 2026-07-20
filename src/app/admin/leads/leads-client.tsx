@@ -852,81 +852,83 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
 
   return (
     <section className="space-y-4">
-      {/* Active Call Workspace - Mobile First */}
+      {/* Active Call Workspace Modal */}
       {(isConnected || callStatus === 'ringing') && activeCallLead && (
-        <div className="rounded-[1.4rem] border-2 border-green-500 bg-white shadow-lg">
-          {/* Call Status Header */}
-          <div className="border-b border-green-200 bg-green-50 px-4 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-3 w-3">
-                  <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-20">
+          <div className="w-full max-w-2xl rounded-[1.4rem] border-2 border-green-500 bg-white shadow-2xl">
+            {/* Call Status Header */}
+            <div className="border-b border-green-200 bg-green-50 px-4 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-3 w-3">
+                    <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+                  </div>
+                  <span className="font-semibold text-green-900">Call in progress</span>
+                  <span className="hidden text-sm text-green-700 sm:inline">{callStatus}</span>
                 </div>
-                <span className="font-semibold text-green-900">Call in progress</span>
-                <span className="hidden text-sm text-green-700 sm:inline">{callStatus}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleMute}
-                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition sm:flex-initial ${
-                    isMuted
-                      ? "bg-red-600 text-white hover:bg-red-700"
-                      : "bg-white text-green-900 hover:bg-green-100"
-                  }`}
-                >
-                  {isMuted ? "🔇 Unmute" : "🔊 Mute"}
-                </button>
-                <button
-                  type="button"
-                  onClick={saveActiveCallNotes}
-                  className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 sm:flex-initial"
-                >
-                  💾 Save
-                </button>
-                <button
-                  type="button"
-                  onClick={hangup}
-                  className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 sm:flex-initial"
-                >
-                  ☎️ Hang Up
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleMute}
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition sm:flex-initial ${
+                      isMuted
+                        ? "bg-red-600 text-white hover:bg-red-700"
+                        : "bg-white text-green-900 hover:bg-green-100"
+                    }`}
+                  >
+                    {isMuted ? "🔇 Unmute" : "🔊 Mute"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveActiveCallNotes}
+                    className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 sm:flex-initial"
+                  >
+                    💾 Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={hangup}
+                    className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 sm:flex-initial"
+                  >
+                    ☎️ Hang Up
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Lead Info & Workspace */}
-          <div className="space-y-4 p-4">
-            {/* Lead Name & Address */}
-            <div>
-              <h3 className="text-lg font-bold text-[var(--color-navy)]">
-                {activeCallLead.full_name || "Unknown"}
-              </h3>
-              {activeCallLead.street_address && (
-                <p className="text-sm text-[var(--color-muted)]">
-                  {activeCallLead.street_address}
-                  {activeCallLead.city && `, ${activeCallLead.city}`}
-                  {activeCallLead.state && `, ${activeCallLead.state}`}
-                  {activeCallLead.postal_code && ` ${activeCallLead.postal_code}`}
-                </p>
-              )}
-            </div>
+            {/* Lead Info & Workspace */}
+            <div className="space-y-4 p-6">
+              {/* Lead Name & Address */}
+              <div>
+                <h3 className="text-xl font-bold text-[var(--color-navy)]">
+                  {activeCallLead.full_name || "Unknown"}
+                </h3>
+                {activeCallLead.street_address && (
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">
+                    {activeCallLead.street_address}
+                    {activeCallLead.city && `, ${activeCallLead.city}`}
+                    {activeCallLead.state && `, ${activeCallLead.state}`}
+                    {activeCallLead.postal_code && ` ${activeCallLead.postal_code}`}
+                  </p>
+                )}
+              </div>
 
-            {/* TODO: Add MOA (Motivation/Opportunity/Action) metrics when fields are available */}
+              {/* TODO: Add MOA (Motivation/Opportunity/Action) metrics when fields are available */}
 
-            {/* Notes Textarea */}
-            <div>
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">Call Notes</span>
-                <textarea
-                  value={activeCallNotes}
-                  onChange={(e) => setActiveCallNotes(e.target.value)}
-                  rows={6}
-                  placeholder="Take notes during the call..."
-                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)] focus:ring-2 focus:ring-[var(--color-primary-gold)]/20"
-                />
-              </label>
+              {/* Notes Textarea */}
+              <div>
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">Call Notes</span>
+                  <textarea
+                    value={activeCallNotes}
+                    onChange={(e) => setActiveCallNotes(e.target.value)}
+                    rows={10}
+                    placeholder="Take notes during the call..."
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)] focus:ring-2 focus:ring-[var(--color-primary-gold)]/20"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         </div>
