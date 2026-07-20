@@ -179,11 +179,23 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
           console.log('[TwilioVoice] Event: disconnect');
           log("Call disconnected");
           
-          // iOS Safari: Deactivate audio session by stopping mic stream
+          // iOS Safari: Fully reset audio session
+          // Stop mic stream
           if (micStreamRef.current) {
             micStreamRef.current.getTracks().forEach(track => track.stop());
             micStreamRef.current = null;
             log("Mic stream stopped after call disconnect");
+          }
+          
+          // Close and clear AudioContext to force iOS to release audio session
+          if (audioContextRef.current) {
+            try {
+              audioContextRef.current.close();
+              log("AudioContext closed after call disconnect");
+            } catch (error) {
+              log("Error closing AudioContext:", error);
+            }
+            audioContextRef.current = null;
           }
           
           setCallStatus("disconnected");
@@ -195,6 +207,21 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
         call.on("error", (error) => {
           console.log('[TwilioVoice] Event: error', error);
           log("Call error:", error);
+          
+          // iOS Safari: Clean up on error too
+          if (micStreamRef.current) {
+            micStreamRef.current.getTracks().forEach(track => track.stop());
+            micStreamRef.current = null;
+          }
+          if (audioContextRef.current) {
+            try {
+              audioContextRef.current.close();
+            } catch (err) {
+              // Ignore
+            }
+            audioContextRef.current = null;
+          }
+          
           setCallStatus("error");
           if (onError) onError(error);
         });
