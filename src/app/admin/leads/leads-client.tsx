@@ -844,9 +844,10 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   // Debug logging
   console.log('[Workspace Debug]', {
     isConnected,
+    callStatus,
     activeCallLeadId,
     activeCallLead: activeCallLead ? 'found' : 'null',
-    shouldShowWorkspace: isConnected && !!activeCallLead
+    shouldShowWorkspace: (isConnected || callStatus === 'ringing') && !!activeCallLead
   });
 
   return (
