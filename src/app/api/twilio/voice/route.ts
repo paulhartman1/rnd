@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { NextRequest } from "next/server";
 
 function normalizePhone(input: string) {
   const trimmed = input.trim();
@@ -19,6 +20,93 @@ function normalizePhone(input: string) {
   }
 
   return "";
+}
+
+async function findOrCreateLead(fromNumber: string) {
+  const supabase = createAdminClient();
+  if (!supabase) return null;
+
+  const normalized = normalizePhone(fromNumber);
+  if (!normalized) return null;
+
+  // Look up existing lead by phone number
+  const { data: existingPhone } = await supabase
+    .from("lead_phones")
+    .select(`
+      id,
+      lead_id,
+      phone_number,
+      leads (
+        id,
+        full_name,
+        status
+      )
+    `)
+    .eq("phone_number", normalized)
+    .maybeSingle();
+
+  if (existingPhone?.leads) {
+    console.log('[Incoming Call] Found existing lead:', existingPhone.leads);
+    return {
+      leadId: (existingPhone.leads as any).id,
+      fullName: (existingPhone.leads as any).full_name,
+      status: (existingPhone.leads as any).status
+    };
+  }
+
+  // Lead not found - create a new one with "phone" source
+  console.log('[Incoming Call] Creating new lead for:', normalized);
+
+  // Use existing "phone" source
+  const PHONE_SOURCE_ID = '5690349d-4e0a-40ed-bb39-63cbf96bcbf1';
+
+  // Create minimal lead record
+  const { data: newLead, error: leadError } = await supabase
+    .from("leads")
+    .insert({
+      full_name: "Unknown Caller",
+      phone: normalized,
+      email: "",
+      street_address: "",
+      city: "",
+      state: "",
+      postal_code: "",
+      listed_with_agent: null,
+      property_type: null,
+      repairs_needed: null,
+      close_timeline: null,
+      sell_reason: null,
+      acceptable_offer: null,
+      sms_consent: false,
+      source_id: PHONE_SOURCE_ID,
+      status: "new",
+      owner_notes: "Auto-created from incoming call"
+    })
+    .select("id, full_name, status")
+    .single();
+
+  if (leadError || !newLead) {
+    console.error('[Incoming Call] Failed to create lead:', leadError);
+    return null;
+  }
+
+  // Add phone to lead_phones
+  await supabase
+    .from("lead_phones")
+    .insert({
+      lead_id: newLead.id,
+      phone_number: normalized,
+      is_primary: true,
+      phone_type: "unknown",
+      display_order: 0
+    });
+
+  console.log('[Incoming Call] Created new lead:', newLead);
+  return {
+    leadId: newLead.id,
+    fullName: newLead.full_name,
+    status: newLead.status
+  };
 }
 
 function isWithinAvailability(
@@ -61,7 +149,7 @@ function isWithinAvailability(
   return isAvailable;
 }
 
-async function getVoiceResponseXml() {
+async function getVoiceResponseXml(fromNumber?: string, digits?: string) {
   const supabase = createAdminClient();
 
   if (!supabase) {
@@ -94,11 +182,23 @@ async function getVoiceResponseXml() {
     ? isWithinAvailability(availability)
     : true; // If no availability set, assume always available
 
+  // Find or create lead for incoming caller
+  let callerName = "Unknown Caller";
+  if (fromNumber) {
+    const leadInfo = await findOrCreateLead(fromNumber);
+    if (leadInfo) {
+      callerName = leadInfo.fullName;
+    }
+  }
+
   console.log('[Voice Route]', {
     hasAvailability: availability?.length,
     isAvailable,
     isForwardingEnabled,
-    willForward: isForwardingEnabled && isAvailable
+    willForward: isForwardingEnabled && isAvailable,
+    fromNumber,
+    callerName,
+    digits
   });
 
   // If forwarding is disabled OR outside availability hours, send to voicemail
@@ -112,16 +212,31 @@ async function getVoiceResponseXml() {
 </Response>`;
   }
 
-  // Forward the call
+  // Forward the call with whisper screening
   const normalized = normalizePhone(forwardToPhone);
 
   if (!normalized) {
     return '<Response><Say>We are unable to connect your call right now.</Say><Hangup/></Response>';
   }
 
+  // If digits=1, connect the call (agent accepted)
+  if (digits === "1") {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial answerOnBridge="true">
+    <Number>${normalized}</Number>
+  </Dial>
+</Response>`;
+  }
+
+  // Initial call - use Gather for whisper screening
+  const whisperMessage = `Incoming call from ${callerName}, a lead from Rush N Dush. Press 1 to accept.`;
+  
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial answerOnBridge="true">${normalized}</Dial>
+  <Dial answerOnBridge="true">
+    <Number url="${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/twilio/voice/whisper">${normalized}</Number>
+  </Dial>
 </Response>`;
 }
 
@@ -134,12 +249,20 @@ function xmlResponse(xml: string) {
   });
 }
 
-export async function GET() {
-  const xml = await getVoiceResponseXml();
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const from = searchParams.get('From') || undefined;
+  const digits = searchParams.get('Digits') || undefined;
+  
+  const xml = await getVoiceResponseXml(from, digits);
   return xmlResponse(xml);
 }
 
-export async function POST() {
-  const xml = await getVoiceResponseXml();
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
+  const from = formData.get('From')?.toString() || undefined;
+  const digits = formData.get('Digits')?.toString() || undefined;
+  
+  const xml = await getVoiceResponseXml(from, digits);
   return xmlResponse(xml);
 }
