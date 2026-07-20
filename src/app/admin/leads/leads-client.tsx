@@ -841,6 +841,14 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   const activeCallLead = activeCallLeadId ? leads.find(l => l.id === activeCallLeadId) : null;
   const activeCallProperty = activeCallLead?.properties?.[0];
 
+  // Debug logging
+  console.log('[Workspace Debug]', {
+    isConnected,
+    activeCallLeadId,
+    activeCallLead: activeCallLead ? 'found' : 'null',
+    shouldShowWorkspace: isConnected && !!activeCallLead
+  });
+
   return (
     <section className="space-y-4">
       {/* Active Call Workspace - Mobile First */}
