@@ -158,7 +158,7 @@ export async function POST(request: Request) {
         streetAddress: parsedLead.data.street_address,
         repairsNeeded: parsedLead.data.repairs_needed,
         closeTimeline: parsedLead.data.close_timeline,
-      }).then(() => "completed" as const),
+      }, sourceId).then(() => "completed" as const),
       new Promise<"timed-out">((resolve) =>
         setTimeout(() => resolve("timed-out"), notificationTimeoutMs)
       ),

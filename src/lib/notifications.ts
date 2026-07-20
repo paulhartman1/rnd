@@ -290,10 +290,32 @@ export async function sendLeadPushNotification(
 
 /**
  * Send all configured notifications (SMS + Email + Push)
+ * Checks the source's notifications flag before sending
  */
 export async function sendNewLeadNotifications(
   leadData: LeadNotificationData,
+  sourceId?: string | null,
 ): Promise<void> {
+  // If sourceId is provided, check if notifications are enabled for this source
+  if (sourceId) {
+    const adminClient = createAdminClient();
+    if (adminClient) {
+      const { data: source, error } = await adminClient
+        .from("sources")
+        .select("notifications")
+        .eq("id", sourceId)
+        .single();
+
+      if (error) {
+        console.error("Failed to check source notifications setting:", error);
+        // Continue with notifications on error to avoid missing important leads
+      } else if (source && source.notifications === false) {
+        console.log(`Notifications skipped: source ${sourceId} has notifications disabled`);
+        return;
+      }
+    }
+  }
+
   // Send all in parallel (don't wait for each other)
   await Promise.allSettled([
     sendLeadSmsNotification(leadData),
