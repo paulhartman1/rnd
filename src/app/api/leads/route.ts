@@ -3,28 +3,31 @@ import { parseLeadPayload } from "@/lib/leads";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendNewLeadNotifications } from "@/lib/notifications";
+import { createHash } from "crypto";
 
 export async function POST(request: Request) {
   try {
-    // Verify API key for external integrations
-    const apiKey = request.headers.get("x-api-key");
-    const validApiKeys = [
-      process.env.REI_LEAD_PROS_API_KEY,
-      process.env.TEST_API_KEY,
-    ].filter(Boolean);
 
-    if (!apiKey || !validApiKeys.includes(apiKey)) {
+    const apiKey = request.headers.get("x-api-key");
+
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "Unauthorized. Invalid or missing API key." },
+        { error: "Unauthorized. Missing API key." },
         { status: 401 }
       );
     }
 
-    // Determine source based on API key
-    const isREILeadPros = apiKey === process.env.REI_LEAD_PROS_API_KEY;
-    
+    const sourceId = await validateApiKeyFromDatabase(apiKey);
+
+    if (!sourceId) {
+      return NextResponse.json(
+        { error: "Unauthorized. Invalid or inactive API key." },
+        { status: 401 }
+      );
+    }
+
     const payload = await request.json();
-    
+
     // Log the incoming request for debugging
     console.log('[/api/leads] Incoming request:', {
       timestamp: new Date().toISOString(),
@@ -35,44 +38,16 @@ export async function POST(request: Request) {
       },
       body: payload,
     });
-    
+
     const parsedLead = parseLeadPayload(payload);
 
     if (!parsedLead.ok) {
       console.error('[/api/leads] Validation error:', parsedLead.error);
       return NextResponse.json({ error: parsedLead.error }, { status: 400 });
     }
-    
-    // Log the parsed lead data
-    console.log('[/api/leads] Parsed lead data:', {
-      full_name: parsedLead.data.full_name,
-      phone: parsedLead.data.phone,
-      email: parsedLead.data.email,
-      address: {
-        street: parsedLead.data.street_address,
-        city: parsedLead.data.city,
-        state: parsedLead.data.state,
-        zip: parsedLead.data.postal_code,
-      },
-      acceptable_offer: parsedLead.data.acceptable_offer,
-    });
 
     const adminClient = createAdminClient();
     const supabase = adminClient ?? (await createClient());
-
-    // Look up source_id if REI Lead Pros
-    let sourceId: string | undefined;
-    if (isREILeadPros) {
-      const { data: sourceData } = await supabase
-        .from("sources")
-        .select("id")
-        .eq("name", "REI Lead Pros")
-        .single();
-      
-      if (sourceData?.id) {
-        sourceId = sourceData.id;
-      }
-    }
 
     const { data, error } = await supabase
       .from("leads")
@@ -102,18 +77,18 @@ export async function POST(request: Request) {
       const responsePayload =
         process.env.NODE_ENV === "production"
           ? {
-              error: invalidOrMissingAuth
-                ? "Unable to create lead due to Supabase authentication failure. Verify Vercel env vars point to the same Supabase project."
-                : "Unable to create lead. Verify Supabase table/policies and deployment env vars.",
-              code: error.code ?? null,
-            }
+            error: invalidOrMissingAuth
+              ? "Unable to create lead due to Supabase authentication failure. Verify Vercel env vars point to the same Supabase project."
+              : "Unable to create lead. Verify Supabase table/policies and deployment env vars.",
+            code: error.code ?? null,
+          }
           : {
-              error: "Unable to create lead.",
-              code: error.code ?? null,
-              details: error.details ?? null,
-              hint: error.hint ?? null,
-              message: error.message,
-            };
+            error: "Unable to create lead.",
+            code: error.code ?? null,
+            details: error.details ?? null,
+            hint: error.hint ?? null,
+            message: error.message,
+          };
 
       return NextResponse.json(responsePayload, { status: 500 });
     }
@@ -215,3 +190,55 @@ export async function POST(request: Request) {
     );
   }
 }
+/**
+ * Validates an API key against the database and returns the associated source_id.
+ * Updates the last_used_at timestamp if the key is found and active.
+ * 
+ * @param apiKey - The plain text API key from the request header
+ * @returns The source_id if valid and active, null otherwise
+ */
+async function validateApiKeyFromDatabase(apiKey: string): Promise<string | null> {
+  const adminClient = createAdminClient();
+  const supabase = adminClient ?? (await createClient());
+
+  const isREILeadPros = apiKey === process.env.REI_LEAD_PROS_API_KEY;
+  if (isREILeadPros) {
+    const { data: sourceData } = await supabase
+      .from("sources")
+      .select("id")
+      .eq("name", "REI Lead Pros")
+      .single();
+
+    return sourceData?.id;
+
+  } else {
+    try {
+      // Hash the incoming API key using SHA-256
+      const keyHash = createHash('sha256').update(apiKey).digest('hex');
+
+      // Query the source_api_keys table for a matching hash where active=true
+      const { data, error } = await supabase
+        .from('source_api_keys')
+        .select('id, source_id')
+        .eq('key_hash', keyHash)
+        .eq('active', true)
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      // Update the last_used_at timestamp
+      await supabase
+        .from('source_api_keys')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', data.id);
+
+      return data.source_id;
+    } catch (error) {
+      console.error('[validateApiKeyFromDatabase] Error:', error);
+      return null;
+    }
+  }
+}
+

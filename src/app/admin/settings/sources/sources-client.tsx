@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type Source = {
   id: string;
@@ -276,6 +277,12 @@ export default function SourcesClient({ initialSources }: Props) {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <Link
+                    href={`/admin/settings/sources/${source.id}/api-keys`}
+                    className="text-xs font-bold text-[var(--color-navy)] transition hover:underline"
+                  >
+                    API Keys
+                  </Link>
                   <button
                     onClick={() => handleEditSource(source)}
                     disabled={isAddingSource || editingSource !== null}
