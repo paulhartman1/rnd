@@ -61,17 +61,24 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
 
 export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled }: Props) {
   const [leads, setLeads] = useState<LeadWithProperties[]>(initialLeads);
+  const [activeCallLeadId, setActiveCallLeadId] = useState<string | null>(null);
+  const [activeCallNotes, setActiveCallNotes] = useState("");
   
   // Initialize Twilio Voice SDK
   const { makeCall, hangup, callStatus, isConnected, isMuted, toggleMute } = useTwilioVoice({
     debug: true, // Enable debug logging
     onCallDisconnected: () => {
+      // Clear active call state
+      setActiveCallLeadId(null);
+      setActiveCallNotes("");
       // Reload to update call attempt counts
       setTimeout(() => window.location.reload(), 1000);
     },
     onError: (error) => {
       console.error("Voice SDK error:", error);
       alert(`Call failed: ${error.message}`);
+      setActiveCallLeadId(null);
+      setActiveCallNotes("");
     },
   });
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
@@ -392,6 +399,10 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     updateDraft(leadId, { isCalling: true, error: null, callMessage: null, showContactMenu: false });
 
     try {
+      // Set active call state
+      setActiveCallLeadId(leadId);
+      setActiveCallNotes(lead.owner_notes || "");
+      
       // Use Voice SDK to make the call
       await makeCall({
         phoneNumber: phone.phone_number,
@@ -413,6 +424,31 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
         isCalling: false,
         error: error instanceof Error ? error.message : "Could not place call.",
       });
+      setActiveCallLeadId(null);
+      setActiveCallNotes("");
+    }
+  };
+
+  const saveActiveCallNotes = async () => {
+    if (!activeCallLeadId) return;
+
+    const response = await fetch(`/api/admin/leads/${activeCallLeadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ownerNotes: activeCallNotes,
+      }),
+    });
+
+    if (response.ok) {
+      // Update lead in local state
+      setLeads((previous) =>
+        previous.map((lead) =>
+          lead.id === activeCallLeadId
+            ? { ...lead, owner_notes: activeCallNotes || null }
+            : lead
+        )
+      );
     }
   };
 
@@ -801,39 +837,115 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   };
 
 
+  // Get active call lead data
+  const activeCallLead = activeCallLeadId ? leads.find(l => l.id === activeCallLeadId) : null;
+  const activeCallProperty = activeCallLead?.properties?.[0];
+
   return (
     <section className="space-y-4">
-      {/* Active Call Status */}
-      {isConnected && (
-        <div className="rounded-lg border-2 border-green-500 bg-green-50 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-3 w-3">
-                <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+      {/* Active Call Workspace - Mobile First */}
+      {isConnected && activeCallLead && (
+        <div className="rounded-[1.4rem] border-2 border-green-500 bg-white shadow-lg">
+          {/* Call Status Header */}
+          <div className="border-b border-green-200 bg-green-50 px-4 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-3 w-3">
+                  <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+                </div>
+                <span className="font-semibold text-green-900">Call in progress</span>
+                <span className="hidden text-sm text-green-700 sm:inline">{callStatus}</span>
               </div>
-              <span className="font-semibold text-green-900">Call in progress</span>
-              <span className="text-sm text-green-700">{callStatus}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition sm:flex-initial ${
+                    isMuted
+                      ? "bg-red-600 text-white hover:bg-red-700"
+                      : "bg-white text-green-900 hover:bg-green-100"
+                  }`}
+                >
+                  {isMuted ? "🔇 Unmute" : "🔊 Mute"}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveActiveCallNotes}
+                  className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 sm:flex-initial"
+                >
+                  💾 Save
+                </button>
+                <button
+                  type="button"
+                  onClick={hangup}
+                  className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 sm:flex-initial"
+                >
+                  ☎️ Hang Up
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleMute}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  isMuted
-                    ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-white text-green-900 hover:bg-green-100"
-                }`}
-              >
-                {isMuted ? "🔇 Unmute" : "🔊 Mute"}
-              </button>
-              <button
-                type="button"
-                onClick={hangup}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-              >
-                ☎️ Hang Up
-              </button>
+          </div>
+
+          {/* Lead Info & Workspace */}
+          <div className="space-y-4 p-4">
+            {/* Lead Name & Address */}
+            <div>
+              <h3 className="text-lg font-bold text-[var(--color-navy)]">
+                {activeCallLead.full_name || "Unknown"}
+              </h3>
+              {activeCallLead.street_address && (
+                <p className="text-sm text-[var(--color-muted)]">
+                  {activeCallLead.street_address}
+                  {activeCallLead.city && `, ${activeCallLead.city}`}
+                  {activeCallLead.state && `, ${activeCallLead.state}`}
+                  {activeCallLead.postal_code && ` ${activeCallLead.postal_code}`}
+                </p>
+              )}
+            </div>
+
+            {/* MOA (Motivation/Opportunity/Action) */}
+            {activeCallProperty && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {activeCallProperty.arv && (
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">ARV</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--color-navy)]">
+                      ${activeCallProperty.arv.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+                {activeCallProperty.moa && (
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">MOA</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--color-navy)]">
+                      ${activeCallProperty.moa.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+                {activeCallProperty.estimated_equity && (
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Equity</p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--color-navy)]">
+                      ${activeCallProperty.estimated_equity.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Notes Textarea */}
+            <div>
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">Call Notes</span>
+                <textarea
+                  value={activeCallNotes}
+                  onChange={(e) => setActiveCallNotes(e.target.value)}
+                  rows={6}
+                  placeholder="Take notes during the call..."
+                  className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none transition focus:border-[var(--color-primary-gold)] focus:ring-2 focus:ring-[var(--color-primary-gold)]/20"
+                />
+              </label>
             </div>
           </div>
         </div>
