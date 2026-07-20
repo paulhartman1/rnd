@@ -71,6 +71,8 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
       const device = new Device(token, {
         logLevel: debug ? 1 : 0,
         edge: "ashburn",
+        // Enable audio for iOS/mobile browsers
+        enableImprovedSignalingErrorPrecision: true,
       });
       
       deviceRef.current = device;
