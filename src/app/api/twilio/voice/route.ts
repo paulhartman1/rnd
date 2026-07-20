@@ -230,11 +230,12 @@ async function getVoiceResponseXml(fromNumber?: string, digits?: string) {
   }
 
   // Initial call - use Gather for whisper screening
+  // timeout="20" means ring for ~20 seconds (about 4-5 rings) before going to action URL
   const whisperMessage = `Incoming call from ${callerName}, a lead from Rush N Dush. Press 1 to accept.`;
   
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial answerOnBridge="true">
+  <Dial answerOnBridge="true" timeout="20" action="${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/twilio/voice/no-answer">
     <Number url="${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/twilio/voice/whisper">${normalized}</Number>
   </Dial>
 </Response>`;
