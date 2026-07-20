@@ -8,6 +8,7 @@ import {
 } from "@/lib/appointments";
 import { createClient } from "@/lib/supabase/client";
 import type { LeadAnswer, LeadWithProperties } from "./page";
+import PhoneNumbersList from "./components/PhoneNumbersList";
 import dynamic from 'next/dynamic';
 
 // Dynamically import map to avoid SSR issues with Leaflet
@@ -361,13 +362,13 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     updateDraft(leadId, { showContactMenu: !draft.showContactMenu });
   };
 
-  const callLead = async (leadId: string) => {
+  const callLeadPhone = async (leadId: string, phoneId: string) => {
     const draft = drafts[leadId];
     if (!draft) return;
 
     updateDraft(leadId, { isCalling: true, error: null, callMessage: null, showContactMenu: false });
 
-    const response = await fetch(`/api/admin/leads/${leadId}/call`, {
+    const response = await fetch(`/api/admin/leads/${leadId}/phones/${phoneId}/call`, {
       method: "POST",
     });
 
@@ -387,6 +388,29 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
       error: null,
       callMessage: "Call initiated in Twilio.",
     });
+
+    // Reload to get updated call attempt counts
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+  };
+
+  const callLead = async (leadId: string) => {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+
+    // Find primary phone or use first phone
+    const primaryPhone = lead.phones?.find((p) => p.is_primary);
+    const phoneToCall = primaryPhone || lead.phones?.[0];
+
+    if (!phoneToCall) {
+      updateDraft(leadId, {
+        error: "No phone numbers found for this lead.",
+      });
+      return;
+    }
+
+    await callLeadPhone(leadId, phoneToCall.id);
   };
 
   const openEmailModal = (leadId: string) => {
@@ -619,8 +643,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     const { lead } = (await response.json()) as { lead: LeadRow };
     
     // Add the new lead to the list and initialize its draft state
-    // New leads don't have properties yet, so add empty array
-    setLeads((prev) => [{ ...lead, properties: [] }, ...prev]);
+    // New leads don't have properties or phones yet, so add empty arrays
+    setLeads((prev) => [{ ...lead, properties: [], phones: [] }, ...prev]);
     setDrafts((prev) => ({
       ...prev,
       [lead.id]: toLeadDraft(lead),
@@ -1100,19 +1124,13 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                                   </a>
                                 </div>
                               )}
-                              {lead.phone && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Phone</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => callLead(lead.id)}
-                                    disabled={draft.isCalling}
-                                    className="mt-1 block font-medium text-[var(--color-primary-gold)] hover:underline text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {lead.phone}
-                                  </button>
-                                </div>
-                              )}
+                              <PhoneNumbersList
+                                leadId={lead.id}
+                                phones={lead.phones || []}
+                                onUpdate={() => window.location.reload()}
+                                onCall={(phoneId, phoneNumber) => callLeadPhone(lead.id, phoneId)}
+                                isCalling={draft.isCalling}
+                              />
                               {property.owner2_first_name && (
                                 <div>
                                   <span className="text-xs font-semibold text-[var(--color-muted)]">Owner 2</span>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { type LeadRow } from "@/lib/leads";
 import { type PropertyRow } from "@/lib/properties";
+import { type LeadPhone } from "@/lib/lead-phones";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -18,6 +19,7 @@ export type LeadAnswer = {
 
 export type LeadWithProperties = LeadRow & {
   properties: PropertyRow[];
+  phones: LeadPhone[];
 };
 
 export default async function AdminLeadsPage() {
@@ -89,6 +91,26 @@ export default async function AdminLeadsPage() {
   });
   
   const leads = Array.from(leadsMap.values());
+
+  // Fetch all phone numbers for all leads
+  const { data: phonesData } = await queryClient
+    .from("lead_phones")
+    .select("*")
+    .order("display_order", { ascending: true });
+
+  // Group phones by lead_id
+  const phonesByLeadId = (phonesData ?? []).reduce((acc, phone) => {
+    if (!acc[phone.lead_id]) {
+      acc[phone.lead_id] = [];
+    }
+    acc[phone.lead_id].push(phone);
+    return acc;
+  }, {} as Record<string, LeadPhone[]>);
+
+  // Attach phones to leads
+  leads.forEach((lead) => {
+    lead.phones = phonesByLeadId[lead.id] || [];
+  });
 
   // Fetch all lead answers for all leads
   const { data: answersData } = await queryClient

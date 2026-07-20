@@ -3,21 +3,88 @@ import { parseLeadPayload } from "@/lib/leads";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendNewLeadNotifications } from "@/lib/notifications";
+import { getClientIp, checkRateLimit, logLeadSubmission } from "@/lib/security/rate-limit";
 
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
+    const clientIp = getClientIp(request);
+    const userAgent = request.headers.get('user-agent');
 
     // Log the incoming request for debugging
     console.log('[/api/leads/web] Incoming request:', {
       timestamp: new Date().toISOString(),
+      clientIp,
       headers: {
         'content-type': request.headers.get('content-type'),
-        'user-agent': request.headers.get('user-agent'),
+        'user-agent': userAgent,
         'x-forwarded-for': request.headers.get('x-forwarded-for'),
       },
       body: payload,
     });
+
+    // Honeypot check - reject if the hidden 'website' field is filled
+    if (payload.website && payload.website.trim() !== '') {
+      console.warn('[/api/leads/web] Honeypot triggered:', {
+        clientIp,
+        website: payload.website,
+      });
+
+      // Get source ID for logging
+      const adminClient = createAdminClient();
+      const supabase = adminClient ?? (await createClient());
+      const { data: sourceData } = await supabase
+        .from("sources")
+        .select("id")
+        .eq("name", "Website")
+        .single();
+
+      // Log the rejected attempt
+      await logLeadSubmission({
+        sourceId: sourceData?.id || null,
+        ipAddress: clientIp,
+        userAgent,
+        accepted: false,
+        rejectionReason: 'honeypot',
+      });
+
+      return NextResponse.json(
+        { error: 'Invalid submission' },
+        { status: 400 }
+      );
+    }
+
+    // Rate limit check
+    const rateLimit = await checkRateLimit(clientIp, 5, 60);
+    if (!rateLimit.allowed) {
+      console.warn('[/api/leads/web] Rate limit exceeded:', {
+        clientIp,
+        remaining: rateLimit.remaining,
+      });
+
+      // Get source ID for logging
+      const adminClient = createAdminClient();
+      const supabase = adminClient ?? (await createClient());
+      const { data: sourceData } = await supabase
+        .from("sources")
+        .select("id")
+        .eq("name", "Website")
+        .single();
+
+      // Log the rejected attempt
+      await logLeadSubmission({
+        sourceId: sourceData?.id || null,
+        ipAddress: clientIp,
+        userAgent,
+        accepted: false,
+        rejectionReason: 'rate_limit_exceeded',
+      });
+
+      return NextResponse.json(
+        { error: 'Too many submissions. Please try again later.' },
+        { status: 429 }
+      );
+    }
 
     const parsedLead = parseLeadPayload(payload);
 
@@ -58,6 +125,17 @@ export async function POST(request: Request) {
         message: error.message,
       });
 
+      // Log the failed submission
+      await logLeadSubmission({
+        sourceId,
+        ipAddress: clientIp,
+        userAgent,
+        email: parsedLead.data.email ?? undefined,
+        phone: parsedLead.data.phone ?? undefined,
+        accepted: false,
+        rejectionReason: `database_error: ${error.code}`,
+      });
+
       const invalidOrMissingAuth =
         error.code === "PGRST301" ||
         error.message.toLowerCase().includes("jwt") ||
@@ -81,6 +159,16 @@ export async function POST(request: Request) {
 
       return NextResponse.json(responsePayload, { status: 500 });
     }
+
+    // Log the successful submission
+    await logLeadSubmission({
+      sourceId,
+      ipAddress: clientIp,
+      userAgent,
+      email: parsedLead.data.email ?? undefined,
+      phone: parsedLead.data.phone ?? undefined,
+      accepted: true,
+    });
 
     // Create property record for the lead if required address data exists
     // Properties table requires: street_address, city, state, postal_code (NOT NULL constraints)
