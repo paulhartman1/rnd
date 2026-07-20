@@ -237,7 +237,8 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
     return () => {
       cleanup();
     };
-  }, [autoInitialize, initializeDevice, cleanup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoInitialize]);
 
   return {
     // State
