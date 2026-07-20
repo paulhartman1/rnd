@@ -904,35 +904,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
               )}
             </div>
 
-            {/* MOA (Motivation/Opportunity/Action) */}
-            {activeCallProperty && (
-              <div className="grid gap-3 sm:grid-cols-3">
-                {activeCallProperty.arv && (
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">ARV</p>
-                    <p className="mt-1 text-lg font-semibold text-[var(--color-navy)]">
-                      ${activeCallProperty.arv.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-                {activeCallProperty.moa && (
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">MOA</p>
-                    <p className="mt-1 text-lg font-semibold text-[var(--color-navy)]">
-                      ${activeCallProperty.moa.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-                {activeCallProperty.estimated_equity && (
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">Equity</p>
-                    <p className="mt-1 text-lg font-semibold text-[var(--color-navy)]">
-                      ${activeCallProperty.estimated_equity.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* TODO: Add MOA (Motivation/Opportunity/Action) metrics when fields are available */}
 
             {/* Notes Textarea */}
             <div>
