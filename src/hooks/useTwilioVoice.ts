@@ -47,8 +47,9 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
       setCallStatus("initializing");
       
       // Request microphone permission
+      // iOS Safari workaround: Keep the microphone stream active to allow remote audio playback
+      // Without this, iOS Safari's autoplay policy blocks remote audio
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
       log("Microphone permission granted");
 
       // Get access token
