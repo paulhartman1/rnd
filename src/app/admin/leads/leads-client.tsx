@@ -852,7 +852,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   return (
     <section className="space-y-4">
       {/* Active Call Workspace - Mobile First */}
-      {isConnected && activeCallLead && (
+      {(isConnected || callStatus === 'ringing') && activeCallLead && (
         <div className="rounded-[1.4rem] border-2 border-green-500 bg-white shadow-lg">
           {/* Call Status Header */}
           <div className="border-b border-green-200 bg-green-50 px-4 py-3">
