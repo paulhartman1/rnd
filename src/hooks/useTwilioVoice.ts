@@ -50,14 +50,16 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
       
       // iOS Safari workaround: Create audio context and keep mic stream active
       // This ensures both incoming and outgoing audio work on iOS Safari
-      if (!audioContextRef.current && typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && !audioContextRef.current) {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
         audioContextRef.current = new AudioContext();
-        // Resume audio context (required for iOS)
-        if (audioContextRef.current.state === 'suspended') {
-          await audioContextRef.current.resume();
-        }
-        log("Audio context created and resumed");
+        log("Audio context created");
+      }
+      
+      // CRITICAL: Resume audio context from user gesture (we're in button click context)
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+        log("Audio context resumed - state:", audioContextRef.current.state);
       }
       
       // Request and KEEP microphone stream active for iOS Safari
@@ -92,8 +94,6 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
       const device = new Device(token, {
         logLevel: debug ? 1 : 0,
         edge: "ashburn",
-        // Enable audio for iOS/mobile browsers
-        enableImprovedSignalingErrorPrecision: true,
       });
       
       deviceRef.current = device;
@@ -178,6 +178,14 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
         call.on("disconnect", () => {
           console.log('[TwilioVoice] Event: disconnect');
           log("Call disconnected");
+          
+          // iOS Safari: Deactivate audio session by stopping mic stream
+          if (micStreamRef.current) {
+            micStreamRef.current.getTracks().forEach(track => track.stop());
+            micStreamRef.current = null;
+            log("Mic stream stopped after call disconnect");
+          }
+          
           setCallStatus("disconnected");
           setCurrentCall(null);
           setIsMuted(false);
