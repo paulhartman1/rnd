@@ -15,9 +15,35 @@ export async function POST(request: NextRequest) {
     console.log('[Voice Client] Phone Number:', phoneNumber);
     console.log('[Voice Client] Phone ID:', phoneId);
 
+    // Handle direct lead calls (from /admin/leads) without queueItemId
+    if (!queueItemId && phoneNumber) {
+      console.log('[Voice Client] Direct lead call - dialing:', phoneNumber);
+      const response = new VoiceResponse();
+      const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+      
+      const dial = response.dial({
+        callerId: twilioPhoneNumber,
+        timeout: 30
+      });
+      
+      dial.number(phoneNumber);
+      
+      // Track call attempt if phoneId provided
+      if (phoneId) {
+        console.log('[Voice Client] Will track call attempt for phoneId:', phoneId);
+        // Note: Call tracking happens client-side after connection
+      }
+      
+      const twiml = response.toString();
+      console.log('[Voice Client] Generated TwiML for direct call:', twiml);
+      return new NextResponse(twiml, {
+        headers: { 'Content-Type': 'text/xml' }
+      });
+    }
+    
     if (!queueItemId) {
       // This is likely a device registration call from Twilio - return empty response
-      console.log('[Voice Client] No queueItemId - likely device registration');
+      console.log('[Voice Client] No queueItemId or phoneNumber - likely device registration');
       const response = new VoiceResponse();
       response.say('Device ready.');
       response.hangup();

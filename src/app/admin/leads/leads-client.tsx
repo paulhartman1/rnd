@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { LeadAnswer, LeadWithProperties } from "./page";
 import PhoneNumbersList from "./components/PhoneNumbersList";
+import { useTwilioVoice } from "@/hooks/useTwilioVoice";
 import dynamic from 'next/dynamic';
 
 // Dynamically import map to avoid SSR issues with Leaflet
@@ -60,6 +61,18 @@ function toLeadDraft(lead: LeadRow): LeadDraftState {
 
 export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, formsEnabled }: Props) {
   const [leads, setLeads] = useState<LeadWithProperties[]>(initialLeads);
+  
+  // Initialize Twilio Voice SDK
+  const { makeCall, hangup, callStatus, isConnected, isMuted, toggleMute } = useTwilioVoice({
+    onCallDisconnected: () => {
+      // Reload to update call attempt counts
+      setTimeout(() => window.location.reload(), 1000);
+    },
+    onError: (error) => {
+      console.error("Voice SDK error:", error);
+      alert(`Call failed: ${error.message}`);
+    },
+  });
   const [drafts, setDrafts] = useState<Record<string, LeadDraftState>>(() => {
     const nextState: Record<string, LeadDraftState> = {};
     initialLeads.forEach((lead) => {
@@ -364,35 +377,42 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
 
   const callLeadPhone = async (leadId: string, phoneId: string) => {
     const draft = drafts[leadId];
-    if (!draft) return;
+    const lead = leads.find((l) => l.id === leadId);
+    if (!draft || !lead) return;
 
-    updateDraft(leadId, { isCalling: true, error: null, callMessage: null, showContactMenu: false });
-
-    const response = await fetch(`/api/admin/leads/${leadId}/phones/${phoneId}/call`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
+    const phone = lead.phones?.find((p) => p.id === phoneId);
+    if (!phone) {
       updateDraft(leadId, {
-        isCalling: false,
-        error: body?.error ?? "Could not place call. Please try again.",
+        error: "Phone number not found.",
       });
       return;
     }
 
-    updateDraft(leadId, {
-      isCalling: false,
-      error: null,
-      callMessage: "Call initiated in Twilio.",
-    });
+    updateDraft(leadId, { isCalling: true, error: null, callMessage: null, showContactMenu: false });
 
-    // Reload to get updated call attempt counts
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000);
+    try {
+      // Use Voice SDK to make the call
+      await makeCall({
+        phoneNumber: phone.phone_number,
+        phoneId: phoneId,
+      });
+
+      // Track call attempt
+      await fetch(`/api/admin/leads/${leadId}/phones/${phoneId}/call-attempt`, {
+        method: "POST",
+      });
+
+      updateDraft(leadId, {
+        isCalling: false,
+        error: null,
+        callMessage: "Call connected.",
+      });
+    } catch (error) {
+      updateDraft(leadId, {
+        isCalling: false,
+        error: error instanceof Error ? error.message : "Could not place call.",
+      });
+    }
   };
 
   const callLead = async (leadId: string) => {
@@ -782,6 +802,42 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
 
   return (
     <section className="space-y-4">
+      {/* Active Call Status */}
+      {isConnected && (
+        <div className="rounded-lg border-2 border-green-500 bg-green-50 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-3 w-3">
+                <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+              </div>
+              <span className="font-semibold text-green-900">Call in progress</span>
+              <span className="text-sm text-green-700">{callStatus}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleMute}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  isMuted
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-white text-green-900 hover:bg-green-100"
+                }`}
+              >
+                {isMuted ? "🔇 Unmute" : "🔊 Mute"}
+              </button>
+              <button
+                type="button"
+                onClick={hangup}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                ☎️ Hang Up
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile-first View Toggle */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* View Mode Tabs - Mobile First */}
