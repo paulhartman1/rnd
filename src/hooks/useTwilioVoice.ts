@@ -37,6 +37,8 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
   }, [debug]);
 
   const deviceRef = useRef<Device | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [currentCall, setCurrentCall] = useState<Call | null>(null);
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [isMuted, setIsMuted] = useState(false);
@@ -46,11 +48,29 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
       log("Initializing device...");
       setCallStatus("initializing");
       
-      // Request microphone permission
-      // iOS Safari workaround: Keep the microphone stream active to allow remote audio playback
-      // Without this, iOS Safari's autoplay policy blocks remote audio
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      log("Microphone permission granted");
+      // iOS Safari workaround: Create audio context and keep mic stream active
+      // This ensures both incoming and outgoing audio work on iOS Safari
+      if (!audioContextRef.current && typeof window !== 'undefined') {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContext();
+        // Resume audio context (required for iOS)
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+        log("Audio context created and resumed");
+      }
+      
+      // Request and KEEP microphone stream active for iOS Safari
+      // Without an active local audio track, iOS won't play remote audio
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } 
+      });
+      micStreamRef.current = stream;
+      log("Microphone permission granted and stream kept active for iOS");
 
       // Get access token
       const tokenResponse = await fetch("/api/dialer/token");
@@ -225,6 +245,18 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
         // Ignore cleanup errors
       }
       deviceRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+      audioContextRef.current = null;
     }
     setCurrentCall(null);
     setCallStatus("idle");
