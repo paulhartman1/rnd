@@ -23,6 +23,7 @@ type UseTwilioVoiceOptions = {
 };
 
 export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
+  console.log('[TwilioVoice] Hook initialized with options:', options);
   const {
     autoInitialize = false,
     onCallConnected,
