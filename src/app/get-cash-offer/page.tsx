@@ -210,7 +210,7 @@ export default function GetCashOfferPage() {
         };
       }).filter((item) => item.answer); // Only include questions with answers
       
-      const response = await fetch("/api/leads", {
+      const response = await fetch("/api/leads/web", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...submissionData, questionHistory }),
