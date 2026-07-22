@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-export async function POST(request: Request) {
+async function handleCallStatus(request: Request) {
   const adminClient = createAdminClient();
   if (!adminClient) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
   try {
-    const formData = await request.formData();
-    const callSid = formData.get("CallSid") as string;
-    const callStatus = formData.get("CallStatus") as string;
-    const callDuration = formData.get("CallDuration") as string;
-    const queueItemId = new URL(request.url).searchParams.get("queueItemId");
+    const url = new URL(request.url);
+    const searchParams = url.searchParams;
+    const isPost = request.method.toUpperCase() === "POST";
+    const formData = isPost ? await request.formData() : null;
+    const callSid = (formData?.get("CallSid") as string | null) ?? searchParams.get("CallSid");
+    const callStatus = (formData?.get("CallStatus") as string | null) ?? searchParams.get("CallStatus");
+    const callDuration = (formData?.get("CallDuration") as string | null) ?? searchParams.get("CallDuration");
+    const queueItemId = searchParams.get("queueItemId");
 
     console.log('[Call Status] Received:', { callSid, callStatus, callDuration, queueItemId });
 
@@ -139,4 +141,12 @@ export async function POST(request: Request) {
     // Return 200 to prevent Twilio retries
     return new NextResponse("", { status: 200 });
   }
+}
+
+export async function GET(request: Request) {
+  return handleCallStatus(request);
+}
+
+export async function POST(request: Request) {
+  return handleCallStatus(request);
 }

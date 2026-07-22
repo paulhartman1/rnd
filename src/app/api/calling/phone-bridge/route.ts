@@ -72,7 +72,9 @@ export async function POST(request: NextRequest) {
       callerId: twilioPhone,
       record: 'record-from-answer-dual',
       recordingStatusCallback: recordingStatusUrl.toString(),
+      recordingStatusCallbackMethod: 'POST',
       action: callStatusUrl.toString(),
+      method: 'POST',
     });
     dial.number(phoneNumber);
     const twiml = voiceResponse.toString();
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
       from: twilioPhone,
       twiml,
       statusCallback: callStatusUrl.toString(),
+      statusCallbackMethod: 'POST',
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
     });
 
