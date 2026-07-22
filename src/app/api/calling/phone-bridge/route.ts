@@ -45,20 +45,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Twilio not configured' }, { status: 500 });
     }
 
+    if (!baseUrl) {
+      return NextResponse.json({ error: 'Site URL not configured' }, { status: 500 });
+    }
+
     const client = twilio(accountSid, authToken);
+    const callStatusUrl = new URL('/api/twilio/call-status', baseUrl);
+    const recordingStatusUrl = new URL('/api/twilio/recording-complete', baseUrl);
+
+    if (queueItemId) {
+      callStatusUrl.searchParams.set('queueItemId', queueItemId);
+      recordingStatusUrl.searchParams.set('queueItemId', queueItemId);
+    }
+
+    if (phoneId) {
+      callStatusUrl.searchParams.set('phoneId', phoneId);
+      recordingStatusUrl.searchParams.set('phoneId', phoneId);
+    }
+
+    callStatusUrl.searchParams.set('transport', 'phone');
 
     // Create call: Ring agent, then immediately bridge to lead
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="Polly.Matthew">Connecting to lead</Say>
-  <Dial 
-    callerId="${twilioPhone}" 
-    record="record-from-answer-dual"
-    recordingStatusCallback="${baseUrl}/api/twilio/recording-complete?queueItemId=${queueItemId}&phoneId=${phoneId || ''}"
-    action="${baseUrl}/api/twilio/call-status?queueItemId=${queueItemId}&phoneId=${phoneId || ''}&transport=phone">
-    <Number>${phoneNumber}</Number>
-  </Dial>
-</Response>`;
+    const voiceResponse = new twilio.twiml.VoiceResponse();
+    voiceResponse.say({ voice: 'Polly.Matthew' }, 'Connecting to lead');
+    const dial = voiceResponse.dial({
+      callerId: twilioPhone,
+      record: 'record-from-answer-dual',
+      recordingStatusCallback: recordingStatusUrl.toString(),
+      action: callStatusUrl.toString(),
+    });
+    dial.number(phoneNumber);
+    const twiml = voiceResponse.toString();
 
     console.log('[Phone Bridge] Initiating call:', {
       to: agentPhone,
@@ -71,7 +88,7 @@ export async function POST(request: NextRequest) {
       to: agentPhone,
       from: twilioPhone,
       twiml,
-      statusCallback: `${baseUrl}/api/twilio/call-status?queueItemId=${queueItemId}&phoneId=${phoneId || ''}&transport=phone`,
+      statusCallback: callStatusUrl.toString(),
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
     });
 
