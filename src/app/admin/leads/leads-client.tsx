@@ -11,6 +11,7 @@ import type { LeadAnswer, LeadWithProperties } from "./page";
 import PhoneNumbersList from "./components/PhoneNumbersList";
 import { useTwilioVoice } from "@/hooks/useTwilioVoice";
 import dynamic from 'next/dynamic';
+import NovationCalculator, { type NovationFormData } from '@/components/admin/NovationCalculator';
 
 // Dynamically import map to avoid SSR issues with Leaflet
 const LeadsMap = dynamic(
@@ -1441,55 +1442,95 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                               </span>
                             </button>
                             {draft.showFinancial && (
-                            <div className="grid gap-3 p-4 text-sm sm:grid-cols-2">
-                              {property.total_assessed_value && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Assessed Value</span>
-                                  <p className="mt-1 font-medium">${property.total_assessed_value.toLocaleString()}</p>
-                                </div>
-                              )}
-                              {property.estimated_value && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Estimated Value</span>
-                                  <p className="mt-1 font-medium">${property.estimated_value.toLocaleString()}</p>
-                                </div>
-                              )}
-                              {property.last_sale_date && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Last Sale Date</span>
-                                  <p className="mt-1 font-medium">{new Date(property.last_sale_date).toLocaleDateString()}</p>
-                                </div>
-                              )}
-                              {property.last_sale_price && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Last Sale Price</span>
-                                  <p className="mt-1 font-medium">${property.last_sale_price.toLocaleString()}</p>
-                                </div>
-                              )}
-                              {property.total_loan_balance && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Loan Balance</span>
-                                  <p className="mt-1 font-medium">${property.total_loan_balance.toLocaleString()}</p>
-                                </div>
-                              )}
-                              {property.equity_current_estimated_balance && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">Equity</span>
-                                  <p className="mt-1 font-medium">${property.equity_current_estimated_balance.toLocaleString()}</p>
-                                </div>
-                              )}
-                              {property.ltv_current_estimated_combined !== null && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">LTV %</span>
-                                  <p className="mt-1 font-medium">{property.ltv_current_estimated_combined}%</p>
-                                </div>
-                              )}
-                              {property.mls_status && (
-                                <div>
-                                  <span className="text-xs font-semibold text-[var(--color-muted)]">MLS Status</span>
-                                  <p className="mt-1 font-medium">{property.mls_status}</p>
-                                </div>
-                              )}
+                            <div className="space-y-4 p-4">
+                              {/* Property Financial Summary */}
+                              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                                {property.total_assessed_value && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Assessed Value</span>
+                                    <p className="mt-1 font-medium">${property.total_assessed_value.toLocaleString()}</p>
+                                  </div>
+                                )}
+                                {property.estimated_value && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Estimated Value</span>
+                                    <p className="mt-1 font-medium">${property.estimated_value.toLocaleString()}</p>
+                                  </div>
+                                )}
+                                {property.last_sale_date && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Last Sale Date</span>
+                                    <p className="mt-1 font-medium">{new Date(property.last_sale_date).toLocaleDateString()}</p>
+                                  </div>
+                                )}
+                                {property.last_sale_price && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Last Sale Price</span>
+                                    <p className="mt-1 font-medium">${property.last_sale_price.toLocaleString()}</p>
+                                  </div>
+                                )}
+                                {property.total_loan_balance && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Loan Balance</span>
+                                    <p className="mt-1 font-medium">${property.total_loan_balance.toLocaleString()}</p>
+                                  </div>
+                                )}
+                                {property.equity_current_estimated_balance && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">Equity</span>
+                                    <p className="mt-1 font-medium">${property.equity_current_estimated_balance.toLocaleString()}</p>
+                                  </div>
+                                )}
+                                {property.ltv_current_estimated_combined !== null && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">LTV %</span>
+                                    <p className="mt-1 font-medium">{property.ltv_current_estimated_combined}%</p>
+                                  </div>
+                                )}
+                                {property.mls_status && (
+                                  <div>
+                                    <span className="text-xs font-semibold text-[var(--color-muted)]">MLS Status</span>
+                                    <p className="mt-1 font-medium">{property.mls_status}</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Novation Calculator */}
+                              <div className="border-t border-black/10 pt-4">
+                                <NovationCalculator
+                                  initialValues={{
+                                    as_is_market_value: property.as_is_market_value || 0,
+                                    percent_of_market_value: property.percent_of_market_value || 95,
+                                    realtor_fee_percent: property.realtor_fee_percent || 3,
+                                    double_close_fee_percent: property.double_close_fee_percent || 0.75,
+                                    closing_attorney_fee: property.closing_attorney_fee || 500,
+                                    title_insurance: property.title_insurance || 500,
+                                    efile_fee: property.efile_fee || 100,
+                                    recording_fee: property.recording_fee || 100,
+                                    transfer_tax: property.transfer_tax || 0,
+                                    flat_fee_listing: property.flat_fee_listing || 400,
+                                    photographer_fee: property.photographer_fee || 150,
+                                    other_expenses: property.other_expenses || 0,
+                                    repair_costs: property.repair_costs || 0,
+                                    interest_costs: property.interest_costs || 0,
+                                    months_held: property.months_held || 6,
+                                    desired_profit_access: property.desired_profit_access || 30000,
+                                    desired_profit_no_access: property.desired_profit_no_access || 35000,
+                                  }}
+                                  onSave={async (values: NovationFormData) => {
+                                    const response = await fetch(`/api/admin/properties/${property.id}/novation`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify(values),
+                                    });
+                                    
+                                    if (!response.ok) {
+                                      const error = await response.json().catch(() => ({ error: 'Failed to save' }));
+                                      throw new Error(error.error || 'Failed to save novation data');
+                                    }
+                                  }}
+                                />
+                              </div>
                             </div>
                             )}
                           </div>

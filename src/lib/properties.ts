@@ -47,6 +47,9 @@ export type PropertyRow = {
   equity_current_estimated_balance: number | null;
   ltv_current_estimated_combined: number | null;
   
+  // Valuation (from property_valuations domain)
+  current_valuation_id: string | null;
+  
   // Zoning
   zoning_code: string | null;
   
