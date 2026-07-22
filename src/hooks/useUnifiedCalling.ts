@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
+import { usePhoneBridge } from '@/hooks/usePhoneBridge';
+import { useTwilioVoice } from '@/hooks/useTwilioVoice';
 
 type CallStatus = 
   | 'idle'
@@ -23,138 +25,88 @@ export function useUnifiedCalling(options: {
   onCallConnected?: () => void;
   onCallDisconnected?: () => void;
   onError?: (error: Error) => void;
+  debug?: boolean;
 } = {}) {
-  const [callStatus, setCallStatus] = useState<CallStatus>('idle');
-  const [isMuted, setIsMuted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentCallSid, setCurrentCallSid] = useState<string | null>(null);
-  
-  // Detect iOS
-  const isIOS = typeof navigator !== 'undefined' && 
-    /iPhone|iPad|iPod/.test(navigator.userAgent);
-  
-  const transport = isIOS ? 'phone' : 'browser';
+  const [usePhoneTransport, setUsePhoneTransport] = useState(false);
+
+  const browserCalling = useTwilioVoice({
+    debug: options.debug,
+    onCallConnected: options.onCallConnected,
+    onCallDisconnected: options.onCallDisconnected,
+    onError: options.onError,
+  });
+
+  const phoneCalling = usePhoneBridge();
+
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const isIOSDevice =
+      /iPhone|iPad|iPod/.test(userAgent) ||
+      (userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
+    const isStandalonePWA =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+    setUsePhoneTransport(isIOSDevice || (isStandalonePWA && /Mobile|Android/.test(userAgent)));
+  }, []);
+
+  const callStatus = usePhoneTransport
+    ? phoneCalling.callStatus === 'calling_agent'
+      ? 'connecting'
+      : phoneCalling.callStatus === 'ringing_lead'
+        ? 'ringing'
+        : phoneCalling.callStatus
+    : browserCalling.callStatus;
+
+  const isConnected = usePhoneTransport
+    ? phoneCalling.callStatus === 'ringing_lead' || phoneCalling.callStatus === 'connected'
+    : browserCalling.isConnected;
+
+  const isRinging = usePhoneTransport
+    ? phoneCalling.callStatus === 'calling_agent' || phoneCalling.callStatus === 'ringing_lead'
+    : browserCalling.isRinging;
+
+  const error = usePhoneTransport ? phoneCalling.error : null;
+  const transport = usePhoneTransport ? 'phone' : 'browser';
 
   const makeCall = useCallback(async (params: CallParams) => {
-    try {
-      setError(null);
-      
-      if (isIOS) {
-        // Phone Bridge: Call agent's phone, then bridge to lead
-        console.log('[Unified Calling] Using phone bridge for iOS');
-        setCallStatus('connecting');
-        
-        const response = await fetch('/api/calling/phone-bridge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params)
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to initiate call');
-        }
-
-        const { callSid } = await response.json();
-        setCurrentCallSid(callSid);
-        setCallStatus('ringing');
-        
-        // Simulate progression for phone bridge
-        setTimeout(() => {
-          setCallStatus('connected');
-          options.onCallConnected?.();
-        }, 4000);
-
-      } else {
-        // Browser WebRTC: Use existing Twilio Voice SDK
-        console.log('[Unified Calling] Using WebRTC for desktop');
-        setCallStatus('connecting');
-        
-        // Import dynamically to avoid loading on iOS
-        const { Device } = await import('@twilio/voice-sdk');
-        
-        // Get token
-        const tokenResponse = await fetch('/api/dialer/token');
-        if (!tokenResponse.ok) {
-          throw new Error('Failed to get access token');
-        }
-        
-        const { token } = await tokenResponse.json();
-        
-        // Initialize device
-        const device = new Device(token, { logLevel: 0, edge: 'ashburn' });
-        
-        await device.register();
-        setCallStatus('ready');
-        
-        // Make call
-        const call = await device.connect({ params });
-        setCurrentCallSid(call.parameters.CallSid);
-        
-        call.on('accept', () => {
-          setCallStatus('ringing');
-        });
-        
-        call.on('connect', () => {
-          setCallStatus('connected');
-          options.onCallConnected?.();
-        });
-        
-        call.on('disconnect', () => {
-          setCallStatus('disconnected');
-          setCurrentCallSid(null);
-          options.onCallDisconnected?.();
-        });
-        
-        call.on('error', (err) => {
-          setCallStatus('error');
-          setError(err.message);
-          options.onError?.(err);
-        });
-      }
-      
-    } catch (err) {
-      console.error('[Unified Calling] Error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Call failed';
-      setError(errorMessage);
-      setCallStatus('error');
-      options.onError?.(err instanceof Error ? err : new Error(errorMessage));
+    if (usePhoneTransport) {
+      console.log('[Unified Calling] Using phone bridge');
+      await phoneCalling.makeCall(params);
+      return;
     }
-  }, [isIOS, options]);
+
+    console.log('[Unified Calling] Using WebRTC');
+    await browserCalling.makeCall(params);
+  }, [browserCalling, phoneCalling, usePhoneTransport]);
 
   const hangup = useCallback(() => {
-    if (isIOS) {
-      // User hangs up from their phone
-      setCallStatus('disconnected');
-      setCurrentCallSid(null);
-      options.onCallDisconnected?.();
-    } else {
-      // WebRTC hangup handled by call.disconnect()
-      setCallStatus('disconnecting');
+    if (usePhoneTransport) {
+      phoneCalling.hangup();
+      return;
     }
-  }, [isIOS, options]);
+    browserCalling.hangup();
+  }, [browserCalling, phoneCalling, usePhoneTransport]);
 
   const toggleMute = useCallback(() => {
-    if (isIOS) {
-      // User uses phone mute button
-      console.log('[Unified Calling] Use phone mute button');
-    } else {
-      // WebRTC mute toggle
-      setIsMuted(prev => !prev);
+    if (usePhoneTransport) {
+      phoneCalling.toggleMute();
+      return;
     }
-  }, [isIOS]);
+    browserCalling.toggleMute();
+  }, [browserCalling, phoneCalling, usePhoneTransport]);
 
   return {
     callStatus,
     makeCall,
     hangup,
     toggleMute,
-    isMuted,
+    isMuted: usePhoneTransport ? phoneCalling.isMuted : browserCalling.isMuted,
     error,
     transport,
-    isIOS,
-    currentCallSid,
-    isConnected: callStatus === 'connected',
-    isRinging: callStatus === 'ringing',
+    isIOS: usePhoneTransport,
+    currentCallSid: usePhoneTransport ? phoneCalling.currentCall?.callSid ?? null : null,
+    isConnected,
+    isRinging,
   };
 }

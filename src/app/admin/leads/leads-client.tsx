@@ -9,7 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { LeadAnswer, LeadWithProperties } from "./page";
 import PhoneNumbersList from "./components/PhoneNumbersList";
-import { useTwilioVoice } from "@/hooks/useTwilioVoice";
+import { useUnifiedCalling } from "@/hooks/useUnifiedCalling";
 import dynamic from 'next/dynamic';
 import NovationCalculator, { type NovationFormData } from '@/components/admin/NovationCalculator';
 
@@ -65,8 +65,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   const [activeCallLeadId, setActiveCallLeadId] = useState<string | null>(null);
   const [activeCallNotes, setActiveCallNotes] = useState("");
   
-  // Initialize Twilio Voice SDK
-  const { makeCall, hangup, callStatus, isConnected, isMuted, toggleMute } = useTwilioVoice({
+  // Route mobile/PWA calls through the phone bridge and desktop calls through WebRTC.
+  const { makeCall, hangup, callStatus, isConnected, isMuted, toggleMute, transport } = useUnifiedCalling({
     debug: true, // Enable debug logging
     onCallDisconnected: () => {
       // Clear active call state
@@ -418,7 +418,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
       updateDraft(leadId, {
         isCalling: false,
         error: null,
-        callMessage: "Call connected.",
+        callMessage: transport === 'phone' ? "Calling your phone first, then connecting to the lead." : "Call connected.",
       });
     } catch (error) {
       updateDraft(leadId, {

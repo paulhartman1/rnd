@@ -59,6 +59,7 @@ export function usePhoneBridge() {
       setError(errorMessage);
       setCallStatus('error');
       setCurrentCall(null);
+      throw new Error(errorMessage);
     }
   }, []);
 
