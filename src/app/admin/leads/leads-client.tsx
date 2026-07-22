@@ -1668,7 +1668,20 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                 </label>
 
                 {draft.error ? (
-                  <p className="text-sm text-red-700">{draft.error}</p>
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <p className="font-semibold">{draft.error}</p>
+                    {(draft.error.includes('Microphone') || draft.error.includes('permission')) && (
+                      <p className="mt-2 text-xs">
+                        <a 
+                          href="/docs/MICROPHONE_PERMISSIONS.md" 
+                          target="_blank"
+                          className="underline hover:text-red-900"
+                        >
+                          See microphone setup guide →
+                        </a>
+                      </p>
+                    )}
+                  </div>
                 ) : null}
                 {draft.callMessage ? (
                   <p className="text-sm text-emerald-700">{draft.callMessage}</p>

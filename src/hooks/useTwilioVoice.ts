@@ -64,15 +64,37 @@ export function useTwilioVoice(options: UseTwilioVoiceOptions = {}) {
       
       // Request and KEEP microphone stream active for iOS Safari
       // Without an active local audio track, iOS won't play remote audio
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        } 
-      });
-      micStreamRef.current = stream;
-      log("Microphone permission granted and stream kept active for iOS");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          } 
+        });
+        micStreamRef.current = stream;
+        log("Microphone permission granted and stream kept active for iOS");
+      } catch (permError) {
+        // Provide more specific error messages for permission issues
+        const isDenied = permError instanceof Error && 
+          (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError');
+        
+        if (isDenied) {
+          throw new Error(
+            "Microphone permission denied. Please allow microphone access in your browser settings to make calls."
+          );
+        }
+        
+        const isNotSupported = permError instanceof Error && permError.name === 'NotSupportedError';
+        if (isNotSupported) {
+          throw new Error(
+            "Your browser doesn't support microphone access. Please use a modern browser like Chrome, Safari, or Firefox."
+          );
+        }
+        
+        // Re-throw other errors
+        throw permError;
+      }
 
       // Get access token
       const tokenResponse = await fetch("/api/dialer/token");
