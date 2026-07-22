@@ -38,8 +38,8 @@ export abstract class BaseValuationProvider implements ValuationProvider {
       valuation_method: 'automated_provider',
       valuation_source: this.name,
       valuation_date: normalized.valuationDate.toISOString().split('T')[0],
-      confidence_score: normalized.confidence || null,
-      comparable_count: normalized.comparableCount || null,
+      confidence_score: normalized.confidence,
+      comparable_count: normalized.comparableCount,
       provider_metadata: {
         provider: this.name,
         ...normalized.metadata,
