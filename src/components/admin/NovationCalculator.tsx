@@ -94,6 +94,8 @@ export default function NovationCalculator({
   const [profitType, setProfitType] = useState<'fixed' | 'percentage'>(initialFormData.profit_type || 'fixed');
   const [lockedFields, setLockedFields] = useState<Set<LockableField>>(new Set());
   const [showDetailedCosts, setShowDetailedCosts] = useState(false);
+  // Track display values for inputs to allow empty strings while typing
+  const [displayValues, setDisplayValues] = useState<Record<string, string>>({});
 
   // Helper to toggle field lock
   const toggleLock = (field: LockableField) => {
@@ -160,6 +162,27 @@ export default function NovationCalculator({
     setHistoryIndex((prev) => prev + 1);
     
     setSaveSuccess(false);
+  };
+
+  // Better input handler that allows empty strings and removes leading zeros
+  const handleNumberInput = (field: keyof NovationFormData, rawValue: string) => {
+    // Store the display value to allow empty strings
+    setDisplayValues(prev => ({ ...prev, [field]: rawValue }));
+    
+    // Parse the number
+    const parsed = rawValue === '' ? 0 : parseFloat(rawValue);
+    const value = isNaN(parsed) ? 0 : parsed;
+    
+    handleInputChange(field, value);
+  };
+
+  // Get display value - use tracked display value if available, otherwise format the number
+  const getDisplayValue = (field: keyof NovationFormData): string => {
+    if (field in displayValues) {
+      return displayValues[field];
+    }
+    const value = formData[field];
+    return value === 0 || value === null || value === undefined ? '' : String(value);
   };
 
   const handleProfitTypeChange = (newType: 'fixed' | 'percentage') => {
@@ -392,10 +415,17 @@ export default function NovationCalculator({
                   </button>
                 </div>
                 <input
-                  type="number"
-                  value={formData.as_is_market_value}
-                  onChange={(e) => handleInputChange("as_is_market_value", Number(e.target.value))}
+                  type="text"
+                  inputMode="numeric"
+                  value={getDisplayValue('as_is_market_value')}
+                  onChange={(e) => handleNumberInput("as_is_market_value", e.target.value)}
+                  onBlur={(e) => {
+                    // Clean up display value on blur
+                    const value = formData.as_is_market_value;
+                    setDisplayValues(prev => ({ ...prev, as_is_market_value: value === 0 ? '' : String(value) }));
+                  }}
                   disabled={lockedFields.has('as_is_market_value')}
+                  placeholder="0"
                   className={`min-h-[44px] w-full rounded-lg border px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)] ${
                     lockedFields.has('as_is_market_value')
                       ? 'border-[var(--color-primary-gold)]/50 bg-[var(--color-primary-gold)]/5'
@@ -418,11 +448,16 @@ export default function NovationCalculator({
                   </button>
                 </div>
                 <input
-                  type="number"
-                  step="0.1"
-                  value={arvPercentage}
-                  onChange={(e) => handleInputChange("arv_percentage", Number(e.target.value))}
+                  type="text"
+                  inputMode="decimal"
+                  value={getDisplayValue('arv_percentage')}
+                  onChange={(e) => handleNumberInput("arv_percentage", e.target.value)}
+                  onBlur={() => {
+                    const value = formData.arv_percentage || 85;
+                    setDisplayValues(prev => ({ ...prev, arv_percentage: value === 0 ? '' : String(value) }));
+                  }}
                   disabled={lockedFields.has('arv_percentage')}
+                  placeholder="85"
                   className={`min-h-[44px] w-full rounded-lg border px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)] ${
                     lockedFields.has('arv_percentage')
                       ? 'border-[var(--color-primary-gold)]/50 bg-[var(--color-primary-gold)]/5'
@@ -450,10 +485,16 @@ export default function NovationCalculator({
                 </button>
               </div>
               <input
-                type="number"
-                value={formData.repair_costs}
-                onChange={(e) => handleInputChange("repair_costs", Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={getDisplayValue('repair_costs')}
+                onChange={(e) => handleNumberInput("repair_costs", e.target.value)}
+                onBlur={() => {
+                  const value = formData.repair_costs;
+                  setDisplayValues(prev => ({ ...prev, repair_costs: value === 0 ? '' : String(value) }));
+                }}
                 disabled={lockedFields.has('repair_costs')}
+                placeholder="0"
                 className={`min-h-[44px] w-full rounded-lg border px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)] ${
                   lockedFields.has('repair_costs')
                     ? 'border-[var(--color-primary-gold)]/50 bg-[var(--color-primary-gold)]/5'
@@ -511,14 +552,23 @@ export default function NovationCalculator({
                   </button>
                 </div>
                 <input
-                  type="number"
-                  step={profitType === 'percentage' ? '0.1' : '1'}
-                  value={profitType === 'fixed' ? formData.desired_profit_access : (formData.profit_percentage || 15)}
-                  onChange={(e) => handleInputChange(
+                  type="text"
+                  inputMode={profitType === 'percentage' ? 'decimal' : 'numeric'}
+                  value={profitType === 'fixed' 
+                    ? getDisplayValue('desired_profit_access')
+                    : getDisplayValue('profit_percentage')
+                  }
+                  onChange={(e) => handleNumberInput(
                     profitType === 'fixed' ? 'desired_profit_access' : 'profit_percentage',
-                    Number(e.target.value)
+                    e.target.value
                   )}
+                  onBlur={() => {
+                    const field = profitType === 'fixed' ? 'desired_profit_access' : 'profit_percentage';
+                    const value = formData[field];
+                    setDisplayValues(prev => ({ ...prev, [field]: value === 0 ? '' : String(value) }));
+                  }}
                   disabled={lockedFields.has('desired_profit')}
+                  placeholder={profitType === 'fixed' ? '0' : '15'}
                   className={`min-h-[44px] w-full rounded-lg border px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)] ${
                     lockedFields.has('desired_profit')
                       ? 'border-[var(--color-primary-gold)]/50 bg-[var(--color-primary-gold)]/5'
