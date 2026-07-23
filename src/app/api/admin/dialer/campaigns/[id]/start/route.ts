@@ -34,6 +34,7 @@ export async function POST(
     .from("dialer_campaigns")
     .select("*")
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (campaignError || !campaign) {

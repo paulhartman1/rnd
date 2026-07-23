@@ -30,13 +30,14 @@ export async function POST(
   }
 
   // Deactivate campaign
-  const { error } = await adminClient
+  const { error: updateError } = await adminClient
     .from("dialer_campaigns")
     .update({ is_active: false })
-    .eq("id", id);
+    .eq("id", id)
+    .is("deleted_at", null);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, message: "Campaign stopped" });

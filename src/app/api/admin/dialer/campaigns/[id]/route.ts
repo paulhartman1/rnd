@@ -47,6 +47,7 @@ export async function PATCH(
     .from("dialer_campaigns")
     .update(updateData)
     .eq("id", id)
+    .is("deleted_at", null)
     .select()
     .single();
 
@@ -79,10 +80,12 @@ export async function DELETE(
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
+  // Soft delete: set deleted_at timestamp
   const { error } = await adminClient
     .from("dialer_campaigns")
-    .delete()
-    .eq("id", id);
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

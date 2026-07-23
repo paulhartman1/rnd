@@ -143,6 +143,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   const [bulkImportDraft, setBulkImportDraft] = useState({
     file: null as File | null,
     createLeads: true,
+    createCampaign: false,
+    campaignName: "",
     isUploading: false,
     error: null as string | null,
     success: false,
@@ -152,6 +154,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
       leadsCreated: number; 
       mappingsCreated: number; 
       skipped: number;
+      campaignId?: string;
+      campaignName?: string;
       skippedRows?: Array<{ row: number; reason: string; data?: string }>;
     } | null,
   });
@@ -727,6 +731,8 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     setBulkImportDraft({
       file: null,
       createLeads: true,
+      createCampaign: false,
+      campaignName: "",
       isUploading: false,
       error: null,
       success: false,
@@ -756,6 +762,10 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     const formData = new FormData();
     formData.append('file', bulkImportDraft.file);
     formData.append('createLeads', bulkImportDraft.createLeads.toString());
+    formData.append('createCampaign', bulkImportDraft.createCampaign.toString());
+    if (bulkImportDraft.createCampaign && bulkImportDraft.campaignName) {
+      formData.append('campaignName', bulkImportDraft.campaignName);
+    }
 
     const response = await fetch("/api/admin/leads/bulk-import", {
       method: "POST",
@@ -2511,7 +2521,9 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                   accept=".csv,.txt,.tsv,.xlsx,.xls"
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
-                    setBulkImportDraft({ ...bulkImportDraft, file, error: null });
+                    // Auto-populate campaign name from filename (remove extension)
+                    const campaignName = file ? file.name.replace(/\.[^/.]+$/, '') : "";
+                    setBulkImportDraft({ ...bulkImportDraft, file, campaignName, error: null });
                   }}
                   className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
                 />
@@ -2535,6 +2547,40 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                   Also create leads in the leads table (recommended)
                 </span>
               </label>
+
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bulkImportDraft.createCampaign}
+                  onChange={(e) =>
+                    setBulkImportDraft({ ...bulkImportDraft, createCampaign: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-black/20 text-[var(--color-primary-gold)] focus:ring-[var(--color-primary-gold)]"
+                />
+                <span className="text-sm font-semibold text-[var(--color-navy)]">
+                  Automatically create a dialer campaign from these leads
+                </span>
+              </label>
+
+              {bulkImportDraft.createCampaign && (
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-accent)]">
+                    Campaign Name
+                  </span>
+                  <input
+                    type="text"
+                    value={bulkImportDraft.campaignName}
+                    onChange={(e) =>
+                      setBulkImportDraft({ ...bulkImportDraft, campaignName: e.target.value })
+                    }
+                    placeholder="Enter campaign name"
+                    className="mt-2 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[var(--color-navy)] outline-none focus:border-[var(--color-primary-gold)]"
+                  />
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">
+                    Campaign will include all imported leads from the batch-leads source
+                  </p>
+                </label>
+              )}
 
               <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
                 <p className="font-semibold mb-1">What happens during import:</p>
@@ -2565,6 +2611,9 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                           <li>Leads created: {bulkImportDraft.result.leadsCreated}</li>
                           <li>Mappings created: {bulkImportDraft.result.mappingsCreated}</li>
                         </>
+                      )}
+                      {bulkImportDraft.result.campaignId && bulkImportDraft.result.campaignName && (
+                        <li className="font-semibold">Campaign created: {bulkImportDraft.result.campaignName}</li>
                       )}
                       <li className="font-semibold">Skipped: {bulkImportDraft.result.skipped}</li>
                     </ul>

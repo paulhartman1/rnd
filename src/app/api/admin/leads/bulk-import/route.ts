@@ -399,6 +399,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const createLeads = formData.get('createLeads') === 'true';
+    const createCampaign = formData.get('createCampaign') === 'true';
+    const campaignName = formData.get('campaignName') as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -561,18 +563,16 @@ export async function POST(request: Request) {
 
     // If requested, also create leads and mappings
     if (createLeads && insertedBatchLeads) {
-      // Use the BatchLeads source ID
-      const batchSourceId = "b77cdad8-fadd-4910-87f6-d6112c760f02";
-      
-      // Verify the source exists
+      // TODO: In the future, allow user to select source in the UI
+      // For now, default to "batch-leads" source
       const { data: batchSource, error: sourceError } = await supabase
         .from("sources")
         .select("id")
-        .eq("id", batchSourceId)
+        .eq("name", "batch-leads")
         .single();
 
       if (sourceError || !batchSource) {
-        console.error("BatchLeads source error:", sourceError);
+        console.error("batch-leads source not found:", sourceError);
         return NextResponse.json({
           success: true,
           totalRows,
@@ -580,9 +580,11 @@ export async function POST(request: Request) {
           leadsCreated: 0,
           skipped: skippedRows.length,
           skippedRows,
-          error: "BatchLeads source not found. Batch leads imported but no leads created.",
+          error: "batch-leads source not found. Batch leads imported but no leads created.",
         });
       }
+      
+      const batchSourceId = batchSource.id;
 
       // Check for existing leads with same first name, last name, and property address
       const { data: existingLeads } = await supabase
@@ -791,6 +793,46 @@ export async function POST(request: Request) {
       }
     }
 
+    // Create campaign if requested
+    let campaignId: string | undefined;
+    let finalCampaignName: string | undefined;
+    
+    if (createCampaign && createLeads && leadsCreated > 0) {
+      // Use provided campaign name or default to filename without extension
+      finalCampaignName = campaignName || file.name.replace(/\.[^/.]+$/, '');
+      
+      // Look up the batch-leads source ID for campaign filter
+      const { data: campaignSource } = await supabase
+        .from("sources")
+        .select("id")
+        .eq("name", "batch-leads")
+        .single();
+      
+      if (campaignSource) {
+        const { data: campaign, error: campaignError } = await supabase
+          .from("dialer_campaigns")
+          .insert({
+            name: finalCampaignName,
+            description: `Auto-created from ${file.name} import`,
+            is_active: false,
+            priority: 0,
+            lead_filters: {
+              sourceIds: [campaignSource.id],
+              status: ["new"]
+            }
+          })
+          .select()
+          .single();
+        
+        if (!campaignError && campaign) {
+          campaignId = campaign.id;
+          console.log(`Created campaign: ${finalCampaignName} (${campaignId})`);
+        } else {
+          console.error('Campaign creation error:', campaignError);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       totalRows,
@@ -799,6 +841,7 @@ export async function POST(request: Request) {
       mappingsCreated,
       skipped: skippedRows.length,
       skippedRows,
+      ...(campaignId && { campaignId, campaignName: finalCampaignName }),
     });
 
   } catch (error) {

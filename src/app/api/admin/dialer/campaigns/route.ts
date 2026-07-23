@@ -24,6 +24,7 @@ export async function GET() {
   const { data: campaigns, error } = await adminClient
     .from("dialer_campaigns")
     .select("*")
+    .is("deleted_at", null)
     .order("priority", { ascending: false })
     .order("created_at", { ascending: false });
 
