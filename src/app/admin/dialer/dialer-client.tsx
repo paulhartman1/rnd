@@ -82,6 +82,7 @@ type WorkspaceLead = {
   full_name: string | null;
   phone: string | null;
   email?: string | null;
+  street_address?: string | null;
   status: LeadStatus;
   owner_notes: string | null;
   phones?: LeadPhone[];
@@ -1791,6 +1792,9 @@ export default function DialerClient() {
                       <strong>{currentLead.full_name || "Unknown"}</strong>
                     </p>
                     <p className="text-sm text-gray-600">{currentLead.phone}</p>
+                    {currentLead.street_address && (
+                      <p className="text-xs text-gray-500 mt-1">{currentLead.street_address}</p>
+                    )}
                     <div className="mt-2">
                       <label className="block text-xs font-medium text-gray-600 mb-1">Lead Status</label>
                       <select
@@ -1862,6 +1866,9 @@ export default function DialerClient() {
                     <strong>{currentLead.full_name || "Unknown"}</strong>
                   </p>
                   <p className="text-sm text-gray-600">{currentLead.phone}</p>
+                  {currentLead.street_address && (
+                    <p className="text-xs text-gray-500 mt-1">{currentLead.street_address}</p>
+                  )}
                   <p className="text-sm text-purple-600 mt-2">{callStatus}</p>
                 </div>
 
@@ -1956,6 +1963,9 @@ export default function DialerClient() {
                         <p className="text-sm text-gray-600">{currentLead.phone}</p>
                         {currentLead.email && (
                           <p className="text-sm text-gray-600">{currentLead.email}</p>
+                        )}
+                        {currentLead.street_address && (
+                          <p className="text-xs text-gray-500 mt-1">{currentLead.street_address}</p>
                         )}
                         <div className="mt-2">
                           <label className="block text-xs font-medium text-gray-600 mb-1">Lead Status</label>

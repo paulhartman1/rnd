@@ -129,6 +129,7 @@ export async function POST() {
           full_name,
           phone,
           email,
+          street_address,
           status,
           owner_notes
         )
