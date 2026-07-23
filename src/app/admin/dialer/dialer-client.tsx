@@ -2161,6 +2161,7 @@ export default function DialerClient() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">Select</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaign</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attempts</th>
@@ -2194,6 +2195,9 @@ export default function DialerClient() {
                           <span className="text-xs text-gray-500">{item.lead?.phone}</span>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className="text-xs text-gray-600">{item.lead?.street_address || "-"}</span>
                     </td>
                     <td className="px-4 py-3 text-sm">{item.campaign?.name || "N/A"}</td>
                     <td className="px-4 py-3 text-sm">
