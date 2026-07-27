@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     // Create property record for the lead if required address data exists
     // Properties table requires: street_address, city, state, postal_code (NOT NULL constraints)
     if (parsedLead.data.street_address && parsedLead.data.city && parsedLead.data.state && parsedLead.data.postal_code) {
-      const { error: propertyError } = await supabase
+      const { data: property, error: propertyError } = await supabase
         .from("properties")
         .insert({
           lead_id: data.id,
@@ -106,12 +106,40 @@ export async function POST(request: Request) {
           postal_code: parsedLead.data.postal_code,
           property_type: parsedLead.data.property_type,
           notes: "Created automatically from API lead",
-        });
+        })
+        .select()
+        .single();
 
       if (propertyError) {
         console.error("Failed to create property for lead:", propertyError);
         // Don't fail the request if property creation fails
         // The lead was created successfully, which is the primary goal
+      } else if (property) {
+        // Geocode the property immediately
+        const { geocodeAddress } = await import("@/lib/geocoding");
+        const geocodeResult = await geocodeAddress(
+          property.street_address,
+          property.city || "",
+          property.state || "",
+          property.postal_code || ""
+        );
+
+        if ('latitude' in geocodeResult) {
+          // Update property with geocoding results
+          await supabase
+            .from("properties")
+            .update({
+              latitude: geocodeResult.latitude,
+              longitude: geocodeResult.longitude,
+              geocoded_at: new Date().toISOString(),
+              geocode_source: geocodeResult.source,
+            })
+            .eq('id', property.id);
+          
+          console.log(`[/api/leads] Geocoded property ${property.id}: ${geocodeResult.displayName}`);
+        } else {
+          console.log(`[/api/leads] Failed to geocode property ${property.id}: ${geocodeResult.error}`);
+        }
       }
     } else if (parsedLead.data.street_address) {
       console.warn('[/api/leads] Skipping property creation - incomplete address', {

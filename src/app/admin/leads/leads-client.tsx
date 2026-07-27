@@ -925,7 +925,6 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                 )}
               </div>
 
-              {/* TODO: Add MOA (Motivation/Opportunity/Action) metrics when fields are available */}
 
               {/* Notes Textarea */}
               <div>
@@ -1241,14 +1240,18 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                     )}
                   </div>
 
-                  {lead.source_name && (
-                    <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {lead.source_name && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)]">
                         <span>📍</span>
                         Source: {lead.source_name}
                       </span>
-                    </div>
-                  )}
+                    )}
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-muted)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-muted)]">
+                      <span>📅</span>
+                      Created: {new Date(lead.created_at).toLocaleString()}
+                    </span>
+                  </div>
 
                   {/* Property Information */}
                   {lead.properties && lead.properties.length > 0 && (
