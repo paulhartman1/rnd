@@ -33,6 +33,14 @@ If you're using phone number for incoming calls:
 - **Voice & Fax → A Call Comes In:** Should point to your voice webhook
 - For the dialer, this is less important since calls originate from the browser
 
+### 3. Configure Inbound SMS Webhook
+To receive text messages, point your Twilio number's incoming messages to:
+
+- **Messaging → A message comes in:** `https://www.rushndush.com/api/twilio/sms`
+- **HTTP Method:** `POST`
+
+The `/api/twilio/sms` endpoint validates the `X-Twilio-Signature` header (requires `TWILIO_AUTH_TOKEN`) and stores the message in the `sms_messages` table. Unsigned requests return `403`.
+
 ## Test Your Endpoints
 
 ### Test Voice Client Endpoint
