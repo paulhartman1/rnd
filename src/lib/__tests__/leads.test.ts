@@ -28,13 +28,14 @@ describe("leads", () => {
             email: "john@example.com",
             phone: "555-1234",
             sms_consent: true,
+            sms_consent_at: expect.any(String),
+            sms_consent_disclosure_version: "1",
             owner_notes: null,
           });
         }
       });
 
-      it("should parse a REI Lead Pros payload with combined address, negotiability, blank email, and notes", () => {
-        const result = parseLeadPayload({
+      it("should parse a REI Lead Pros payload with combined address, negotiability, blank email, and notes", () => {        const result = parseLeadPayload({
           ...validIntakeAnswers,
           acceptableOffer: "",
           negotiability: "Yes",
@@ -115,6 +116,30 @@ describe("leads", () => {
           expect(result.data.full_name).toBe("John Doe");
           expect(result.data.city).toBe("Springfield");
           expect(result.data.email).toBe("john@example.com");
+        }
+      });
+
+      it("should record consent timestamp and disclosure version when SMS consent is true", () => {
+        const result = parseLeadPayload(validIntakeAnswers);
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect(result.data.sms_consent).toBe(true);
+          expect(result.data.sms_consent_at).toMatch(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+          );
+          expect(result.data.sms_consent_disclosure_version).toBe("1");
+        }
+      });
+
+      it("should store explicit false and null audit fields when SMS consent is not given", () => {
+        const result = parseLeadPayload({ ...validIntakeAnswers, smsConsent: false });
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect(result.data.sms_consent).toBe(false);
+          expect(result.data.sms_consent_at).toBeNull();
+          expect(result.data.sms_consent_disclosure_version).toBeNull();
         }
       });
     });

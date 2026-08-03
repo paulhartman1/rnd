@@ -19,6 +19,7 @@ export default function AdminNav() {
   const [upcomingAppointments, setUpcomingAppointments] = useState(0);
   const [hotLeads, setHotLeads] = useState(0);
   const [unreadVoicemails, setUnreadVoicemails] = useState(0);
+  const [unreadTexts, setUnreadTexts] = useState(0);
   const [exitUrl, setExitUrl] = useState("/");
 
   // Detect PWA and set exit URL
@@ -69,6 +70,17 @@ export default function AdminNav() {
             (vm: { is_read: boolean }) => !vm.is_read
           ).length;
           setUnreadVoicemails(unread);
+        }
+
+        // Fetch unread text messages
+        const messagesResponse = await fetch("/api/admin/messages");
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          const unreadTexts = messagesData.messages.filter(
+            (m: { direction: string; is_read: boolean }) =>
+              m.direction === "inbound" && !m.is_read
+          ).length;
+          setUnreadTexts(unreadTexts);
         }
       } catch (error) {
         console.error("Failed to fetch metrics:", error);
@@ -155,20 +167,20 @@ export default function AdminNav() {
               <span className="hidden text-xs text-gray-600 lg:inline">properties</span>
             </Link>
             <Link
-              href="/admin/voicemails"
+              href="/admin/comms"
               className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
-                unreadVoicemails > 0
+                unreadVoicemails + unreadTexts > 0
                   ? "bg-purple-50 hover:bg-purple-100"
                   : "bg-green-50 hover:bg-green-100"
               }`}
-              title="View unread voicemails"
+              title="View communications"
             >
               <span className={`text-sm font-semibold ${
-                unreadVoicemails > 0 ? "text-purple-700" : "text-green-700"
-              }`}>🎤 {unreadVoicemails}</span>
+                unreadVoicemails + unreadTexts > 0 ? "text-purple-700" : "text-green-700"
+              }`}>🎤 {unreadVoicemails + unreadTexts}</span>
               <span className={`hidden text-xs lg:inline ${
-                unreadVoicemails > 0 ? "text-purple-600" : "text-green-600"
-              }`}>voicemails</span>
+                unreadVoicemails + unreadTexts > 0 ? "text-purple-600" : "text-green-600"
+              }`}>comms</span>
             </Link>
           </div>
 
@@ -308,17 +320,17 @@ export default function AdminNav() {
                   <span className="text-sm font-semibold text-gray-700">🏘️ Properties</span>
                 </Link>
                 <Link
-                  href="/admin/voicemails"
+                  href="/admin/comms"
                   onClick={() => setIsMenuOpen(false)}
                   className={`rounded-lg px-3 py-2 transition-all ${
-                    unreadVoicemails > 0
+                    unreadVoicemails + unreadTexts > 0
                       ? "bg-purple-50 hover:bg-purple-100"
                       : "bg-green-50 hover:bg-green-100"
                   }`}
                 >
                   <span className={`text-sm font-semibold ${
-                    unreadVoicemails > 0 ? "text-purple-700" : "text-green-700"
-                  }`}>🎤 {unreadVoicemails} voicemail{unreadVoicemails !== 1 ? 's' : ''}</span>
+                    unreadVoicemails + unreadTexts > 0 ? "text-purple-700" : "text-green-700"
+                  }`}>🎤 {unreadVoicemails + unreadTexts} voicemail{unreadVoicemails !== 1 ? 's' : ''} · {unreadTexts} text{unreadTexts !== 1 ? 's' : ''}</span>
                 </Link>
               </div>
             </div>

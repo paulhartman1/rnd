@@ -36,7 +36,7 @@ X-API-Key: <your_api_key>
 - `fullName` (string): Lead's full name
 - `email` (string): Valid email address
 - `phone` (string): Phone number
-- `smsConsent` (boolean): Must be `true`
+- `smsConsent` (boolean): Optional. Whether the consumer consented to receive SMS messages. When `true`, the lead is stored with an SMS consent timestamp and disclosure version. Consent is not required to submit a property inquiry.
 
 **Optional Fields:**
 - `ownsLand` (string): "Yes" or "No" - only required if relevant

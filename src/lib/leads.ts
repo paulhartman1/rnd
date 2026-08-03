@@ -57,6 +57,8 @@ export const leadStatuses = [
 
 export type LeadStatus = (typeof leadStatuses)[number];
 
+export const SMS_CONSENT_DISCLOSURE_VERSION = "1";
+
 export type IntakeAnswers = {
   listedWithAgent?: string;
   propertyType?: string;
@@ -94,6 +96,8 @@ export type LeadInsert = {
   email: string | null;
   phone: string | null;
   sms_consent: boolean;
+  sms_consent_at: string | null;
+  sms_consent_disclosure_version: string | null;
   owner_notes?: string | null;
 };
 
@@ -228,6 +232,9 @@ export function parseLeadPayload(payload: unknown): ParseResult<LeadInsert> {
       email: emailValue,
       phone: firstOptionalTrimmedString(body.phone, body.Phone),
       sms_consent: body.smsConsent === true,
+      sms_consent_at: body.smsConsent === true ? new Date().toISOString() : null,
+      sms_consent_disclosure_version:
+        body.smsConsent === true ? SMS_CONSENT_DISCLOSURE_VERSION : null,
       owner_notes: firstOptionalTrimmedString(body.notes, body.Notes),
     },
   };

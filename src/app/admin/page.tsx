@@ -33,12 +33,13 @@ export default async function AdminDashboardPage() {
   const queryClient = adminClient ?? supabase;
 
   // Fetch key metrics
-  const [leadsResult, appointmentsResult, pendingRequestsResult, reviewsResult, voicemailsResult] = await Promise.all([
+  const [leadsResult, appointmentsResult, pendingRequestsResult, reviewsResult, voicemailsResult, messagesResult] = await Promise.all([
     queryClient.from("leads").select("id, status, isHotLead, created_at").is("deleted_at", null).order("created_at", { ascending: false }),
     queryClient.from("appointments").select("id, status, start_time").order("start_time", { ascending: false }),
     queryClient.from("appointment_requests").select("id, status").eq("status", "pending"),
     queryClient.from("reviews").select("id, is_approved").eq("is_approved", false),
     queryClient.from("voicemails").select("id, is_read"),
+    queryClient.from("sms_messages").select("id, is_read, direction"),
   ]);
 
   const leads = leadsResult.data ?? [];
@@ -46,6 +47,7 @@ export default async function AdminDashboardPage() {
   const pendingRequests = pendingRequestsResult.data ?? [];
   const unapprovedReviews = reviewsResult.data ?? [];
   const voicemails = voicemailsResult.data ?? [];
+  const messages = messagesResult.data ?? [];
 
   // Calculate stats
   const today = new Date();
@@ -61,6 +63,9 @@ export default async function AdminDashboardPage() {
   ).length;
 
   const unreadVoicemails = voicemails.filter((vm) => !vm.is_read).length;
+  const unreadTexts = messages.filter(
+    (m) => m.direction === "inbound" && !m.is_read
+  ).length;
 
   // Check if user is a super admin
   const isUserSuperAdmin = isSuperAdmin(user.email);
@@ -100,11 +105,11 @@ export default async function AdminDashboardPage() {
       stats: `${unapprovedReviews.length} awaiting approval`,
     },
     {
-      title: "Voicemails",
-      description: "Listen to and manage voicemail messages",
-      href: "/admin/voicemails",
+      title: "Communications",
+      description: "Manage voicemail messages and text conversations",
+      href: "/admin/comms",
       icon: "🎤",
-      stats: `${unreadVoicemails} unread messages`,
+      stats: `${unreadVoicemails} voicemails • ${unreadTexts} texts unread`,
     },
     {
       title: "Blog",

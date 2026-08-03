@@ -20,6 +20,8 @@ export function createMockLead(overrides?: Partial<LeadRow>): LeadRow {
     email: "john@example.com",
     phone: "555-1234",
     sms_consent: true,
+    sms_consent_at: "2024-01-01T00:00:00.000Z",
+    sms_consent_disclosure_version: "1",
     source_id: "web-source-id",
     status: "new",
     owner_notes: null,

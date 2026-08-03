@@ -26,6 +26,8 @@ create table if not exists public.leads (
   email text not null,
   phone text not null,
   sms_consent boolean not null default false,
+  sms_consent_at timestamptz,
+  sms_consent_disclosure_version text,
   source_id uuid not null references public.sources(id),
   status text not null default 'new' check (status in ('new', 'contacted', 'offer-sent', 'under-contract', 'closed', 'archived')),
   owner_notes text,

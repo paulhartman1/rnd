@@ -125,8 +125,7 @@ export default function GetCashOfferPage() {
       return (
         (answers.fullName?.trim().length ?? 0) > 0 &&
         emailValid &&
-        phoneValid &&
-        answers.smsConsent
+        phoneValid
       );
     }
 
@@ -546,17 +545,26 @@ export default function GetCashOfferPage() {
                   </p>
                 )}
               </label>
-              <label className="mt-1 flex items-start gap-3 rounded-xl border border-black/8 bg-[var(--color-surface-soft)] px-4 py-3">
+              <div className="mt-1 flex items-start gap-3 rounded-xl border border-black/8 bg-[var(--color-surface-soft)] px-4 py-3">
                 <input
                   type="checkbox"
+                  id="sms-consent"
+                  aria-label="I agree to receive SMS messages from Rush N Dush"
                   checked={answers.smsConsent}
                   onChange={(event) => updateAnswer("smsConsent", event.target.checked)}
                   className="mt-1 h-4 w-4 accent-[var(--color-primary-gold)]"
                 />
                 <span className="text-sm leading-6 text-[var(--color-muted)]">
-                  I agree to receive text messages and calls from Rush N Dush Logistics about my cash offer. Message and data rates may apply. I can opt out anytime.
+                  I agree to receive SMS messages from Rush N Dush regarding my property inquiry, appointment scheduling, property evaluation, offers, and related customer service. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not required to submit this form.{" "}
+                  <Link href="/privacy" className="font-semibold underline underline-offset-2 transition hover:text-[var(--color-primary-gold)]">
+                    Privacy Policy
+                  </Link>{" "}
+                  |{" "}
+                  <Link href="/terms" className="font-semibold underline underline-offset-2 transition hover:text-[var(--color-primary-gold)]">
+                    Terms and Conditions
+                  </Link>
                 </span>
-              </label>
+              </div>
             </div>
           ) : null}
 

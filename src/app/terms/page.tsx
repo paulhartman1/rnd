@@ -15,7 +15,7 @@ export default function TermsAndConditions() {
 
         <div className="prose prose-sm max-w-none text-[var(--color-muted)] space-y-6">
           <p className="text-sm text-gray-500">
-            Last Updated: April 16, 2026
+            Last Updated: August 3, 2026
           </p>
 
           <section>
@@ -69,16 +69,19 @@ export default function TermsAndConditions() {
               4. SMS and Communication Consent
             </h2>
             <p>
-              By providing your phone number and submitting this form, you consent to receive:
+              By submitting a property inquiry, you authorize Rush N Dush to contact you by telephone regarding that inquiry.
             </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Phone calls regarding your property inquiry</li>
-              <li>Text messages (SMS) related to your property sale</li>
-              <li>Follow-up communications about offers and property evaluations</li>
-            </ul>
             <p className="mt-4">
-              You may opt out of SMS communications at any time by replying STOP to any message. 
-              Message and data rates may apply. Message frequency varies.
+              You may separately consent to receive SMS messages by selecting the optional SMS consent checkbox on the property inquiry form or by initiating an SMS conversation with the published Rush N Dush business number.
+            </p>
+            <p className="mt-4">
+              SMS messages may concern your property inquiry, appointment scheduling, property evaluation, offers, and related customer service.
+            </p>
+            <p className="mt-4">
+              Consent to receive SMS messages is not required to submit a property inquiry or receive services.
+            </p>
+            <p className="mt-4">
+              Message frequency varies. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for assistance.
             </p>
           </section>
 

@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
           Privacy Policy
         </h1>
         <p className="mt-2 text-sm text-[var(--color-muted)]">
-          Last Updated: April 15, 2026
+          Last Updated: August 3, 2026
         </p>
 
         <div className="prose prose-slate mt-8 max-w-none">
@@ -75,8 +75,8 @@ export default function PrivacyPolicy() {
             <p className="text-[var(--color-muted)] leading-7">We use your information to:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1 text-[var(--color-muted)]">
               <li>Process your property sale inquiries</li>
-              <li>Send you SMS notifications about your inquiry status</li>
-              <li>Contact you via phone or text to discuss your property</li>
+              <li>Communicate with you by SMS regarding your property inquiry, appointment scheduling, property evaluation, offers, and related customer service</li>
+              <li>Contact you via phone to discuss your property</li>
               <li>Provide customer service and support</li>
               <li>Improve our services</li>
               <li>Comply with legal obligations</li>
@@ -84,7 +84,16 @@ export default function PrivacyPolicy() {
 
             <h3 className="text-xl font-semibold text-[var(--color-navy)] mt-6 mb-3">SMS Communications</h3>
             <p className="text-[var(--color-muted)] leading-7">
-              <strong>Please note:</strong> We do not send SMS/text messages to customers. Your phone number is only used for our team to contact you directly via voice calls. SMS notifications are sent internally to our admin team when a new property inquiry is submitted.
+              Rush N Dush may communicate with consumers by SMS regarding property inquiries, appointment scheduling, property evaluations, offers, and related customer service.
+            </p>
+            <p className="text-[var(--color-muted)] leading-7 mt-3">
+              Consumers may initiate SMS communication by texting the published Rush N Dush business number. Consumers may also separately provide consent through an optional website form checkbox.
+            </p>
+            <p className="text-[var(--color-muted)] leading-7 mt-3">
+              Message frequency varies. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for assistance.
+            </p>
+            <p className="text-[var(--color-muted)] leading-7 mt-3">
+              Rush N Dush does not send unsolicited text messages to consumers who have not initiated an SMS conversation or otherwise provided consent.
             </p>
           </section>
 
@@ -96,10 +105,13 @@ export default function PrivacyPolicy() {
               <li><strong>Service providers</strong> - Third parties who assist in our operations (e.g., database hosting, analytics)</li>
               <li><strong>Legal authorities</strong> - When required by law or to protect our rights</li>
             </ul>
+            <p className="text-[var(--color-muted)] leading-7 mt-3">
+              No mobile information, including phone numbers and SMS consent data, will be shared with third parties or affiliates for marketing or promotional purposes.
+            </p>
 
             <h3 className="text-xl font-semibold text-[var(--color-navy)] mt-6 mb-3">Third-Party Service Providers</h3>
             <p className="text-[var(--color-muted)] leading-7">
-              We use Twilio for internal admin notifications and voice call services. Twilio&apos;s privacy practices are governed by their privacy policy available at <a href="https://www.twilio.com/legal/privacy" className="text-[var(--color-primary-gold)] underline" target="_blank" rel="noopener noreferrer">https://www.twilio.com/legal/privacy</a>.
+              We use Twilio to deliver SMS communications and voice call services. Twilio processes mobile information solely to provide the communications you request. Twilio&apos;s privacy practices are governed by their privacy policy available at <a href="https://www.twilio.com/legal/privacy" className="text-[var(--color-primary-gold)] underline" target="_blank" rel="noopener noreferrer">https://www.twilio.com/legal/privacy</a>.
             </p>
           </section>
 
@@ -108,7 +120,7 @@ export default function PrivacyPolicy() {
             
             <h3 className="text-xl font-semibold text-[var(--color-navy)] mt-6 mb-3">Communication Preferences</h3>
             <p className="text-[var(--color-muted)] leading-7">
-              Since we do not send SMS messages to customers, there is no SMS opt-out needed. If you prefer not to be contacted by phone, please let us know when you submit your inquiry or contact us using the information below.
+              You may opt out of receiving SMS messages at any time by replying STOP to any message. Reply HELP for assistance. Message and data rates may apply. If you prefer not to be contacted by phone, please let us know when you submit your inquiry or contact us using the information below.
             </p>
 
             <h3 className="text-xl font-semibold text-[var(--color-navy)] mt-6 mb-3">Access and Deletion</h3>

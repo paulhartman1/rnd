@@ -96,24 +96,28 @@ describe("POST /api/leads", () => {
     expect(response.status).toBe(201);
     expect(data).toEqual({ id: "lead-123" });
     expect(mockSupabase.from).toHaveBeenCalledWith("leads");
-    expect(mockSupabase.insert).toHaveBeenCalledWith({
-      listed_with_agent: false,
-      property_type: "Single Family",
-      owns_land: true,
-      repairs_needed: "Minor Renovations $$ - Kitchen, Bathroom, Roof",
-      close_timeline: "30-60 Days",
-      sell_reason: "Inherited",
-      acceptable_offer: "$250,000",
-      street_address: "123 Main St",
-      city: "Springfield",
-      state: "IL",
-      postal_code: "62701",
-      full_name: "John Doe",
-      email: "john@example.com",
-      phone: "555-1234",
-      sms_consent: true,
-      owner_notes: null,
-    });
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        listed_with_agent: false,
+        property_type: "Single Family",
+        owns_land: true,
+        repairs_needed: "Minor Renovations $$ - Kitchen, Bathroom, Roof",
+        close_timeline: "30-60 Days",
+        sell_reason: "Inherited",
+        acceptable_offer: "$250,000",
+        street_address: "123 Main St",
+        city: "Springfield",
+        state: "IL",
+        postal_code: "62701",
+        full_name: "John Doe",
+        email: "john@example.com",
+        phone: "555-1234",
+        sms_consent: true,
+        sms_consent_at: expect.any(String),
+        sms_consent_disclosure_version: "1",
+        owner_notes: null,
+      }),
+    );
   });
 
   it("should return 400 for missing required fields", async () => {
@@ -154,12 +158,18 @@ describe("POST /api/leads", () => {
     expect(data.error).toBe("A valid email is required.");
   });
 
-  it("should return 400 when SMS consent is not true", async () => {
-    const invalidPayload = { ...validIntakeAnswers, smsConsent: false };
+  it("should accept a lead when SMS consent is not given and store explicit false", async () => {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    vi.mocked(createAdminClient).mockReturnValue(mockSupabase as any);
+
+    mockSupabase.single.mockResolvedValue({
+      data: { id: "lead-456" },
+      error: null,
+    });
 
     const request = new Request("http://localhost:3000/api/leads", {
       method: "POST",
-      body: JSON.stringify(invalidPayload),
+      body: JSON.stringify({ ...validIntakeAnswers, smsConsent: false }),
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": apiKey,
@@ -169,8 +179,15 @@ describe("POST /api/leads", () => {
     const response = await POST(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toBe("SMS consent is required.");
+    expect(response.status).toBe(201);
+    expect(data.id).toBe("lead-456");
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sms_consent: false,
+        sms_consent_at: null,
+        sms_consent_disclosure_version: null,
+      }),
+    );
   });
 
   it("should handle Supabase insert errors", async () => {

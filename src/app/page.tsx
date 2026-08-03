@@ -262,7 +262,7 @@ export default function Home() {
                 className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-[var(--color-navy)]"
                 aria-label={`Call us at ${twilioPhone}`}
               >
-                Call Now
+                Call or Text
               </a>
               <a
                 href={`mailto:${contactEmail}`}
@@ -272,6 +272,13 @@ export default function Home() {
                 Email Team
               </a>
             </div>
+            <p className="mt-4 text-xs leading-5 text-white/60">
+              Text us regarding your property inquiry. By texting Rush N Dush, you agree
+              to receive SMS messages related to your inquiry. Message frequency varies.
+              Message and data rates may apply. Reply STOP to opt out and HELP for help.{" "}
+              See our <a href="/privacy" className="underline underline-offset-2 hover:text-white">Privacy Policy</a>{" "}
+              and <a href="/terms" className="underline underline-offset-2 hover:text-white">Terms &amp; Conditions</a>.
+            </p>
           </div>
         </div>
       </section>

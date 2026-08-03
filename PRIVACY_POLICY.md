@@ -1,6 +1,6 @@
 # Privacy Policy - Rush N Dush
 
-**Last Updated:** April 15, 2026
+**Last Updated:** August 3, 2026
 
 ## Introduction
 
@@ -26,14 +26,20 @@ We may automatically collect:
 
 We use your information to:
 - Process your property sale inquiries
-- Send you SMS notifications about your inquiry status
-- Contact you via phone or text to discuss your property
+- Communicate with you by SMS regarding your property inquiry, appointment scheduling, property evaluation, offers, and related customer service
+- Contact you via phone to discuss your property
 - Provide customer service and support
 - Improve our services
 - Comply with legal obligations
 
 ### SMS Communications
-**Please note:** We do not send SMS/text messages to customers. Your phone number is only used for our team to contact you directly via voice calls. SMS notifications are sent internally to our admin team when a new property inquiry is submitted.
+Rush N Dush may communicate with consumers by SMS regarding property inquiries, appointment scheduling, property evaluations, offers, and related customer service.
+
+Consumers may initiate SMS communication by texting the published Rush N Dush business number. Consumers may also separately provide consent through an optional website form checkbox.
+
+Message frequency varies. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for assistance.
+
+Rush N Dush does not send unsolicited text messages to consumers who have not initiated an SMS conversation or otherwise provided consent.
 
 ## Sharing Your Information
 
@@ -42,13 +48,15 @@ We do not sell your personal information. We may share your information with:
 - **Service providers** - Third parties who assist in our operations (e.g., database hosting, analytics)
 - **Legal authorities** - When required by law or to protect our rights
 
+No mobile information, including phone numbers and SMS consent data, will be shared with third parties or affiliates for marketing or promotional purposes.
+
 ### Third-Party Service Providers
-We use Twilio for internal admin notifications and voice call services. Twilio's privacy practices are governed by their privacy policy available at https://www.twilio.com/legal/privacy.
+We use Twilio to deliver SMS communications and voice call services. Twilio processes mobile information solely to provide the communications you request. Twilio's privacy practices are governed by their privacy policy available at https://www.twilio.com/legal/privacy.
 
 ## Your Rights and Choices
 
 ### Communication Preferences
-Since we do not send SMS messages to customers, there is no SMS opt-out needed. If you prefer not to be contacted by phone, please let us know when you submit your inquiry or contact us using the information below.
+You may opt out of receiving SMS messages at any time by replying STOP to any message. Reply HELP for assistance. Message and data rates may apply. If you prefer not to be contacted by phone, please let us know when you submit your inquiry or contact us using the information below.
 
 ### Access and Deletion
 You have the right to:

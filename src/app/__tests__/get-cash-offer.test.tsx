@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@/test/test-utils";
 import userEvent from "@testing-library/user-event";
 import GetCashOfferPage from "../get-cash-offer/page";
+import { mockQuestions, mockMappings } from "@/test/mocks";
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -176,6 +177,83 @@ describe("Get Cash Offer Page", () => {
 
     // This test is simplified - full implementation would complete all form steps
     // The key point is that fetch should eventually be called with form data
+  });
+
+  it("should allow submission with the SMS consent checkbox unchecked and send explicit false", async () => {
+    const user = userEvent.setup();
+    const mockFetch = vi.mocked(global.fetch);
+    mockFetch.mockImplementation(async (url) => {
+      const urlString = String(url);
+      if (urlString.includes("/api/questions")) {
+        return {
+          ok: true,
+          json: async () => ({ questions: mockQuestions, mappings: mockMappings }),
+        } as Response;
+      }
+      return { ok: true, status: 201, json: async () => ({ id: "lead-123" }) } as Response;
+    });
+
+    render(<GetCashOfferPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No")).toBeInTheDocument();
+    });
+
+    // Step through the intake flow
+    const choiceSteps = [
+      "No", // listed with agent
+      "Single Family", // property type
+      "Yes", // owns land
+      "Cosmetic Work $ - Flooring, Paint", // repairs
+      "30-60 Days", // timeline
+      "Inherited", // sell reason
+    ];
+
+    for (const answer of choiceSteps) {
+      await user.click(screen.getByText(answer));
+      await user.click(screen.getByRole("button", { name: /continue/i }));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+
+    // Enter acceptable offer
+    const offerInput = await waitFor(() => screen.getByPlaceholderText(/\$250,000/i));
+    await user.type(offerInput, "$300,000");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+
+    // Enter property address
+    const streetInput = await screen.findByLabelText(/Street address/i);
+    await user.type(streetInput, "123 Main St");
+    await user.type(screen.getByLabelText(/City/i), "Springfield");
+    await user.type(screen.getByLabelText(/State/i), "IL");
+    await user.type(screen.getByLabelText(/Postal code/i), "62701");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+
+    // Contact step: checkbox should be present, unchecked by default, with working links
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Full name/i)).toBeInTheDocument();
+    });
+    const smsCheckbox = screen.getByRole("checkbox", { name: /receive SMS messages/i });
+    expect(smsCheckbox).not.toBeChecked();
+
+    const privacyLink = screen.getByRole("link", { name: /Privacy Policy/i });
+    const termsLink = screen.getByRole("link", { name: /Terms and Conditions/i });
+    expect(privacyLink).toHaveAttribute("href", "/privacy");
+    expect(termsLink).toHaveAttribute("href", "/terms");
+
+    // Fill contact info, leave SMS unchecked, and submit
+    await user.type(screen.getByLabelText(/Full name/i), "Jane Doe");
+    await user.type(screen.getByLabelText(/Email/i), "jane@example.com");
+    await user.type(screen.getByLabelText(/Phone/i), "5551234567");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Request received/i)).toBeInTheDocument();
+    });
+
+    const leadWebCalls = mockFetch.mock.calls.filter(([url]) => String(url).includes("/api/leads/web"));
+    expect(leadWebCalls.length).toBe(1);
+    const submittedBody = JSON.parse(String((leadWebCalls[0][1] as RequestInit).body));
+    expect(submittedBody.smsConsent).toBe(false);
   });
 
   it("should display error message on failed submission", async () => {
