@@ -6,6 +6,7 @@ import type { Voicemail, Message } from "./page";
 type Props = {
   initialVoicemails: Voicemail[];
   initialMessages: Message[];
+  smsOutboundEnabled: boolean;
 };
 
 type Tab = "voicemails" | "texts";
@@ -19,6 +20,7 @@ type Formatters = {
 export default function CommsClient({
   initialVoicemails,
   initialMessages,
+  smsOutboundEnabled,
 }: Props) {
   const [tab, setTab] = useState<Tab>("voicemails");
   const [voicemails, setVoicemails] = useState<Voicemail[]>(initialVoicemails);
@@ -132,6 +134,7 @@ export default function CommsClient({
   };
 
   const handleReply = (number: string) => {
+    if (!smsOutboundEnabled) return;
     setReplyTo(number);
     setTab("texts");
   };
@@ -178,7 +181,7 @@ export default function CommsClient({
   const visibleVoicemails = voicemails.filter((v) => showRead || !v.is_read);
   const unreadVoicemailCount = voicemails.filter((v) => !v.is_read).length;
   const unreadTextCount = messages.filter(
-    (m) => m.direction === "inbound" && !m.is_read
+    (m) => m.direction !== "outbound" && !m.is_read
   ).length;
 
   const tabs: { key: Tab; label: string; count: number }[] = [
@@ -222,6 +225,7 @@ export default function CommsClient({
         <VoicemailsPanel
           voicemails={visibleVoicemails}
           showRead={showRead}
+          smsOutboundEnabled={smsOutboundEnabled}
           onToggleShowRead={setShowRead}
           onMarkRead={markAsVoicemailRead}
           onDelete={deleteVoicemail}
@@ -239,6 +243,7 @@ export default function CommsClient({
           setComposerBody={setComposerBody}
           sending={sending}
           sendError={sendError}
+          smsOutboundEnabled={smsOutboundEnabled}
           onSend={sendMessage}
           onMarkRead={markMessageRead}
           onDelete={deleteMessage}
@@ -255,6 +260,7 @@ export default function CommsClient({
 type VoicemailsPanelProps = {
   voicemails: Voicemail[];
   showRead: boolean;
+  smsOutboundEnabled: boolean;
   onToggleShowRead: (show: boolean) => void;
   onMarkRead: (id: string) => void;
   onDelete: (id: string) => void;
@@ -265,6 +271,7 @@ type VoicemailsPanelProps = {
 function VoicemailsPanel({
   voicemails,
   showRead,
+  smsOutboundEnabled,
   onToggleShowRead,
   onMarkRead,
   onDelete,
@@ -366,7 +373,8 @@ function VoicemailsPanel({
                   )}
                   <button
                     onClick={() => onReply(voicemail.from_number)}
-                    className="rounded-lg bg-green-100 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-200"
+                    disabled={!smsOutboundEnabled}
+                    className="rounded-lg bg-green-100 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-200 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Text
                   </button>
@@ -397,6 +405,7 @@ type TextsPanelProps = {
   setComposerBody: (value: string) => void;
   sending: boolean;
   sendError: string | null;
+  smsOutboundEnabled: boolean;
   onSend: () => void;
   onMarkRead: (id: string) => void;
   onDelete: (id: string) => void;
@@ -411,6 +420,7 @@ function TextsPanel({
   setComposerBody,
   sending,
   sendError,
+  smsOutboundEnabled,
   onSend,
   onMarkRead,
   onDelete,
@@ -425,26 +435,33 @@ function TextsPanel({
         <p className="text-sm font-bold text-[var(--color-navy)]">
           Send a text message
         </p>
+        {!smsOutboundEnabled && (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            Outbound SMS is disabled until the Twilio A2P campaign is approved.
+          </p>
+        )}
         <div className="mt-3 flex flex-col gap-3">
           <input
             type="tel"
             value={replyTo}
             onChange={(e) => setReplyTo(e.target.value)}
             placeholder="Phone number (e.g. (720) 897-5219)"
-            className="w-full rounded-lg border border-black/10 bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary-gold)] focus:outline-none"
+            disabled={!smsOutboundEnabled}
+            className="w-full rounded-lg border border-black/10 bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary-gold)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           <textarea
             value={composerBody}
             onChange={(e) => setComposerBody(e.target.value)}
             placeholder="Type your message…"
             rows={3}
-            className="w-full resize-none rounded-lg border border-black/10 bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary-gold)] focus:outline-none"
+            disabled={!smsOutboundEnabled}
+            className="w-full resize-none rounded-lg border border-black/10 bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-primary-gold)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
           {sendError && <p className="text-xs text-red-600">{sendError}</p>}
           <button
             onClick={onSend}
-            disabled={sending}
-            className="self-end rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+            disabled={sending || !smsOutboundEnabled}
+            className="self-end rounded-lg bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? "Sending…" : "Send"}
           </button>
@@ -460,7 +477,7 @@ function TextsPanel({
       ) : (
         <div className="space-y-4">
           {messages.map((message) => {
-            const inbound = message.direction === "inbound";
+            const inbound = message.direction !== "outbound";
             const contact = inbound ? message.from_number : message.to_number;
             return (
               <div
@@ -524,7 +541,8 @@ function TextsPanel({
                     )}
                     <button
                       onClick={() => setReplyTo(contact)}
-                      className="rounded-lg bg-green-100 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-200"
+                      disabled={!smsOutboundEnabled}
+                      className="rounded-lg bg-green-100 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-200 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Reply
                     </button>

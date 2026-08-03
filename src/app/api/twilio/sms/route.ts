@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       body: body,
       num_media: numMedia,
       media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+      direction: "inbound",
       is_read: false,
     });
 

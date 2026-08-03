@@ -273,9 +273,10 @@ export default function Home() {
               </a>
             </div>
             <p className="mt-4 text-xs leading-5 text-white/60">
-              Text us regarding your property inquiry. By texting Rush N Dush, you agree
-              to receive SMS messages related to your inquiry. Message frequency varies.
-              Message and data rates may apply. Reply STOP to opt out and HELP for help.{" "}
+              By sending a text message to the Rush N Dush business number, you consent
+              to receive SMS messages regarding your property inquiry. Message frequency
+              varies. Message and data rates may apply. Reply STOP to opt out and HELP
+              for help.{" "}
               See our <a href="/privacy" className="underline underline-offset-2 hover:text-white">Privacy Policy</a>{" "}
               and <a href="/terms" className="underline underline-offset-2 hover:text-white">Terms &amp; Conditions</a>.
             </p>

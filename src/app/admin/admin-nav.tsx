@@ -78,7 +78,7 @@ export default function AdminNav() {
           const messagesData = await messagesResponse.json();
           const unreadTexts = messagesData.messages.filter(
             (m: { direction: string; is_read: boolean }) =>
-              m.direction === "inbound" && !m.is_read
+              m.direction !== "outbound" && !m.is_read
           ).length;
           setUnreadTexts(unreadTexts);
         }

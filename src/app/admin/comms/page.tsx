@@ -25,7 +25,7 @@ export type Message = {
   num_media: number;
   media_urls: string[] | null;
   is_read: boolean;
-  direction: "inbound" | "outbound";
+  direction: "inbound" | "outbound" | null;
   created_at: string;
   updated_at: string;
 };
@@ -71,6 +71,9 @@ export default async function AdminCommsPage() {
   const voicemails = (voicemailsResult.data ?? []) as Voicemail[];
   const messages = (messagesResult.data ?? []) as Message[];
 
+  const smsOutboundEnabled =
+    process.env.TWILIO_SMS_OUTBOUND_ENABLED === "true";
+
   return (
     <main className="min-h-screen bg-[var(--color-surface)] px-4 py-10 text-[var(--color-ink)] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -88,7 +91,11 @@ export default async function AdminCommsPage() {
           </p>
         </header>
 
-        <CommsClient initialVoicemails={voicemails} initialMessages={messages} />
+        <CommsClient
+          initialVoicemails={voicemails}
+          initialMessages={messages}
+          smsOutboundEnabled={smsOutboundEnabled}
+        />
       </div>
     </main>
   );

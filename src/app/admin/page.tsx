@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
 
   const unreadVoicemails = voicemails.filter((vm) => !vm.is_read).length;
   const unreadTexts = messages.filter(
-    (m) => m.direction === "inbound" && !m.is_read
+    (m) => m.direction !== "outbound" && !m.is_read
   ).length;
 
   // Check if user is a super admin

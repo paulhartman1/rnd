@@ -30,6 +30,17 @@ export async function POST(request: Request) {
     );
   }
 
+  // Outbound SMS is gated behind the Twilio A2P campaign approval.
+  if (process.env.TWILIO_SMS_OUTBOUND_ENABLED !== "true") {
+    return NextResponse.json(
+      {
+        error:
+          "Outbound SMS is disabled until the Twilio A2P campaign is approved.",
+      },
+      { status: 423 }
+    );
+  }
+
   let to: unknown;
   let body: unknown;
   try {
