@@ -706,7 +706,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     
     // Add the new lead to the list and initialize its draft state
     // New leads don't have properties or phones yet, so add empty arrays
-    setLeads((prev) => [{ ...lead, properties: [], phones: [] }, ...prev]);
+    setLeads((prev) => [{ ...lead, properties: [], phones: [], smsEligiblePhones: [] }, ...prev]);
     setDrafts((prev) => ({
       ...prev,
       [lead.id]: toLeadDraft(lead),
@@ -1733,15 +1733,36 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                             <span className="text-xl sm:text-base">📞</span>
                             <span>Call</span>
                           </button>
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-muted)] cursor-not-allowed opacity-50 flex items-center gap-3 min-h-[52px]"
-                            title="SMS unavailable until A2P registration complete"
-                          >
-                            <span className="text-xl sm:text-base">💬</span>
-                            <span>SMS <span className="text-xs">(Coming Soon)</span></span>
-                          </button>
+                          {(lead.smsEligiblePhones && lead.smsEligiblePhones.length > 0) ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const phone = lead.smsEligiblePhones[0];
+                                window.location.href = `/admin/comms?replyTo=${encodeURIComponent(phone)}&leadId=${lead.id}`;
+                              }}
+                              className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-navy)] transition hover:bg-black/5 active:bg-black/10 flex items-center gap-3 min-h-[52px]"
+                              title={`SMS available — ${lead.smsEligiblePhones.length} number(s) have texted in`}
+                            >
+                              <span className="text-xl sm:text-base">💬</span>
+                              <span>SMS</span>
+                              {lead.smsEligiblePhones.length > 1 && (
+                                <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                  {lead.smsEligiblePhones.length} numbers
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="w-full px-5 py-3.5 text-left text-base sm:text-sm font-semibold text-[var(--color-muted)] cursor-not-allowed opacity-50 flex items-center gap-3 min-h-[52px]"
+                              title="SMS unavailable — this lead hasn't texted in yet"
+                            >
+                              <span className="text-xl sm:text-base">💬</span>
+                              <span>SMS</span>
+                              <span className="text-xs text-red-500 ml-auto">Not available</span>
+                            </button>
+                          )}
                         <button
                           type="button"
                           onClick={() => openEmailModal(lead.id)}

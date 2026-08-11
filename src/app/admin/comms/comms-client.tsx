@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Voicemail, Message } from "./page";
 
 type Props = {
   initialVoicemails: Voicemail[];
   initialMessages: Message[];
   smsOutboundEnabled: boolean;
+  initialReplyTo?: string;
+  initialLeadId?: string;
 };
 
 type Tab = "voicemails" | "texts";
@@ -21,16 +23,25 @@ export default function CommsClient({
   initialVoicemails,
   initialMessages,
   smsOutboundEnabled,
+  initialReplyTo,
+  initialLeadId,
 }: Props) {
   const [tab, setTab] = useState<Tab>("voicemails");
   const [voicemails, setVoicemails] = useState<Voicemail[]>(initialVoicemails);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [showRead, setShowRead] = useState(false);
 
-  const [replyTo, setReplyTo] = useState("");
+  const [replyTo, setReplyTo] = useState(initialReplyTo || "");
   const [composerBody, setComposerBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+
+  // Auto-switch to texts tab if replyTo is provided
+  useEffect(() => {
+    if (initialReplyTo) {
+      setTab("texts");
+    }
+  }, [initialReplyTo]);
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleString("en-US", {
@@ -155,7 +166,7 @@ export default function CommsClient({
       const response = await fetch("/api/admin/messages/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, body }),
+        body: JSON.stringify({ to, body, leadId: initialLeadId }),
       });
 
       if (!response.ok) {

@@ -30,7 +30,11 @@ export type Message = {
   updated_at: string;
 };
 
-export default async function AdminCommsPage() {
+export default async function AdminCommsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ replyTo?: string; leadId?: string }>;
+}) {
   let supabase;
 
   try {
@@ -53,6 +57,8 @@ export default async function AdminCommsPage() {
   if (!user) {
     redirect("/admin/login");
   }
+
+  const { replyTo, leadId } = await searchParams;
 
   const adminClient = createAdminClient();
   const queryClient = adminClient ?? supabase;
@@ -95,6 +101,8 @@ export default async function AdminCommsPage() {
           initialVoicemails={voicemails}
           initialMessages={messages}
           smsOutboundEnabled={smsOutboundEnabled}
+          initialReplyTo={replyTo}
+          initialLeadId={leadId}
         />
       </div>
     </main>

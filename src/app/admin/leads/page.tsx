@@ -20,6 +20,7 @@ export type LeadAnswer = {
 export type LeadWithProperties = LeadRow & {
   properties: PropertyRow[];
   phones: LeadPhone[];
+  smsEligiblePhones: string[]; // phone numbers that have inbound SMS and are not opted out
 };
 
 export default async function AdminLeadsPage() {
@@ -110,6 +111,60 @@ export default async function AdminLeadsPage() {
   // Attach phones to leads
   leads.forEach((lead) => {
     lead.phones = phonesByLeadId[lead.id] || [];
+  });
+
+  // Fetch SMS eligibility: inbound messages from lead's phone numbers that are not opted out
+  const allPhoneNumbers = (phonesData ?? []).map((p) => p.phone_number);
+  let smsEligibleByLead: Record<string, string[]> = {};
+  
+  if (allPhoneNumbers.length > 0) {
+    // Get opt-outs for these phone numbers
+    const { data: optOuts } = await queryClient
+      .from("sms_opt_outs")
+      .select("phone_number")
+      .in("phone_number", allPhoneNumbers);
+    
+    const optedOutNumbers = new Set((optOuts ?? []).map((o) => o.phone_number));
+    
+    // Get inbound messages from these phone numbers
+    const { data: inboundMessages } = await queryClient
+      .from("sms_messages")
+      .select("from_number")
+      .in("from_number", allPhoneNumbers)
+      .eq("direction", "inbound")
+      .is("deleted_at", null);
+    
+    // Build set of numbers that have inbound messages and are not opted out
+    const numbersWithInbound = new Set(
+      (inboundMessages ?? []).map((m) => m.from_number)
+    );
+
+    // For each lead, determine which of their phone numbers are SMS eligible
+    for (const lead of leads) {
+      const leadPhones = lead.phones || [];
+      
+      // If lead has explicit SMS consent, include their primary phone (leads.phone)
+      const eligibleNumbers = new Set<string>();
+      
+      // Add numbers with inbound messages (from lead_phones)
+      for (const phone of leadPhones) {
+        if (numbersWithInbound.has(phone.phone_number) && !optedOutNumbers.has(phone.phone_number)) {
+          eligibleNumbers.add(phone.phone_number);
+        }
+      }
+      
+      // Also check lead's primary phone (leads.phone) if sms_consent is true
+      if (lead.sms_consent && lead.phone && !optedOutNumbers.has(lead.phone)) {
+        eligibleNumbers.add(lead.phone);
+      }
+      
+      smsEligibleByLead[lead.id] = Array.from(eligibleNumbers);
+    }
+  }
+
+  // Attach SMS eligibility to leads
+  leads.forEach((lead) => {
+    lead.smsEligiblePhones = smsEligibleByLead[lead.id] || [];
   });
 
   // Fetch all lead answers for all leads

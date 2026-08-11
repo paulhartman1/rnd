@@ -43,8 +43,9 @@ export async function POST(request: Request) {
 
   let to: unknown;
   let body: unknown;
+  let leadId: unknown;
   try {
-    ({ to, body } = await request.json());
+    ({ to, body, leadId } = await request.json());
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -58,6 +59,65 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "to and body are required" },
       { status: 400 }
+    );
+  }
+
+  const cleanedTo = to.trim();
+  const trimmedBody = body.trim();
+
+  // Compliance checks
+  // 1. Check if number has opted out
+  const { data: optedOut } = await adminClient
+    .from("sms_opt_outs")
+    .select("id")
+    .eq("phone_number", cleanedTo)
+    .single();
+
+  if (optedOut) {
+    return NextResponse.json(
+      { error: "This number has opted out of SMS messages" },
+      { status: 403 }
+    );
+  }
+
+  // 2. Check for inbound conversation (lead texted in first)
+  // If leadId provided, match against that lead's phone numbers
+  // Otherwise, check any inbound message from this number
+  let inboundCheck;
+  if (typeof leadId === "string" && leadId) {
+    // Match against this specific lead's phone numbers
+    const { data: leadPhones } = await adminClient
+      .from("lead_phones")
+      .select("phone_number")
+      .eq("lead_id", leadId);
+
+    if (leadPhones && leadPhones.length > 0) {
+      const phoneNumbers = leadPhones.map((p) => p.phone_number);
+      const { data: inbound } = await adminClient
+        .from("sms_messages")
+        .select("id")
+        .in("from_number", phoneNumbers)
+        .eq("direction", "inbound")
+        .is("deleted_at", null)
+        .limit(1);
+      inboundCheck = inbound && inbound.length > 0;
+    }
+  } else {
+    // Fallback: check any inbound from this number
+    const { data: inbound } = await adminClient
+      .from("sms_messages")
+      .select("id")
+      .eq("from_number", cleanedTo)
+      .eq("direction", "inbound")
+      .is("deleted_at", null)
+      .limit(1);
+    inboundCheck = inbound && inbound.length > 0;
+  }
+
+  if (!inboundCheck) {
+    return NextResponse.json(
+      { error: "SMS only allowed to numbers that have texted in first" },
+      { status: 403 }
     );
   }
 
@@ -76,9 +136,6 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-
-  const cleanedTo = to.trim();
-  const trimmedBody = body.trim();
 
   try {
     const client =

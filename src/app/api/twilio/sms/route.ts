@@ -2,6 +2,21 @@ import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const STOP_KEYWORDS = ["STOP", "UNSUBSCRIBE"];
+const HELP_KEYWORDS = ["HELP", "INFO"];
+
+function getReplyMessage(body: string | null): string | null {
+  if (!body) return null;
+  const normalized = body.trim().toUpperCase();
+  if (STOP_KEYWORDS.includes(normalized)) {
+    return "You have been unsubscribed from Rush N Dush messages. Reply START to resubscribe.";
+  }
+  if (HELP_KEYWORDS.includes(normalized)) {
+    return "Rush N Dush: We buy houses for cash. For help, call 720-897-5219 or visit rushndush.com. Reply STOP to opt out.";
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const adminClient = createAdminClient();
@@ -72,6 +87,26 @@ export async function POST(request: Request) {
         { error: "Failed to store SMS message" },
         { status: 500 },
       );
+    }
+
+    // Handle STOP/UNSUBSCRIBE/HELP keywords
+    const replyBody = getReplyMessage(body);
+    if (replyBody) {
+      if (STOP_KEYWORDS.includes(body?.trim().toUpperCase() ?? "")) {
+        // Record opt-out
+        await adminClient.from("sms_opt_outs").upsert({
+          phone_number: fromNumber,
+          opted_out_at: new Date().toISOString(),
+          message_sid: messageSid,
+        }, { onConflict: "phone_number" });
+      }
+
+      // Return TwiML with auto-reply
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${replyBody}</Message></Response>`;
+      return new NextResponse(twiml, {
+        status: 200,
+        headers: { "Content-Type": "text/xml; charset=utf-8" },
+      });
     }
 
     // Return empty TwiML response to acknowledge receipt
