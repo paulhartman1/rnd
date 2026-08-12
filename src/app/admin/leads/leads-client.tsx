@@ -139,7 +139,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     success: false,
   });
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
-  const [bulkImportStep, setBulkImportStep] = useState<'choose' | 'upload' | 'pull'>('choose');
+  const [bulkImportStep, setBulkImportStep] = useState<'choose' | 'upload' | 'pull' | 'skiptrace'>('choose');
   const [bulkImportDraft, setBulkImportDraft] = useState({
     file: null as File | null,
     createLeads: true,
@@ -158,6 +158,28 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
       campaignName?: string;
       skippedRows?: Array<{ row: number; reason: string; data?: string }>;
     } | null,
+  });
+  type SkipTraceResult = {
+    dryRun: boolean;
+    total: number;
+    matched: number;
+    matched_no_lead: number;
+    unmatched: number;
+    ambiguous: number;
+    malformed: number;
+    phones_added: number;
+    emails_added: number;
+    dupes_ignored: number;
+    unmatchedRows?: Array<{ apn: string | null; state: string | null; county: string | null; owner: string | null; reason?: string }>;
+    ambiguousRows?: Array<{ apn: string | null; state: string | null; county: string | null; owner: string | null; reason?: string; candidateLeadIds?: string[] }>;
+    malformedRows?: Array<{ apn: string | null; state: string | null; county: string | null; owner: string | null; reason?: string }>;
+  };
+  const [skipTraceDraft, setSkipTraceDraft] = useState({
+    file: null as File | null,
+    isRunning: false,
+    error: null as string | null,
+    preview: null as SkipTraceResult | null,
+    result: null as SkipTraceResult | null,
   });
   const [attomPullDraft, setAttomPullDraft] = useState({
     minScore: 70,
@@ -738,6 +760,13 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
       success: false,
       result: null,
     });
+    setSkipTraceDraft({
+      file: null,
+      isRunning: false,
+      error: null,
+      preview: null,
+      result: null,
+    });
     setAttomPullDraft({
       minScore: 70,
       maxCount: 50,
@@ -791,6 +820,54 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
     setTimeout(() => {
       window.location.reload();
     }, 2000);
+  };
+
+  // Skip-trace enrichment import (distinct from property import — never creates leads)
+  const runSkipTrace = async (dryRun: boolean) => {
+    if (!skipTraceDraft.file) {
+      setSkipTraceDraft((prev) => ({ ...prev, error: "Please select a file" }));
+      return;
+    }
+
+    setSkipTraceDraft((prev) => ({ ...prev, isRunning: true, error: null }));
+
+    const formData = new FormData();
+    formData.append("file", skipTraceDraft.file);
+    formData.append("dryRun", dryRun.toString());
+
+    try {
+      const response = await fetch("/api/admin/leads/skip-trace-import", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        setSkipTraceDraft((prev) => ({
+          ...prev,
+          isRunning: false,
+          error: body?.error ?? "Skip-trace import failed. Please try again.",
+        }));
+        return;
+      }
+
+      const result = (await response.json()) as SkipTraceResult;
+      setSkipTraceDraft((prev) => ({
+        ...prev,
+        isRunning: false,
+        error: null,
+        preview: dryRun ? result : prev.preview,
+        result: dryRun ? null : result,
+      }));
+    } catch {
+      setSkipTraceDraft((prev) => ({
+        ...prev,
+        isRunning: false,
+        error: "Skip-trace import failed. Please try again.",
+      }));
+    }
   };
 
   const loadAvailableZipcodes = async () => {
@@ -2328,7 +2405,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[1.4rem] border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
             <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
-              {bulkImportStep === 'choose' ? 'Bulk Import Leads' : bulkImportStep === 'upload' ? 'Import from CSV' : 'Pull from Attom API'}
+              {bulkImportStep === 'choose' ? 'Bulk Import Leads' : bulkImportStep === 'upload' ? 'Import from CSV' : bulkImportStep === 'skiptrace' ? 'BatchLeads Skip Trace' : 'Pull from Attom API'}
             </h3>
 
             {bulkImportStep === 'choose' && (
@@ -2346,6 +2423,17 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                     <h4 className="font-bold text-[var(--color-navy)]">Upload CSV / Excel File</h4>
                     <p className="mt-1 text-sm text-[var(--color-muted)]">
                       Import leads from a BatchLeads CSV or Excel file
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkImportStep('skiptrace')}
+                    className="w-full rounded-lg border-2 border-black/10 p-5 text-left transition hover:border-[var(--color-primary-gold)] hover:bg-[var(--color-surface-soft)]"
+                  >
+                    <div className="mb-2 text-2xl">🔎</div>
+                    <h4 className="font-bold text-[var(--color-navy)]">BatchLeads Skip Trace (enrich existing)</h4>
+                    <p className="mt-1 text-sm text-[var(--color-muted)]">
+                      Match a skip-trace report to existing properties by state + county + APN and add phone/email contact data. Does not create new leads.
                     </p>
                   </button>
                   <button
@@ -2680,17 +2768,152 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
                 >
                   {bulkImportDraft.success ? "Close" : "Cancel"}
                 </button>
-              </div>
-            </div>
+               </div>
+             </div>
+               </>
+             )}
+
+            {bulkImportStep === 'skiptrace' && (
+              <>
+                <p className="mb-4 text-sm text-[var(--color-muted)]">
+                  Upload a BatchLeads skip-trace report. Each row is matched to an
+                  existing property by <strong>state + county + APN</strong> and its
+                  phone/email data is added. This never creates new leads or properties.
+                </p>
+
+                <div className="space-y-4">
+                  <input
+                    type="file"
+                    accept=".csv,.tsv,.xlsx,.xls"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSkipTraceDraft((prev) => ({ ...prev, file, error: null, preview: null, result: null }));
+                    }}
+                    className="w-full rounded-lg border border-black/12 px-3 py-2 text-sm"
+                  />
+                  {skipTraceDraft.file && (
+                    <p className="text-xs text-[var(--color-muted)]">
+                      Selected: {skipTraceDraft.file.name} ({(skipTraceDraft.file.size / 1024).toFixed(1)} KB)
+                    </p>
+                  )}
+
+                  {skipTraceDraft.error && (
+                    <p className="text-sm text-red-700">{skipTraceDraft.error}</p>
+                  )}
+
+                  {(skipTraceDraft.preview || skipTraceDraft.result) && (() => {
+                    const r = (skipTraceDraft.result ?? skipTraceDraft.preview)!;
+                    return (
+                      <div className="rounded-lg border border-black/10 bg-[var(--color-surface-soft)] p-4 text-sm">
+                        <p className="mb-2 font-bold text-[var(--color-navy)]">
+                          {skipTraceDraft.result ? "Import complete" : "Preview (no changes written)"}
+                        </p>
+                        <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--color-ink)]">
+                          <li>Total rows: {r.total}</li>
+                          <li>Matched: {r.matched}</li>
+                          <li>Matched (no lead): {r.matched_no_lead}</li>
+                          <li>Unmatched: {r.unmatched}</li>
+                          <li>Ambiguous: {r.ambiguous}</li>
+                          <li>Malformed: {r.malformed}</li>
+                          <li>Phones added: {r.phones_added}</li>
+                          <li>Emails added: {r.emails_added}</li>
+                          <li>Duplicates ignored: {r.dupes_ignored}</li>
+                        </ul>
+
+                        {r.ambiguousRows && r.ambiguousRows.length > 0 && (
+                          <details className="mt-3">
+                            <summary className="cursor-pointer font-semibold text-amber-700">
+                              Ambiguous ({r.ambiguousRows.length}) — review manually
+                            </summary>
+                            <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs">
+                              {r.ambiguousRows.map((row, i) => (
+                                <li key={i} className="border-b border-black/5 pb-1">
+                                  {row.state}/{row.county}/{row.apn} — {row.owner || "(no name)"} — {row.reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
+                        {r.unmatchedRows && r.unmatchedRows.length > 0 && (
+                          <details className="mt-3">
+                            <summary className="cursor-pointer font-semibold text-[var(--color-muted)]">
+                              Unmatched ({r.unmatchedRows.length})
+                            </summary>
+                            <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs">
+                              {r.unmatchedRows.map((row, i) => (
+                                <li key={i} className="border-b border-black/5 pb-1">
+                                  {row.state}/{row.county}/{row.apn} — {row.owner || "(no name)"} — {row.reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
+                        {r.malformedRows && r.malformedRows.length > 0 && (
+                          <details className="mt-3">
+                            <summary className="cursor-pointer font-semibold text-red-700">
+                              Malformed ({r.malformedRows.length})
+                            </summary>
+                            <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs">
+                              {r.malformedRows.map((row, i) => (
+                                <li key={i} className="border-b border-black/5 pb-1">
+                                  {row.state || "?"}/{row.county || "?"}/{row.apn || "?"} — {row.reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setBulkImportStep('choose')}
+                    disabled={skipTraceDraft.isRunning}
+                    className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:opacity-45"
+                  >
+                    Back
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => runSkipTrace(true)}
+                      disabled={!skipTraceDraft.file || skipTraceDraft.isRunning || !!skipTraceDraft.result}
+                      className="rounded-lg border border-[var(--color-navy)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {skipTraceDraft.isRunning ? "Working..." : "Preview"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => runSkipTrace(false)}
+                      disabled={!skipTraceDraft.file || skipTraceDraft.isRunning || !!skipTraceDraft.result}
+                      className="rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {skipTraceDraft.result ? "Imported!" : "Run Import"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeBulkImportModal}
+                      disabled={skipTraceDraft.isRunning}
+                      className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:opacity-45"
+                    >
+                      {skipTraceDraft.result ? "Close" : "Cancel"}
+                    </button>
+                  </div>
+                </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-        </>
-      ) : (
-        <>
-          {/* Map View */}
+           </div>
+         </div>
+       )}
+         </>
+       ) : (
+         <>
+           {/* Map View */}
           <div className="rounded-[1.4rem] border border-black/6 bg-white overflow-hidden shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
             <div className="h-[calc(100vh-280px)] min-h-[500px]">
               {isLoadingMap ? (

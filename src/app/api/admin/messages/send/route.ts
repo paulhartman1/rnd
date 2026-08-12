@@ -3,6 +3,12 @@ import twilio from "twilio";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  // Remove leading 1 (US country code) if 11 digits
+  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+}
+
 export async function POST(request: Request) {
   let supabase;
   try {
@@ -80,27 +86,52 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Check for inbound conversation (lead texted in first)
-  // If leadId provided, match against that lead's phone numbers
+  // 2. Check for inbound conversation OR explicit consent
+  // If leadId provided, check consent + all lead phones, then inbound messages
   // Otherwise, check any inbound message from this number
-  let inboundCheck;
+  let allowed = false;
   if (typeof leadId === "string" && leadId) {
-    // Match against this specific lead's phone numbers
+    // Fetch lead consent flag and primary phone
+    const { data: lead } = await adminClient
+      .from("leads")
+      .select("sms_consent, phone")
+      .eq("id", leadId)
+      .single();
+
+    // Fetch all lead phones
     const { data: leadPhones } = await adminClient
       .from("lead_phones")
       .select("phone_number")
       .eq("lead_id", leadId);
 
-    if (leadPhones && leadPhones.length > 0) {
-      const phoneNumbers = leadPhones.map((p) => p.phone_number);
-      const { data: inbound } = await adminClient
-        .from("sms_messages")
-        .select("id")
-        .in("from_number", phoneNumbers)
-        .eq("direction", "inbound")
-        .is("deleted_at", null)
-        .limit(1);
-      inboundCheck = inbound && inbound.length > 0;
+    // Build normalized set of ALL lead phone numbers
+    const allLeadPhones = new Set<string>();
+    if (lead?.phone) allLeadPhones.add(normalizePhone(lead.phone));
+    if (leadPhones) {
+      for (const p of leadPhones) {
+        allLeadPhones.add(normalizePhone(p.phone_number));
+      }
+    }
+
+    // Check if "to" number matches ANY lead phone AND lead has consent
+    const normalizedTo = normalizePhone(cleanedTo);
+    const consentMatch = lead?.sms_consent === true && allLeadPhones.has(normalizedTo);
+
+    if (consentMatch) {
+      allowed = true;
+    } else {
+      // Fall back to inbound conversation check
+      if (leadPhones && leadPhones.length > 0) {
+        const phoneNumbers = leadPhones.map((p) => p.phone_number);
+        const { data: inbound } = await adminClient
+          .from("sms_messages")
+          .select("id")
+          .in("from_number", phoneNumbers)
+          .eq("direction", "inbound")
+          .is("deleted_at", null)
+          .limit(1);
+        allowed = !!inbound && inbound.length > 0;
+      }
     }
   } else {
     // Fallback: check any inbound from this number
@@ -111,12 +142,12 @@ export async function POST(request: Request) {
       .eq("direction", "inbound")
       .is("deleted_at", null)
       .limit(1);
-    inboundCheck = inbound && inbound.length > 0;
+    allowed = !!inbound && inbound.length > 0;
   }
 
-  if (!inboundCheck) {
+  if (!allowed) {
     return NextResponse.json(
-      { error: "SMS only allowed to numbers that have texted in first" },
+      { error: "SMS only allowed to numbers that have texted in first or have given consent" },
       { status: 403 }
     );
   }
