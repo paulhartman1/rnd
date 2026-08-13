@@ -2,6 +2,7 @@ import Image from "next/image";
 import { FaHouseChimneyWindow, FaBusinessTime, FaMoneyBillWave, FaHandshakeAngle } from "react-icons/fa6";
 import NavCtaLink from "./nav-cta-link";
 import TestimonialCarousel from "./testimonial-carousel";
+import HowItWorksCarousel from "./how-it-works-carousel";
 import SecretAdminLink from "@/components/SecretAdminLink";
 
 const primaryLinks = [
@@ -247,17 +248,7 @@ export default function Home() {
               Four simple steps to sell your house fast
             </h2>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {steps.map((step) => (
-              <article key={step.number} className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-brand)] text-lg font-black text-[var(--color-navy)]">
-                  {step.number}
-                </div>
-                <h3 className="mt-5 text-xl font-bold">{step.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-white/72">{step.description}</p>
-              </article>
-            ))}
-          </div>
+          <HowItWorksCarousel steps={steps} />
         </div>
       </section>
 
@@ -265,7 +256,7 @@ export default function Home() {
         data-nav-section
         className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20"
       >
-        <div className="rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
+        <div className="order-2 rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8 lg:order-1">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">About us</p>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
           We started this business in 2025 with one simple goal — to help people who need a real solution when it comes to 
@@ -281,7 +272,9 @@ export default function Home() {
           </p>                    
         </div>
 
-        <TestimonialCarousel />
+        <div className="order-1 lg:order-2">
+          <TestimonialCarousel />
+        </div>
       </section>
 {/*       <section id="faqs" data-nav-section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">

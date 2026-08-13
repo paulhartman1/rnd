@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa6";
 import type { Review } from "@/lib/reviews";
 
 interface Testimonial {
@@ -60,6 +61,14 @@ export default function TestimonialCarousel() {
     setTimeout(() => setIsPaused(false), 10000);
   };
 
+  const goToPrev = () => {
+    goToSlide((currentIndex - 1 + testimonials.length) % testimonials.length);
+  };
+
+  const goToNext = () => {
+    goToSlide((currentIndex + 1) % testimonials.length);
+  };
+
   if (isLoading) {
     return (
       <aside className="rounded-[2rem] bg-[linear-gradient(180deg,#fff_0%,#f8f4ea_100%)] p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
@@ -81,10 +90,26 @@ export default function TestimonialCarousel() {
 
   return (
     <aside
-      className="rounded-[2rem] bg-[linear-gradient(180deg,#fff_0%,#f8f4ea_100%)] p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8"
+      className="group relative rounded-[2rem] bg-[linear-gradient(180deg,#fff_0%,#f8f4ea_100%)] p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
+      <button
+        type="button"
+        onClick={goToPrev}
+        className="absolute left-3 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/85 p-2.5 text-[var(--color-navy)] shadow-md transition hover:bg-white lg:flex lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+        aria-label="Previous testimonial"
+      >
+        <FaChevronLeft className="h-4 w-4" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={goToNext}
+        className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/85 p-2.5 text-[var(--color-navy)] shadow-md transition hover:bg-white lg:flex lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+        aria-label="Next testimonial"
+      >
+        <FaChevronRight className="h-4 w-4" aria-hidden="true" />
+      </button>
       <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
         What homeowners say
       </p>
@@ -104,8 +129,8 @@ export default function TestimonialCarousel() {
             onClick={() => goToSlide(index)}
             className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
               index === currentIndex
-                ? "bg-[var(--color-accent)] w-6"
-                : "bg-black/10 hover:bg-black/20"
+                ? "w-6 bg-[var(--color-accent)]"
+                : "bg-[var(--color-muted)]/50 hover:bg-[var(--color-muted)]/70"
             }`}
             aria-label={`Go to testimonial ${index + 1}`}
             aria-current={index === currentIndex ? "true" : "false"}
