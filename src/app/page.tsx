@@ -148,6 +148,22 @@ export default function Home() {
       </section>
 
       <section
+        aria-labelledby="fit-heading"
+        className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 bg-[var(--color-surface-soft)]/50 border-t border-black/5 border-b border-black/5"
+      >
+        <div className="mx-auto max-w-2xl text-center">
+          <p id="fit-heading" className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
+            Is selling directly right for you?
+          </p>
+          <p className="mt-2.5 text-base leading-6 text-[var(--color-muted)]">
+            Selling directly to Rush N Dush may make sense if you need speed, the property needs work,
+            or you value certainty over top dollar. If you have time to list traditionally and maximizing
+            price is the priority, a traditional sale may be the better path.
+          </p>
+        </div>
+      </section>
+
+      <section
         id="why-us"
         data-nav-section
         className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20"
