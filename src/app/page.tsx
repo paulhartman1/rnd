@@ -197,6 +197,48 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <section
+        aria-labelledby="not-fit-heading"
+        className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 bg-[var(--color-surface-soft)]/50 border-t border-black/5 border-b border-black/5"
+      >
+        <div className="mx-auto max-w-3xl text-center">
+          <p id="not-fit-heading" className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
+            This isn&apos;t the right fit if&hellip;
+          </p>
+          <p className="mt-3 text-base leading-7 text-[var(--color-muted)]">
+            We believe in being honest and upfront, because the right solution depends on your goals, not everyone
+            needs the same path to sell their home.
+          </p>
+          <ol className="mt-5 space-y-4 text-left text-base leading-7 text-[var(--color-muted)]">
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">1.</span>
+              <span>Your home is fully renovated and ready to sell at top market value. If your property is in
+              excellent condition and you&apos;re aiming to maximize price, listing on the open market may help you
+              capture more upside.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">2.</span>
+              <span>You&apos;re planning to list with a real estate agent. If you enjoy the traditional selling
+              process &mdash; showings, negotiations, and waiting for the right buyer &mdash; working with an agent
+              could be a better choice.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">3.</span>
+              <span>You have plenty of time and want to test the open market first. If there&apos;s no urgency and
+              you&apos;re comfortable waiting weeks or months for the right offer, a traditional listing may make
+              more sense.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">4.</span>
+              <span>Maximizing price is your top priority. Our process is designed for speed, simplicity, and
+              certainty. If squeezing out every last dollar matters more than convenience and peace of mind, this
+              likely isn&apos;t the right path.</span>
+            </li>
+          </ol>
+        </div>
+      </section>
+
       <section id="how-it-works" data-nav-section className="bg-[var(--color-navy)] py-14 text-white lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
