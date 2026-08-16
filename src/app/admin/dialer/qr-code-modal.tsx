@@ -1,44 +1,89 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import QRCodeStyling from "qr-code-styling";
 
 type Props = {
   onClose: () => void;
 };
 
+const DEFAULT_DESTINATION = "https://www.rushndush.com";
+
 export default function QRCodeModal({ onClose }: Props) {
-  const [qrUuid, setQrUuid] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
-  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const generatedUuidRef = useRef<string | null>(null);
 
   const defaultUuid = useMemo(() => crypto.randomUUID(), []);
 
   const handleGenerate = async () => {
     setError(null);
-    setQrUrl(null);
+    setPreviewUrl(null);
     setIsGenerating(true);
 
     try {
-      const uuid = qrUuid ?? defaultUuid;
-      setQrUuid(uuid);
-      const dest = destination || "https://www.rushndush.com";
+      const uuid = generatedUuidRef.current ?? defaultUuid;
+      generatedUuidRef.current = uuid;
 
+      const dest = destination || DEFAULT_DESTINATION;
+      let parsed: URL;
+      try {
+        parsed = new URL(dest);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          throw new Error("Invalid protocol");
+        }
+      } catch {
+        setError("Invalid destination URL");
+        return;
+      }
+      parsed.searchParams.set("qr", uuid);
+
+      const logoResponse = await fetch("/logo.png");
+      if (!logoResponse.ok) {
+        throw new Error("Could not load logo image");
+      }
+      const logoBlob = await logoResponse.blob();
+      const logoDataUrl = await blobToDataUrl(logoBlob);
+
+      const qr = new QRCodeStyling({
+        width: 300,
+        height: 300,
+        type: "svg",
+        data: parsed.toString(),
+        image: logoDataUrl,
+        margin: 5,
+        qrOptions: { errorCorrectionLevel: "H" },
+        dotsOptions: { color: "#cb9b2d", type: "rounded" },
+        backgroundOptions: { color: "#122c3d" },
+        imageOptions: {
+          imageSize: 0.3,
+          margin: 2,
+          hideBackgroundDots: true,
+          saveAsBlob: true,
+        },
+      });
+
+      const raw = await qr.getRawData("svg");
+      if (!raw) {
+        throw new Error("Failed to render QR code");
+      }
+      const blob = raw instanceof Blob ? raw : new Blob([raw as BlobPart]);
+      setPreviewUrl(URL.createObjectURL(blob));
+
+      const svgText = await blob.text();
       const response = await fetch("/api/admin/qr-codes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destination: dest, uuid }),
+        body: JSON.stringify({ uuid, destination: parsed.toString(), svg: svgText }),
       });
 
       const data = await response.json();
-
       if (!response.ok) {
-        setError(data.error || "Failed to generate QR code");
+        setError(data.error || "Failed to save QR code");
         return;
       }
-
-      setQrUrl(data.url);
     } catch (e) {
       console.error("QR generation error:", e);
       setError("Failed to generate QR code");
@@ -48,10 +93,10 @@ export default function QRCodeModal({ onClose }: Props) {
   };
 
   const handleDownload = async () => {
-    if (!qrUrl) return;
+    if (!previewUrl) return;
 
     try {
-      const response = await fetch(qrUrl);
+      const response = await fetch(previewUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -66,8 +111,6 @@ export default function QRCodeModal({ onClose }: Props) {
       setError("Failed to download QR code");
     }
   };
-
-  const defaultDestination = "https://www.rushndush.com";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -92,7 +135,7 @@ export default function QRCodeModal({ onClose }: Props) {
               type="url"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              placeholder={defaultDestination}
+              placeholder={DEFAULT_DESTINATION}
               className="w-full px-3 py-2 border rounded"
             />
           </div>
@@ -106,13 +149,13 @@ export default function QRCodeModal({ onClose }: Props) {
             </div>
           )}
 
-          {qrUrl && (
+          {previewUrl && (
             <div className="flex flex-col items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={qrUrl}
+                src={previewUrl}
                 alt="QR code"
-                className="w-48 h-48 rounded border bg-white"
+                className="w-48 h-48 rounded border"
               />
               <button
                 onClick={handleDownload}
@@ -123,7 +166,7 @@ export default function QRCodeModal({ onClose }: Props) {
             </div>
           )}
 
-          {!qrUrl && (
+          {!previewUrl && (
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
@@ -136,4 +179,13 @@ export default function QRCodeModal({ onClose }: Props) {
       </div>
     </div>
   );
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.readAsDataURL(blob);
+  });
 }
