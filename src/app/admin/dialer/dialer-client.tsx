@@ -6,6 +6,7 @@ import type { LeadStatus } from "@/lib/leads";
 import { leadStatuses } from "@/lib/leads";
 import type { LeadPhone, PhoneValidationStatus } from "@/lib/lead-phones";
 import PhoneSelector from "./phone-selector";
+import QRCodeModal from "./qr-code-modal";
 
 type Agent = {
   user_id: string;
@@ -100,6 +101,7 @@ export default function DialerClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+  const [showQrCodeModal, setShowQrCodeModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<string | null>(null);
   const [editingAgent, setEditingAgent] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1168,13 +1170,23 @@ export default function DialerClient() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold">Campaigns</h2>
-            <button
-              onClick={() => setShowCreateCampaign(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Create Campaign
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowQrCodeModal(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Create QR Code
+              </button>
+              <button
+                onClick={() => setShowCreateCampaign(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Create Campaign
+              </button>
+            </div>
           </div>
+
+          {showQrCodeModal && <QRCodeModal onClose={() => setShowQrCodeModal(false)} />}
 
           {showCreateCampaign && (
             <div className="bg-white p-6 rounded-lg shadow border">

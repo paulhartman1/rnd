@@ -2,6 +2,7 @@ import Image from "next/image";
 import { FaHouseChimneyWindow, FaBusinessTime, FaMoneyBillWave, FaHandshakeAngle } from "react-icons/fa6";
 import NavCtaLink from "./nav-cta-link";
 import TestimonialCarousel from "./testimonial-carousel";
+import HowItWorksCarousel from "./how-it-works-carousel";
 import SecretAdminLink from "@/components/SecretAdminLink";
 
 const primaryLinks = [
@@ -148,6 +149,22 @@ export default function Home() {
       </section>
 
       <section
+        aria-labelledby="fit-heading"
+        className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 bg-[var(--color-surface-soft)]/50 border-t border-black/5 border-b border-black/5"
+      >
+        <div className="mx-auto max-w-2xl text-center">
+          <p id="fit-heading" className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
+            Is selling directly right for you?
+          </p>
+          <p className="mt-2.5 text-base leading-6 text-[var(--color-muted)]">
+            Selling directly to Rush N Dush may make sense if you need speed, the property needs work,
+            or you value certainty over top dollar. If you have time to list traditionally and maximizing
+            price is the priority, a traditional sale may be the better path.
+          </p>
+        </div>
+      </section>
+
+      <section
         id="why-us"
         data-nav-section
         className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20"
@@ -181,6 +198,48 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <section
+        aria-labelledby="not-fit-heading"
+        className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 bg-[var(--color-surface-soft)]/50 border-t border-black/5 border-b border-black/5"
+      >
+        <div className="mx-auto max-w-3xl text-center">
+          <p id="not-fit-heading" className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">
+            This isn&apos;t the right fit if&hellip;
+          </p>
+          <p className="mt-3 text-base leading-7 text-[var(--color-muted)]">
+            We believe in being honest and upfront, because the right solution depends on your goals, not everyone
+            needs the same path to sell their home.
+          </p>
+          <ol className="mt-5 space-y-4 text-left text-base leading-7 text-[var(--color-muted)]">
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">1.</span>
+              <span>Your home is fully renovated and ready to sell at top market value. If your property is in
+              excellent condition and you&apos;re aiming to maximize price, listing on the open market may help you
+              capture more upside.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">2.</span>
+              <span>You&apos;re planning to list with a real estate agent. If you enjoy the traditional selling
+              process &mdash; showings, negotiations, and waiting for the right buyer &mdash; working with an agent
+              could be a better choice.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">3.</span>
+              <span>You have plenty of time and want to test the open market first. If there&apos;s no urgency and
+              you&apos;re comfortable waiting weeks or months for the right offer, a traditional listing may make
+              more sense.</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-bold text-[var(--color-navy)] flex-shrink-0">4.</span>
+              <span>Maximizing price is your top priority. Our process is designed for speed, simplicity, and
+              certainty. If squeezing out every last dollar matters more than convenience and peace of mind, this
+              likely isn&apos;t the right path.</span>
+            </li>
+          </ol>
+        </div>
+      </section>
+
       <section id="how-it-works" data-nav-section className="bg-[var(--color-navy)] py-14 text-white lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
@@ -189,17 +248,7 @@ export default function Home() {
               Four simple steps to sell your house fast
             </h2>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {steps.map((step) => (
-              <article key={step.number} className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-brand)] text-lg font-black text-[var(--color-navy)]">
-                  {step.number}
-                </div>
-                <h3 className="mt-5 text-xl font-bold">{step.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-white/72">{step.description}</p>
-              </article>
-            ))}
-          </div>
+          <HowItWorksCarousel steps={steps} />
         </div>
       </section>
 
@@ -207,7 +256,7 @@ export default function Home() {
         data-nav-section
         className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20"
       >
-        <div className="rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
+        <div className="order-2 rounded-[2rem] bg-white p-7 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8 lg:order-1">
           <p className="text-sm font-bold uppercase tracking-[0.24em] text-[var(--color-accent)]">About us</p>
           <p className="mt-4 text-base leading-7 text-[var(--color-muted)]">
           We started this business in 2025 with one simple goal — to help people who need a real solution when it comes to 
@@ -223,7 +272,9 @@ export default function Home() {
           </p>                    
         </div>
 
-        <TestimonialCarousel />
+        <div className="order-1 lg:order-2">
+          <TestimonialCarousel />
+        </div>
       </section>
 {/*       <section id="faqs" data-nav-section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)] sm:p-8">
