@@ -140,6 +140,7 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
   });
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [bulkImportStep, setBulkImportStep] = useState<'choose' | 'upload' | 'pull' | 'skiptrace'>('choose');
+  const [showExportCsv, setShowExportCsv] = useState(false);
   const [bulkImportDraft, setBulkImportDraft] = useState({
     file: null as File | null,
     createLeads: true,
@@ -1063,6 +1064,14 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
           )}
           <button
             type="button"
+            onClick={() => setShowExportCsv(true)}
+            className="flex-1 sm:flex-initial rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
+          >
+            <span className="hidden sm:inline">📥 Export CSV</span>
+            <span className="sm:hidden">📥 CSV</span>
+          </button>
+          <button
+            type="button"
             onClick={openCreateLeadModal}
             className="flex-1 sm:flex-initial rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
           >
@@ -1078,6 +1087,38 @@ export default function LeadsClient({ initialLeads, leadAnswers, canBulkImport, 
             {isSigningOut ? "..." : "Sign out"}
           </button>
         </div>
+
+        {showExportCsv && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="max-w-sm w-full rounded-lg border border-black/6 bg-white p-6 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
+              <h3 className="mb-4 text-xl font-black text-[var(--color-navy)]">
+                Export Leads CSV
+              </h3>
+              <p className="mb-6 text-sm text-[var(--color-muted)]">
+                Generating CSV with lead, contact, and property information. This may take a moment for large datasets.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportCsv(false);
+                    window.location.href = "/api/admin/leads/export-csv";
+                  }}
+                  className="flex-1 rounded-lg bg-[var(--color-primary-gold)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
+                >
+                  Generate and Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowExportCsv(false)}
+                  className="rounded-lg border border-black/12 px-4 py-2 text-sm font-bold text-[var(--color-navy)] transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {viewMode === 'list' && (
